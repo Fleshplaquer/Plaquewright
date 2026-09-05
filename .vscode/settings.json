@@ -1,0 +1,17 @@
+{
+    "files.autoSave": "onFocusChange",
+    "workbench.startupEditor": "none",
+
+    "[csharp]": {
+        "editor.formatOnSave": true
+    },
+
+    "files.exclude": {
+        "**/.godot": true,
+        "**/*.import": true
+    },
+
+    "search.exclude": {
+        "**/.godot": true
+    }
+}
