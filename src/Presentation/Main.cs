@@ -1,11 +1,12 @@
 using Godot;
+using Idler.Core;
 
-namespace IdleGodot.Presentation;
+namespace IdleGodot;
 
-public partial class Main : Control
+public partial class Main : Node
 {
 	public override void _Ready()
 	{
-		GD.Print("Idle Godot started.");
+		GD.Print(CoreInfo.Name);
 	}
 }
