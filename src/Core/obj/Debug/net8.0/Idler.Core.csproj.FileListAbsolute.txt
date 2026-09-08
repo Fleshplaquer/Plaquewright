@@ -1,0 +1,11 @@
+C:\Users\JaWa\projekts\Idler\idle-godot\src\Core\bin\Debug\net8.0\Idler.Core.deps.json
+C:\Users\JaWa\projekts\Idler\idle-godot\src\Core\bin\Debug\net8.0\Idler.Core.dll
+C:\Users\JaWa\projekts\Idler\idle-godot\src\Core\bin\Debug\net8.0\Idler.Core.pdb
+C:\Users\JaWa\projekts\Idler\idle-godot\src\Core\obj\Debug\net8.0\Idler.Core.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\JaWa\projekts\Idler\idle-godot\src\Core\obj\Debug\net8.0\Idler.Core.AssemblyInfoInputs.cache
+C:\Users\JaWa\projekts\Idler\idle-godot\src\Core\obj\Debug\net8.0\Idler.Core.AssemblyInfo.cs
+C:\Users\JaWa\projekts\Idler\idle-godot\src\Core\obj\Debug\net8.0\Idler.Core.csproj.CoreCompileInputs.cache
+C:\Users\JaWa\projekts\Idler\idle-godot\src\Core\obj\Debug\net8.0\Idler.Core.dll
+C:\Users\JaWa\projekts\Idler\idle-godot\src\Core\obj\Debug\net8.0\refint\Idler.Core.dll
+C:\Users\JaWa\projekts\Idler\idle-godot\src\Core\obj\Debug\net8.0\Idler.Core.pdb
+C:\Users\JaWa\projekts\Idler\idle-godot\src\Core\obj\Debug\net8.0\ref\Idler.Core.dll
