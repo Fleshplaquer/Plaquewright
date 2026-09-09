@@ -2,7 +2,7 @@ using Idler.Core.Resources;
 
 namespace Idler.Core.Tests.Resources;
 
-public sealed class ResourceStateOperationsInvariantTests
+public sealed class ResourceOperationsInvariantTests
 {
     [Fact]
     public void RepresentativeLossOperations_PreserveAllInvariants()

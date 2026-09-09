@@ -29,6 +29,18 @@ public sealed class TagRequirementDefinitionTests
     }
 
     [Fact]
+    public void Constructor_WithUnknownMode_Throws()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () =>
+                new TagRequirementDefinition(
+                    (TagRequirementMode)999,
+                    [
+                        TagKey.Parse("damage.fire")
+                    ]));
+    }
+
+    [Fact]
     public void Constructor_CopiesProvidedCollection()
     {
         var tags = new[]

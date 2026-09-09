@@ -2,7 +2,7 @@ using Idler.Core.Resources;
 
 namespace Idler.Core.Tests.Resources;
 
-public sealed class ResourceStateOperationsValidationTests
+public sealed class ResourceOperationsValidationTests
 {
     [Theory]
     [InlineData(-1d)]

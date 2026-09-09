@@ -12,10 +12,18 @@ public sealed class TagRequirementDefinition
     public IReadOnlyList<TagKey> Tags => _tags;
 
     public TagRequirementDefinition(
-        TagRequirementMode mode,
-        IEnumerable<TagKey> tags)
+    TagRequirementMode mode,
+    IEnumerable<TagKey> tags)
     {
         ArgumentNullException.ThrowIfNull(tags);
+
+        if (!Enum.IsDefined(mode))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(mode),
+                mode,
+                "Unknown tag requirement mode.");
+        }
 
         Mode = mode;
 
