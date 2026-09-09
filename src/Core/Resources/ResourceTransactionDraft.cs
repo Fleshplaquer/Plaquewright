@@ -149,6 +149,47 @@ internal sealed class ResourceTransactionDraft
         return preview;
     }
 
+    internal ProjectedResourceValues GetProjectedValues(
+    ResourceStateTarget target)
+    {
+        ArgumentNullException.ThrowIfNull(
+            target);
+
+        if (!ReferenceEquals(
+                target.ResourceRegistry,
+                _registry))
+        {
+            throw new ArgumentException(
+                "Resource target belongs to a different resource registry.",
+                nameof(target));
+        }
+
+        foreach (var projection in Projections)
+        {
+            if (!ReferenceEquals(
+                    projection.OriginalState,
+                    target.State))
+            {
+                continue;
+            }
+
+            return new ProjectedResourceValues(
+                target.ResourceId,
+                projection.Current,
+                projection.Maximum,
+                isProjected: true);
+        }
+
+        return new ProjectedResourceValues(
+            target.ResourceId,
+            target.State.Current,
+            target.State.Maximum,
+            isProjected: false);
+    }
+
+    internal CompiledResourceRegistry ResourceRegistry =>
+    _registry;
+
     private void ValidateTarget(
         ResourceStateTarget target)
     {
