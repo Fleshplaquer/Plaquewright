@@ -1,5 +1,6 @@
 using Idler.Core.Entities;
 using Idler.Core.Resources;
+using Idler.Core.Combat;
 
 namespace Idler.Core.Simulation;
 
@@ -10,6 +11,143 @@ public sealed class SimulationRuntimeState
 
     private readonly ExecutionIdAllocator _executionIdAllocator =
         new();
+
+    private readonly HitExecutionIdAllocator
+        _hitExecutionIdAllocator =
+            new();
+
+    private readonly DamageExecutionIdAllocator
+        _damageExecutionIdAllocator =
+            new();
+
+    internal HitExecutionId AllocateHitExecutionId()
+    {
+        return _hitExecutionIdAllocator.Allocate();
+    }
+
+    internal DamageExecutionId AllocateDamageExecutionId()
+    {
+        return _damageExecutionIdAllocator.Allocate();
+    }
+    internal HitExecutionContext CreateHitExecutionContext(
+    GameplayExecutionContext gameplayExecution,
+    EntityId targetEntityId,
+    SimulationTime startedAt)
+    {
+        ArgumentNullException.ThrowIfNull(
+            gameplayExecution);
+
+        if (!targetEntityId.IsValid)
+        {
+            throw new ArgumentException(
+                "Target entity ID must be valid.",
+                nameof(targetEntityId));
+        }
+
+        // Both participants must belong to the runtime's
+        // current entity state.
+        Entities.Get(
+            gameplayExecution.SourceEntityId);
+
+        Entities.Get(
+            targetEntityId);
+
+        // Validation happens before allocation so failed
+        // creation attempts do not consume deterministic IDs.
+        var id =
+            AllocateHitExecutionId();
+
+        return new HitExecutionContext(
+            id,
+            gameplayExecution.Id,
+            gameplayExecution.SourceEntityId,
+            targetEntityId,
+            startedAt);
+    }
+
+    internal DamageExecutionContext CreateDamageExecutionContext(
+    GameplayExecutionContext gameplayExecution,
+    SimulationTime startedAt)
+    {
+        ArgumentNullException.ThrowIfNull(
+            gameplayExecution);
+
+        // The source must still belong to the runtime.
+        Entities.Get(
+            gameplayExecution.SourceEntityId);
+
+        // Validation happens before deterministic ID allocation.
+        var id =
+            AllocateDamageExecutionId();
+
+        return new DamageExecutionContext(
+            id,
+            gameplayExecution.Id,
+            gameplayExecution.SourceEntityId,
+            startedAt);
+    }
+
+    internal DamageTargetContext CreateDamageTargetContext(
+    DamageExecutionContext damageExecution,
+    EntityId targetEntityId)
+    {
+        ArgumentNullException.ThrowIfNull(
+            damageExecution);
+
+        if (!targetEntityId.IsValid)
+        {
+            throw new ArgumentException(
+                "Target entity ID must be valid.",
+                nameof(targetEntityId));
+        }
+
+        Entities.Get(
+            damageExecution.SourceEntityId);
+
+        Entities.Get(
+            targetEntityId);
+
+        return new DamageTargetContext(
+            damageExecution.Id,
+            targetEntityId,
+            relatedHitExecutionId: null);
+    }
+
+    internal DamageTargetContext CreateDamageTargetContext(
+    DamageExecutionContext damageExecution,
+    HitExecutionContext hitExecution)
+    {
+        ArgumentNullException.ThrowIfNull(
+            damageExecution);
+
+        ArgumentNullException.ThrowIfNull(
+            hitExecution);
+
+        Entities.Get(
+            damageExecution.SourceEntityId);
+
+        Entities.Get(
+            hitExecution.TargetEntityId);
+
+        if (damageExecution.GameplayExecutionId !=
+            hitExecution.GameplayExecutionId)
+        {
+            throw new InvalidOperationException(
+                "Damage execution and hit execution belong to different gameplay executions.");
+        }
+
+        if (damageExecution.SourceEntityId !=
+            hitExecution.SourceEntityId)
+        {
+            throw new InvalidOperationException(
+                "Damage execution and hit execution have different source entities.");
+        }
+
+        return new DamageTargetContext(
+            damageExecution.Id,
+            hitExecution.TargetEntityId,
+            hitExecution.Id);
+    }
 
     public SimulationSeed RootSeed { get; }
 

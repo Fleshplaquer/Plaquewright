@@ -1,0 +1,68 @@
+using Idler.Core.Entities;
+using Idler.Core.Simulation;
+
+namespace Idler.Core.Combat;
+
+public sealed class HitExecutionContext
+{
+    public HitExecutionId Id { get; }
+
+    public ExecutionId GameplayExecutionId { get; }
+
+    public EntityId SourceEntityId { get; }
+
+    public EntityId TargetEntityId { get; }
+
+    public SimulationTime StartedAt { get; }
+
+    internal HitExecutionContext(
+        HitExecutionId id,
+        ExecutionId gameplayExecutionId,
+        EntityId sourceEntityId,
+        EntityId targetEntityId,
+        SimulationTime startedAt)
+    {
+        if (!id.IsValid)
+        {
+            throw new ArgumentException(
+                "Hit execution ID must be valid.",
+                nameof(id));
+        }
+
+        if (!gameplayExecutionId.IsValid)
+        {
+            throw new ArgumentException(
+                "Gameplay execution ID must be valid.",
+                nameof(gameplayExecutionId));
+        }
+
+        if (!sourceEntityId.IsValid)
+        {
+            throw new ArgumentException(
+                "Source entity ID must be valid.",
+                nameof(sourceEntityId));
+        }
+
+        if (!targetEntityId.IsValid)
+        {
+            throw new ArgumentException(
+                "Target entity ID must be valid.",
+                nameof(targetEntityId));
+        }
+
+        Id =
+            id;
+
+        GameplayExecutionId =
+            gameplayExecutionId;
+
+        SourceEntityId =
+            sourceEntityId;
+
+        TargetEntityId =
+            targetEntityId;
+
+        StartedAt =
+            startedAt;
+    }
+}
