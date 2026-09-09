@@ -49,6 +49,19 @@ public static class ResourceLossOperations
     ResourceState state,
     ResourceLossPreview preview)
     {
+        ValidateCommit(
+            state,
+            preview);
+
+        return ApplyValidatedCommit(
+            state,
+            preview);
+    }
+
+    internal static void ValidateCommit(
+        ResourceState state,
+        ResourceLossPreview preview)
+    {
         ArgumentNullException.ThrowIfNull(state);
         ArgumentNullException.ThrowIfNull(preview);
 
@@ -57,6 +70,15 @@ public static class ResourceLossOperations
             preview.TargetState,
             preview.ExpectedRevision);
 
+        state.ValidateCanSetValues(
+            preview.CurrentAfter,
+            preview.Maximum);
+    }
+
+    internal static ResourceLossLedgerEntry ApplyValidatedCommit(
+        ResourceState state,
+        ResourceLossPreview preview)
+    {
         state.SetValues(
             preview.CurrentAfter,
             preview.Maximum);

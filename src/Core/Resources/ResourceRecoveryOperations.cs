@@ -40,8 +40,21 @@ public static class ResourceRecoveryOperations
     }
 
     public static ResourceRecoveryLedgerEntry Commit(
-    ResourceState state,
-    ResourceRecoveryPreview preview)
+     ResourceState state,
+     ResourceRecoveryPreview preview)
+    {
+        ValidateCommit(
+            state,
+            preview);
+
+        return ApplyValidatedCommit(
+            state,
+            preview);
+    }
+
+    internal static void ValidateCommit(
+        ResourceState state,
+        ResourceRecoveryPreview preview)
     {
         ArgumentNullException.ThrowIfNull(state);
         ArgumentNullException.ThrowIfNull(preview);
@@ -51,6 +64,15 @@ public static class ResourceRecoveryOperations
             preview.TargetState,
             preview.ExpectedRevision);
 
+        state.ValidateCanSetValues(
+            preview.CurrentAfter,
+            preview.Maximum);
+    }
+
+    internal static ResourceRecoveryLedgerEntry ApplyValidatedCommit(
+        ResourceState state,
+        ResourceRecoveryPreview preview)
+    {
         state.SetValues(
             preview.CurrentAfter,
             preview.Maximum);

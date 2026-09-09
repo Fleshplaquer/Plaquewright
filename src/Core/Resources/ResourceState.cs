@@ -32,16 +32,29 @@ public sealed class ResourceState
         Revision = 0UL;
     }
 
-    internal void SetValues(
-        double current,
-        double maximum)
+    internal void ValidateCanSetValues(
+    double current,
+    double maximum)
     {
         ValidateValues(
             current,
             maximum);
 
-        var nextRevision =
-            checked(Revision + 1UL);
+        if (Revision ==
+            ulong.MaxValue)
+        {
+            throw new OverflowException(
+                "Resource state revision space has been exhausted.");
+        }
+    }
+
+    internal void SetValues(
+        double current,
+        double maximum)
+    {
+        ValidateCanSetValues(
+            current,
+            maximum);
 
         Current =
             NormalizeZero(current);
@@ -49,8 +62,7 @@ public sealed class ResourceState
         Maximum =
             NormalizeZero(maximum);
 
-        Revision =
-            nextRevision;
+        Revision++;
     }
 
     private static void ValidateValues(

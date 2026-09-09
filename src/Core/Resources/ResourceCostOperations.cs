@@ -57,6 +57,19 @@ public static class ResourceCostOperations
     ResourceState state,
     ResourceCostPreview preview)
     {
+        ValidateCommit(
+            state,
+            preview);
+
+        return ApplyValidatedCommit(
+            state,
+            preview);
+    }
+
+    internal static void ValidateCommit(
+        ResourceState state,
+        ResourceCostPreview preview)
+    {
         ArgumentNullException.ThrowIfNull(state);
         ArgumentNullException.ThrowIfNull(preview);
 
@@ -81,6 +94,15 @@ public static class ResourceCostOperations
                 "An unaffordable resource cost cannot be committed.");
         }
 
+        state.ValidateCanSetValues(
+            preview.CurrentAfter,
+            preview.Maximum);
+    }
+
+    internal static ResourceCostLedgerEntry ApplyValidatedCommit(
+        ResourceState state,
+        ResourceCostPreview preview)
+    {
         state.SetValues(
             preview.CurrentAfter,
             preview.Maximum);
