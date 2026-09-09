@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using Idler.Core.Conditions;
 
 namespace Idler.Core.Tags;
 
@@ -101,6 +102,22 @@ public sealed class CompiledTagRegistry
             effectiveTags
                 .OrderBy(tag => tag.Value)
                 .ToArray());
+    }
+
+    public CompiledTagRequirement CompileRequirement(
+    TagRequirementDefinition definition)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+
+        var ids = definition.Tags
+            .Select(GetId)
+            .Distinct()
+            .OrderBy(id => id.Value)
+            .ToArray();
+
+        return new CompiledTagRequirement(
+            definition.Mode,
+            ids);
     }
 
     private void ValidateId(TagId id)

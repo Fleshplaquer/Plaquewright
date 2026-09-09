@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Idler.Core.Tests")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+0880d223c4fe36fa4d4a62c150dc582ae274a7a2")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+4dc5584cfb87c80c3758d38786165890910ccb5b")]
 [assembly: System.Reflection.AssemblyProductAttribute("Idler.Core.Tests")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Idler.Core.Tests")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

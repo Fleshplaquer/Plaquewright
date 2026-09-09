@@ -1,0 +1,33 @@
+using System.Collections.ObjectModel;
+using Idler.Core.Tags;
+
+namespace Idler.Core.Conditions;
+
+public sealed class TagRequirementDefinition
+{
+    private readonly ReadOnlyCollection<TagKey> _tags;
+
+    public TagRequirementMode Mode { get; }
+
+    public IReadOnlyList<TagKey> Tags => _tags;
+
+    public TagRequirementDefinition(
+        TagRequirementMode mode,
+        IEnumerable<TagKey> tags)
+    {
+        ArgumentNullException.ThrowIfNull(tags);
+
+        Mode = mode;
+
+        var copiedTags = tags.ToArray();
+
+        if (copiedTags.Length == 0)
+        {
+            throw new ArgumentException(
+                "A tag requirement must contain at least one tag.",
+                nameof(tags));
+        }
+
+        _tags = Array.AsReadOnly(copiedTags);
+    }
+}
