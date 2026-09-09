@@ -12,10 +12,16 @@ public sealed class ResourceLossPreviewTests
                 current: 75d,
                 maximum: 100d);
 
+        var request =
+            new ResourceLossRequest(
+                state.Id,
+                amount: 50d, new ResourceOperationProvenance(
+        ResourceOperationCause.Direct));
+
         var preview =
-            ResourceStateOperations.PreviewLoss(
+            ResourceLossOperations.Preview(
                 state,
-                requestedLoss: 50d);
+                request);
 
         Assert.Equal(
             75d,
@@ -24,6 +30,10 @@ public sealed class ResourceLossPreviewTests
         Assert.Equal(
             0UL,
             state.Revision);
+
+        Assert.Equal(
+            request,
+            preview.Request);
 
         Assert.Equal(
             75d,
@@ -46,10 +56,16 @@ public sealed class ResourceLossPreviewTests
                 current: 100d,
                 maximum: 100d);
 
+        var request =
+            new ResourceLossRequest(
+                state.Id,
+                amount: 100d, new ResourceOperationProvenance(
+        ResourceOperationCause.Direct));
+
         var preview =
-            ResourceStateOperations.PreviewLoss(
+            ResourceLossOperations.Preview(
                 state,
-                requestedLoss: 100d,
+                request,
                 preventedLoss: 30d);
 
         Assert.Equal(
@@ -77,10 +93,16 @@ public sealed class ResourceLossPreviewTests
                 current: 40d,
                 maximum: 100d);
 
+        var request =
+            new ResourceLossRequest(
+                state.Id,
+                amount: 100d, new ResourceOperationProvenance(
+        ResourceOperationCause.Direct));
+
         var preview =
-            ResourceStateOperations.PreviewLoss(
+            ResourceLossOperations.Preview(
                 state,
-                requestedLoss: 100d,
+                request,
                 preventedLoss: 20d);
 
         Assert.Equal(
@@ -104,14 +126,21 @@ public sealed class ResourceLossPreviewTests
                 current: 100d,
                 maximum: 100d);
 
-        var preview =
-            ResourceStateOperations.PreviewLoss(
-                state,
-                requestedLoss: 25d);
+        var request =
+            new ResourceLossRequest(
+                state.Id,
+                amount: 25d, new ResourceOperationProvenance(
+        ResourceOperationCause.Direct));
 
-        ResourceStateOperations.Commit(
-            state,
-            preview);
+        var preview =
+            ResourceLossOperations.Preview(
+                state,
+                request);
+
+        var entry =
+            ResourceLossOperations.Commit(
+                state,
+                preview);
 
         Assert.Equal(
             75d,
@@ -124,6 +153,10 @@ public sealed class ResourceLossPreviewTests
         Assert.Equal(
             1UL,
             state.Revision);
+
+        Assert.Equal(
+            25d,
+            entry.Result.ActualLoss);
     }
 
     [Fact]
@@ -135,22 +168,28 @@ public sealed class ResourceLossPreviewTests
                 maximum: 100d);
 
         var stalePreview =
-            ResourceStateOperations.PreviewLoss(
+            ResourceLossOperations.Preview(
                 state,
-                requestedLoss: 25d);
+                new ResourceLossRequest(
+                    state.Id,
+                    amount: 25d, new ResourceOperationProvenance(
+        ResourceOperationCause.Direct)));
 
         var otherPreview =
-            ResourceStateOperations.PreviewLoss(
+            ResourceLossOperations.Preview(
                 state,
-                requestedLoss: 10d);
+                new ResourceLossRequest(
+                    state.Id,
+                    amount: 10d, new ResourceOperationProvenance(
+        ResourceOperationCause.Direct)));
 
-        ResourceStateOperations.Commit(
+        ResourceLossOperations.Commit(
             state,
             otherPreview);
 
         Assert.Throws<InvalidOperationException>(
             () =>
-                ResourceStateOperations.Commit(
+                ResourceLossOperations.Commit(
                     state,
                     stalePreview));
 
@@ -173,19 +212,60 @@ public sealed class ResourceLossPreviewTests
                 maximum: 100d);
 
         var preview =
-            ResourceStateOperations.PreviewLoss(
+            ResourceLossOperations.Preview(
                 first,
-                requestedLoss: 25d);
+                new ResourceLossRequest(
+                    first.Id,
+                    amount: 25d, new ResourceOperationProvenance(
+        ResourceOperationCause.Direct)));
 
         Assert.Throws<InvalidOperationException>(
             () =>
-                ResourceStateOperations.Commit(
+                ResourceLossOperations.Commit(
                     second,
                     preview));
 
         Assert.Equal(
             100d,
             second.Current);
+
+        Assert.Equal(
+            0UL,
+            second.Revision);
+    }
+
+    [Fact]
+    public void ZeroLossCommit_IsStillExplicitCommit()
+    {
+        var state =
+            CreateState(
+                current: 50d,
+                maximum: 100d);
+
+        var preview =
+            ResourceLossOperations.Preview(
+                state,
+                new ResourceLossRequest(
+                    state.Id,
+                    amount: 0d, new ResourceOperationProvenance(
+        ResourceOperationCause.Direct)));
+
+        var entry =
+            ResourceLossOperations.Commit(
+                state,
+                preview);
+
+        Assert.Equal(
+            50d,
+            state.Current);
+
+        Assert.Equal(
+            1UL,
+            state.Revision);
+
+        Assert.Equal(
+            0d,
+            entry.Result.ActualLoss);
     }
 
     private static ResourceState CreateState(

@@ -1,14 +1,18 @@
 namespace Idler.Core.Resources;
 
-public sealed class ResourceRecoveryPreview
+public sealed class ResourceCostPreview
 {
     internal ResourceState TargetState { get; }
 
     internal ulong ExpectedRevision { get; }
 
-    public ResourceRecoveryRequest Request { get; }
+    public ResourceCostRequest Request { get; }
 
-    public ResourceRecoveryResult Result { get; }
+    public bool IsAffordable { get; }
+
+    public double AvailableAmount { get; }
+
+    public double Shortfall { get; }
 
     public double CurrentBefore { get; }
 
@@ -16,21 +20,26 @@ public sealed class ResourceRecoveryPreview
 
     public double Maximum { get; }
 
-    internal ResourceRecoveryPreview(
+    internal ResourceCostPreview(
         ResourceState targetState,
         ulong expectedRevision,
-        ResourceRecoveryRequest request,
-        ResourceRecoveryResult result,
+        ResourceCostRequest request,
+        bool isAffordable,
+        double availableAmount,
+        double shortfall,
         double currentBefore,
         double currentAfter,
         double maximum)
     {
-        ArgumentNullException.ThrowIfNull(targetState);
+        ArgumentNullException.ThrowIfNull(
+            targetState);
 
         TargetState = targetState;
         ExpectedRevision = expectedRevision;
         Request = request;
-        Result = result;
+        IsAffordable = isAffordable;
+        AvailableAmount = availableAmount;
+        Shortfall = shortfall;
         CurrentBefore = currentBefore;
         CurrentAfter = currentAfter;
         Maximum = maximum;

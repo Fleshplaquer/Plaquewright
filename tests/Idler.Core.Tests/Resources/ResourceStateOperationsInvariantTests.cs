@@ -45,10 +45,16 @@ public sealed class ResourceStateOperationsInvariantTests
                             current,
                             maximum: 100d);
 
+                    var request =
+                        new ResourceLossRequest(
+                            state.Id,
+                            requested, new ResourceOperationProvenance(
+        ResourceOperationCause.DamageDerived));
+
                     var preview =
-                        ResourceStateOperations.PreviewLoss(
+                        ResourceLossOperations.Preview(
                             state,
-                            requested,
+                            request,
                             prevented);
 
                     // Preview must not mutate state.
@@ -60,7 +66,18 @@ public sealed class ResourceStateOperationsInvariantTests
                         0UL,
                         state.Revision);
 
-                    // Accounting invariant.
+                    // Original request is preserved.
+                    Assert.Equal(
+                        request,
+                        preview.Request);
+
+                    // Accounting invariant:
+                    //
+                    // RequestedLoss
+                    // =
+                    // PreventedLoss
+                    // + ActualLoss
+                    // + Shortfall
                     Assert.Equal(
                         preview.Result.RequestedLoss,
                         preview.Result.PreventedLoss +
@@ -74,15 +91,20 @@ public sealed class ResourceStateOperationsInvariantTests
                         preview.CurrentAfter);
 
                     Assert.True(
+                        double.IsFinite(
+                            preview.CurrentAfter));
+
+                    Assert.True(
                         preview.CurrentAfter >= 0d);
 
                     Assert.True(
                         preview.CurrentAfter <=
                         preview.Maximum);
 
-                    ResourceStateOperations.Commit(
-                        state,
-                        preview);
+                    var entry =
+                        ResourceLossOperations.Commit(
+                            state,
+                            preview);
 
                     Assert.Equal(
                         preview.CurrentAfter,
@@ -95,6 +117,10 @@ public sealed class ResourceStateOperationsInvariantTests
                     Assert.Equal(
                         1UL,
                         state.Revision);
+
+                    Assert.Equal(
+                        preview.Result,
+                        entry.Result);
                 }
             }
         }
@@ -132,10 +158,16 @@ public sealed class ResourceStateOperationsInvariantTests
                         current,
                         maximum: 100d);
 
+                var request =
+                    new ResourceRecoveryRequest(
+                        state.Id,
+                        requested, new ResourceOperationProvenance(
+        ResourceOperationCause.DamageDerived));
+
                 var preview =
-                    ResourceStateOperations.PreviewRecovery(
+                    ResourceRecoveryOperations.Preview(
                         state,
-                        requested);
+                        request);
 
                 // Preview must not mutate state.
                 Assert.Equal(
@@ -146,7 +178,17 @@ public sealed class ResourceStateOperationsInvariantTests
                     0UL,
                     state.Revision);
 
-                // Accounting invariant.
+                // Original request is preserved.
+                Assert.Equal(
+                    request,
+                    preview.Request);
+
+                // Accounting invariant:
+                //
+                // RequestedRecovery
+                // =
+                // ActualRecovery
+                // + Overflow
                 Assert.Equal(
                     preview.Result.RequestedRecovery,
                     preview.Result.ActualRecovery +
@@ -159,15 +201,20 @@ public sealed class ResourceStateOperationsInvariantTests
                     preview.CurrentAfter);
 
                 Assert.True(
+                    double.IsFinite(
+                        preview.CurrentAfter));
+
+                Assert.True(
                     preview.CurrentAfter >= 0d);
 
                 Assert.True(
                     preview.CurrentAfter <=
                     preview.Maximum);
 
-                ResourceStateOperations.Commit(
-                    state,
-                    preview);
+                var entry =
+                    ResourceRecoveryOperations.Commit(
+                        state,
+                        preview);
 
                 Assert.Equal(
                     preview.CurrentAfter,
@@ -180,6 +227,10 @@ public sealed class ResourceStateOperationsInvariantTests
                 Assert.Equal(
                     1UL,
                     state.Revision);
+
+                Assert.Equal(
+                    preview.Result,
+                    entry.Result);
             }
         }
     }
@@ -194,16 +245,22 @@ public sealed class ResourceStateOperationsInvariantTests
                 maximum: 100d);
 
         var lossPreview =
-            ResourceStateOperations.PreviewLoss(
+            ResourceLossOperations.Preview(
                 state,
-                requestedLoss: 20d);
+                new ResourceLossRequest(
+                    state.Id,
+                    amount: 20d, new ResourceOperationProvenance(
+        ResourceOperationCause.DamageDerived)));
 
         var recoveryPreview =
-            ResourceStateOperations.PreviewRecovery(
+            ResourceRecoveryOperations.Preview(
                 state,
-                requestedRecovery: 20d);
+                new ResourceRecoveryRequest(
+                    state.Id,
+                    amount: 20d, new ResourceOperationProvenance(
+        ResourceOperationCause.DamageDerived)));
 
-        ResourceStateOperations.Commit(
+        ResourceRecoveryOperations.Commit(
             state,
             recoveryPreview);
 
@@ -217,7 +274,7 @@ public sealed class ResourceStateOperationsInvariantTests
 
         Assert.Throws<InvalidOperationException>(
             () =>
-                ResourceStateOperations.Commit(
+                ResourceLossOperations.Commit(
                     state,
                     lossPreview));
 
@@ -240,20 +297,26 @@ public sealed class ResourceStateOperationsInvariantTests
                 maximum: 100d);
 
         var first =
-            ResourceStateOperations.PreviewLoss(
+            ResourceLossOperations.Preview(
                 state,
-                requestedLoss: 30d);
+                new ResourceLossRequest(
+                    state.Id,
+                    amount: 30d, new ResourceOperationProvenance(
+        ResourceOperationCause.DamageDerived)));
 
-        ResourceStateOperations.Commit(
+        ResourceLossOperations.Commit(
             state,
             first);
 
         var second =
-            ResourceStateOperations.PreviewLoss(
+            ResourceLossOperations.Preview(
                 state,
-                requestedLoss: 20d);
+                new ResourceLossRequest(
+                    state.Id,
+                    amount: 20d, new ResourceOperationProvenance(
+        ResourceOperationCause.DamageDerived)));
 
-        ResourceStateOperations.Commit(
+        ResourceLossOperations.Commit(
             state,
             second);
 
@@ -276,11 +339,14 @@ public sealed class ResourceStateOperationsInvariantTests
                 maximum: 100d);
 
         var preview =
-            ResourceStateOperations.PreviewLoss(
+            ResourceLossOperations.Preview(
                 state,
-                requestedLoss: 0d);
+                new ResourceLossRequest(
+                    state.Id,
+                    amount: 0d, new ResourceOperationProvenance(
+        ResourceOperationCause.DamageDerived)));
 
-        ResourceStateOperations.Commit(
+        ResourceLossOperations.Commit(
             state,
             preview);
 

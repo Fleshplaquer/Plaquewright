@@ -6,6 +6,8 @@ public sealed class ResourceLossPreview
 
     internal ulong ExpectedRevision { get; }
 
+    public ResourceLossRequest Request { get; }
+
     public ResourceLossResult Result { get; }
 
     public double CurrentBefore { get; }
@@ -17,16 +19,17 @@ public sealed class ResourceLossPreview
     internal ResourceLossPreview(
         ResourceState targetState,
         ulong expectedRevision,
+        ResourceLossRequest request,
         ResourceLossResult result,
         double currentBefore,
         double currentAfter,
         double maximum)
     {
-        ArgumentNullException.ThrowIfNull(
-            targetState);
+        ArgumentNullException.ThrowIfNull(targetState);
 
         TargetState = targetState;
         ExpectedRevision = expectedRevision;
+        Request = request;
         Result = result;
         CurrentBefore = currentBefore;
         CurrentAfter = currentAfter;

@@ -9,17 +9,15 @@ public sealed class ResourceStateOperationsValidationTests
     [InlineData(double.NaN)]
     [InlineData(double.PositiveInfinity)]
     [InlineData(double.NegativeInfinity)]
-    public void PreviewLoss_WithInvalidRequestedLoss_Throws(
+    public void LossRequest_WithInvalidAmount_Throws(
         double value)
     {
-        var state =
-            CreateState();
-
         Assert.Throws<ArgumentOutOfRangeException>(
             () =>
-                ResourceStateOperations.PreviewLoss(
-                    state,
-                    requestedLoss: value));
+                new ResourceLossRequest(
+                    new ResourceId(1),
+                    value, new ResourceOperationProvenance(
+        ResourceOperationCause.DamageDerived)));
     }
 
     [Theory]
@@ -33,11 +31,17 @@ public sealed class ResourceStateOperationsValidationTests
         var state =
             CreateState();
 
+        var request =
+            new ResourceLossRequest(
+                state.Id,
+                amount: 100d, new ResourceOperationProvenance(
+        ResourceOperationCause.DamageDerived));
+
         Assert.Throws<ArgumentOutOfRangeException>(
             () =>
-                ResourceStateOperations.PreviewLoss(
+                ResourceLossOperations.Preview(
                     state,
-                    requestedLoss: 100d,
+                    request,
                     preventedLoss: value));
     }
 
@@ -47,11 +51,17 @@ public sealed class ResourceStateOperationsValidationTests
         var state =
             CreateState();
 
+        var request =
+            new ResourceLossRequest(
+                state.Id,
+                amount: 100d, new ResourceOperationProvenance(
+        ResourceOperationCause.DamageDerived));
+
         Assert.Throws<ArgumentOutOfRangeException>(
             () =>
-                ResourceStateOperations.PreviewLoss(
+                ResourceLossOperations.Preview(
                     state,
-                    requestedLoss: 100d,
+                    request,
                     preventedLoss: 101d));
     }
 
@@ -60,37 +70,85 @@ public sealed class ResourceStateOperationsValidationTests
     [InlineData(double.NaN)]
     [InlineData(double.PositiveInfinity)]
     [InlineData(double.NegativeInfinity)]
-    public void PreviewRecovery_WithInvalidRequestedRecovery_Throws(
+    public void RecoveryRequest_WithInvalidAmount_Throws(
         double value)
     {
-        var state =
-            CreateState();
-
         Assert.Throws<ArgumentOutOfRangeException>(
             () =>
-                ResourceStateOperations.PreviewRecovery(
-                    state,
-                    requestedRecovery: value));
+                new ResourceRecoveryRequest(
+                    new ResourceId(1),
+                    value, new ResourceOperationProvenance(
+        ResourceOperationCause.DamageDerived)));
     }
 
     [Fact]
     public void PreviewLoss_WithNullState_Throws()
     {
+        var request =
+            new ResourceLossRequest(
+                new ResourceId(1),
+                amount: 10d, new ResourceOperationProvenance(
+        ResourceOperationCause.DamageDerived));
+
         Assert.Throws<ArgumentNullException>(
             () =>
-                ResourceStateOperations.PreviewLoss(
+                ResourceLossOperations.Preview(
                     null!,
-                    requestedLoss: 10d));
+                    request));
     }
 
     [Fact]
     public void PreviewRecovery_WithNullState_Throws()
     {
+        var request =
+            new ResourceRecoveryRequest(
+                new ResourceId(1),
+                amount: 10d, new ResourceOperationProvenance(
+        ResourceOperationCause.DamageDerived));
+
         Assert.Throws<ArgumentNullException>(
             () =>
-                ResourceStateOperations.PreviewRecovery(
+                ResourceRecoveryOperations.Preview(
                     null!,
-                    requestedRecovery: 10d));
+                    request));
+    }
+
+    [Fact]
+    public void PreviewLoss_WithDifferentResourceId_Throws()
+    {
+        var state =
+            CreateState();
+
+        var request =
+            new ResourceLossRequest(
+                new ResourceId(2),
+                amount: 10d, new ResourceOperationProvenance(
+        ResourceOperationCause.DamageDerived));
+
+        Assert.Throws<InvalidOperationException>(
+            () =>
+                ResourceLossOperations.Preview(
+                    state,
+                    request));
+    }
+
+    [Fact]
+    public void PreviewRecovery_WithDifferentResourceId_Throws()
+    {
+        var state =
+            CreateState();
+
+        var request =
+            new ResourceRecoveryRequest(
+                new ResourceId(2),
+                amount: 10d, new ResourceOperationProvenance(
+        ResourceOperationCause.DamageDerived));
+
+        Assert.Throws<InvalidOperationException>(
+            () =>
+                ResourceRecoveryOperations.Preview(
+                    state,
+                    request));
     }
 
     private static ResourceState CreateState()
