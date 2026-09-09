@@ -10,8 +10,6 @@
   <ItemGroup>
     <Compile Remove="src/Core/**/*.cs" />
     <Compile Remove="tests/**/*.cs" />
-
-    <ProjectReference Include="src/Core/Idler.Core.csproj" />
   </ItemGroup>
 
 </Project>
