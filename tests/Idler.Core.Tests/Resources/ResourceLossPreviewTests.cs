@@ -1,3 +1,4 @@
+using Idler.Core.Entities;
 using Idler.Core.Resources;
 
 namespace Idler.Core.Tests.Resources;
@@ -139,6 +140,7 @@ public sealed class ResourceLossPreviewTests
 
         var entry =
             ResourceLossOperations.Commit(
+                new EntityId(1UL),
                 state,
                 preview);
 
@@ -184,12 +186,14 @@ public sealed class ResourceLossPreviewTests
         ResourceOperationCause.Direct)));
 
         ResourceLossOperations.Commit(
+            new EntityId(1UL),
             state,
             otherPreview);
 
         Assert.Throws<InvalidOperationException>(
             () =>
                 ResourceLossOperations.Commit(
+                    new EntityId(1UL),
                     state,
                     stalePreview));
 
@@ -222,6 +226,7 @@ public sealed class ResourceLossPreviewTests
         Assert.Throws<InvalidOperationException>(
             () =>
                 ResourceLossOperations.Commit(
+                    new EntityId(1UL),
                     second,
                     preview));
 
@@ -252,6 +257,7 @@ public sealed class ResourceLossPreviewTests
 
         var entry =
             ResourceLossOperations.Commit(
+                new EntityId(1UL),
                 state,
                 preview);
 

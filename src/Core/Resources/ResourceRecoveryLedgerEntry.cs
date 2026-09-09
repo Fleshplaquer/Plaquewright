@@ -1,3 +1,5 @@
+using Idler.Core.Entities;
+
 namespace Idler.Core.Resources;
 
 public sealed class ResourceRecoveryLedgerEntry
@@ -8,27 +10,25 @@ public sealed class ResourceRecoveryLedgerEntry
     public ResourceRecoveryResult Result { get; }
 
     internal ResourceRecoveryLedgerEntry(
+        EntityId targetEntityId,
         ResourceRecoveryRequest request,
         ResourceRecoveryResult result)
         : base(
+            targetEntityId,
             request.ResourceId,
             request.Provenance)
     {
-        if (request.ResourceId !=
-            result.ResourceId)
+        if (request.ResourceId != result.ResourceId)
         {
             throw new ArgumentException(
-                "Recovery request and result must target the same resource.");
+                "Recovery request and result must refer to the same resource.",
+                nameof(result));
         }
 
-        if (request.Amount !=
-            result.RequestedRecovery)
-        {
-            throw new ArgumentException(
-                "Recovery request amount must equal result requested recovery.");
-        }
+        Request =
+            request;
 
-        Request = request;
-        Result = result;
+        Result =
+            result;
     }
 }

@@ -1,3 +1,5 @@
+using Idler.Core.Entities;
+
 namespace Idler.Core.Resources;
 
 public static class ResourceRecoveryOperations
@@ -6,7 +8,8 @@ public static class ResourceRecoveryOperations
         ResourceState state,
         ResourceRecoveryRequest request)
     {
-        ArgumentNullException.ThrowIfNull(state);
+        ArgumentNullException.ThrowIfNull(
+            state);
 
         ValidateRequestTargetsState(
             state,
@@ -40,14 +43,19 @@ public static class ResourceRecoveryOperations
     }
 
     public static ResourceRecoveryLedgerEntry Commit(
-     ResourceState state,
-     ResourceRecoveryPreview preview)
+        EntityId targetEntityId,
+        ResourceState state,
+        ResourceRecoveryPreview preview)
     {
+        ValidateTargetEntityId(
+            targetEntityId);
+
         ValidateCommit(
             state,
             preview);
 
         return ApplyValidatedCommit(
+            targetEntityId,
             state,
             preview);
     }
@@ -56,8 +64,11 @@ public static class ResourceRecoveryOperations
         ResourceState state,
         ResourceRecoveryPreview preview)
     {
-        ArgumentNullException.ThrowIfNull(state);
-        ArgumentNullException.ThrowIfNull(preview);
+        ArgumentNullException.ThrowIfNull(
+            state);
+
+        ArgumentNullException.ThrowIfNull(
+            preview);
 
         ValidatePreviewTarget(
             state,
@@ -70,16 +81,32 @@ public static class ResourceRecoveryOperations
     }
 
     internal static ResourceRecoveryLedgerEntry ApplyValidatedCommit(
+        EntityId targetEntityId,
         ResourceState state,
         ResourceRecoveryPreview preview)
     {
+        ValidateTargetEntityId(
+            targetEntityId);
+
         state.SetValues(
             preview.CurrentAfter,
             preview.Maximum);
 
         return new ResourceRecoveryLedgerEntry(
+            targetEntityId,
             preview.Request,
             preview.Result);
+    }
+
+    private static void ValidateTargetEntityId(
+        EntityId targetEntityId)
+    {
+        if (!targetEntityId.IsValid)
+        {
+            throw new ArgumentException(
+                "Target entity ID must be valid.",
+                nameof(targetEntityId));
+        }
     }
 
     private static void ValidateRequestTargetsState(

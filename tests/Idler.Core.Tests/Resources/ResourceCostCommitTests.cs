@@ -1,3 +1,4 @@
+using Idler.Core.Entities;
 using Idler.Core.Resources;
 
 namespace Idler.Core.Tests.Resources;
@@ -23,6 +24,7 @@ public sealed class ResourceCostCommitTests
 
         var entry =
             ResourceCostOperations.Commit(
+                new EntityId(1UL),
                 setup.State,
                 preview);
 
@@ -62,6 +64,7 @@ public sealed class ResourceCostCommitTests
         Assert.Throws<InvalidOperationException>(
             () =>
                 ResourceCostOperations.Commit(
+                    new EntityId(1UL),
                     setup.State,
                     preview));
 
@@ -100,12 +103,14 @@ public sealed class ResourceCostCommitTests
         ResourceOperationCause.SkillCost)));
 
         ResourceCostOperations.Commit(
+            new EntityId(1UL),
             setup.State,
             newer);
 
         Assert.Throws<InvalidOperationException>(
             () =>
                 ResourceCostOperations.Commit(
+                    new EntityId(1UL),
                     setup.State,
                     stale));
 
@@ -139,6 +144,7 @@ public sealed class ResourceCostCommitTests
         Assert.Throws<InvalidOperationException>(
             () =>
                 ResourceCostOperations.Commit(
+                    new EntityId(1UL),
                     otherState,
                     preview));
 
@@ -165,6 +171,7 @@ public sealed class ResourceCostCommitTests
 
         var entry =
             ResourceCostOperations.Commit(
+                new EntityId(1UL),
                 setup.State,
                 preview);
 

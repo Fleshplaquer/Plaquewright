@@ -1,21 +1,29 @@
+using Idler.Core.Entities;
+
 namespace Idler.Core.Resources;
 
 internal abstract class StagedResourceOperation
 {
-    public ResourceState OriginalState { get; }
+    public ResourceStateTarget Target { get; }
+
+    public EntityId EntityId =>
+        Target.EntityId;
+
+    public ResourceState OriginalState =>
+        Target.State;
 
     public ResourceId ResourceId =>
-        OriginalState.Id;
+        Target.ResourceId;
 
     public abstract ResourceOperationProvenance Provenance { get; }
 
     protected StagedResourceOperation(
-        ResourceState originalState)
+        ResourceStateTarget target)
     {
         ArgumentNullException.ThrowIfNull(
-            originalState);
+            target);
 
-        OriginalState =
-            originalState;
+        Target =
+            target;
     }
 }

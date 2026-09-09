@@ -1,3 +1,4 @@
+using Idler.Core.Entities;
 using Idler.Core.Resources;
 
 namespace Idler.Core.Tests.Resources;
@@ -14,30 +15,48 @@ public sealed class ResourceTransactionInvariantTests
             GetLifeId(
                 registry);
 
+        var firstEntity =
+            CreateLifeEntity(
+                registry,
+                1UL,
+                100d,
+                100d);
+
+        var secondEntity =
+            CreateLifeEntity(
+                registry,
+                2UL,
+                200d,
+                200d);
+
+        var firstTarget =
+            new ResourceStateTarget(
+                firstEntity,
+                lifeId);
+
+        var secondTarget =
+            new ResourceStateTarget(
+                secondEntity,
+                lifeId);
+
         var first =
-            new ResourceState(
-                lifeId,
-                current: 100d,
-                maximum: 100d);
+            firstTarget.State;
 
         var second =
-            new ResourceState(
-                lifeId,
-                current: 200d,
-                maximum: 200d);
+            secondTarget.State;
 
         var draft =
             new ResourceTransactionDraft(
                 registry);
 
         draft.StageLoss(
-            first,
+            firstTarget,
             CreateLossRequest(
                 lifeId,
                 10d));
 
         draft.StageLoss(
-            second,
+            secondTarget,
             CreateLossRequest(
                 lifeId,
                 20d));
@@ -84,6 +103,8 @@ public sealed class ResourceTransactionInvariantTests
             GetManaId(
                 registry);
 
+        // Existing low-level entry remains independent
+        // from the owner-aware transaction being tested.
         var existingState =
             new ResourceState(
                 lifeId,
@@ -98,9 +119,10 @@ public sealed class ResourceTransactionInvariantTests
                     5d));
 
         var existingEntry =
-            ResourceLossOperations.Commit(
-                existingState,
-                existingPreview);
+    ResourceLossOperations.Commit(
+        new EntityId(999UL),
+        existingState,
+        existingPreview);
 
         var ledger =
             new ResourceOperationLedger();
@@ -108,37 +130,49 @@ public sealed class ResourceTransactionInvariantTests
         ledger.Append(
             existingEntry);
 
+        var entity =
+            CreateLifeManaEntity(
+                registry,
+                1UL,
+                100d,
+                100d,
+                50d,
+                50d);
+
+        var lifeTarget =
+            new ResourceStateTarget(
+                entity,
+                lifeId);
+
+        var manaTarget =
+            new ResourceStateTarget(
+                entity,
+                manaId);
+
         var life =
-            new ResourceState(
-                lifeId,
-                current: 100d,
-                maximum: 100d);
+            lifeTarget.State;
 
         var mana =
-            new ResourceState(
-                manaId,
-                current: 50d,
-                maximum: 50d);
+            manaTarget.State;
 
         var draft =
             new ResourceTransactionDraft(
                 registry);
 
         draft.StageLoss(
-            life,
+            lifeTarget,
             CreateLossRequest(
                 lifeId,
                 25d));
 
         draft.StageCost(
-            mana,
+            manaTarget,
             new ResourceCostRequest(
                 manaId,
                 10d,
                 new ResourceOperationProvenance(
                     ResourceOperationCause.SkillCost)));
 
-        // Make transaction stale before commit.
         mana.SetValues(
             current: 40d,
             maximum: 50d);
@@ -176,18 +210,27 @@ public sealed class ResourceTransactionInvariantTests
             GetLifeId(
                 registry);
 
+        var entity =
+            CreateLifeEntity(
+                registry,
+                1UL,
+                70d,
+                100d);
+
+        var target =
+            new ResourceStateTarget(
+                entity,
+                lifeId);
+
         var life =
-            new ResourceState(
-                lifeId,
-                current: 70d,
-                maximum: 100d);
+            target.State;
 
         var draft =
             new ResourceTransactionDraft(
                 registry);
 
         draft.StageLoss(
-            life,
+            target,
             new ResourceLossRequest(
                 lifeId,
                 100d,
@@ -196,7 +239,7 @@ public sealed class ResourceTransactionInvariantTests
             preventedLoss: 20d);
 
         draft.StageRecovery(
-            life,
+            target,
             new ResourceRecoveryRequest(
                 lifeId,
                 25d,
@@ -257,6 +300,47 @@ public sealed class ResourceTransactionInvariantTests
         Assert.Equal(
             0d,
             recovery.Result.Overflow);
+    }
+
+    private static EntityRuntimeState CreateLifeEntity(
+        CompiledResourceRegistry registry,
+        ulong entityId,
+        double current,
+        double maximum)
+    {
+        return new EntityRuntimeState(
+            new EntityId(entityId),
+            registry,
+            [
+                new ResourceState(
+                    GetLifeId(registry),
+                    current,
+                    maximum)
+            ]);
+    }
+
+    private static EntityRuntimeState CreateLifeManaEntity(
+        CompiledResourceRegistry registry,
+        ulong entityId,
+        double lifeCurrent,
+        double lifeMaximum,
+        double manaCurrent,
+        double manaMaximum)
+    {
+        return new EntityRuntimeState(
+            new EntityId(entityId),
+            registry,
+            [
+                new ResourceState(
+                    GetLifeId(registry),
+                    lifeCurrent,
+                    lifeMaximum),
+
+                new ResourceState(
+                    GetManaId(registry),
+                    manaCurrent,
+                    manaMaximum)
+            ]);
     }
 
     private static ResourceLossRequest CreateLossRequest(

@@ -1,3 +1,4 @@
+using Idler.Core.Entities;
 using Idler.Core.Resources;
 
 namespace Idler.Core.Tests.Resources;
@@ -177,6 +178,7 @@ public sealed class ResourceOperationLedgerTests
                 request);
 
         return ResourceLossOperations.Commit(
+            new EntityId(1UL),
             state,
             preview);
     }
@@ -216,6 +218,7 @@ public sealed class ResourceOperationLedgerTests
                 request);
 
         return ResourceCostOperations.Commit(
+            new EntityId(1UL),
             state,
             preview);
     }
@@ -242,6 +245,7 @@ public sealed class ResourceOperationLedgerTests
                 request);
 
         return ResourceRecoveryOperations.Commit(
+            new EntityId(1UL),
             state,
             preview);
     }

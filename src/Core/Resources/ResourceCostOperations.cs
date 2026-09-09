@@ -1,3 +1,5 @@
+using Idler.Core.Entities;
+
 namespace Idler.Core.Resources;
 
 public static class ResourceCostOperations
@@ -54,14 +56,19 @@ public static class ResourceCostOperations
     }
 
     public static ResourceCostLedgerEntry Commit(
-    ResourceState state,
-    ResourceCostPreview preview)
+        EntityId targetEntityId,
+        ResourceState state,
+        ResourceCostPreview preview)
     {
+        ValidateTargetEntityId(
+            targetEntityId);
+
         ValidateCommit(
             state,
             preview);
 
         return ApplyValidatedCommit(
+            targetEntityId,
             state,
             preview);
     }
@@ -70,8 +77,11 @@ public static class ResourceCostOperations
         ResourceState state,
         ResourceCostPreview preview)
     {
-        ArgumentNullException.ThrowIfNull(state);
-        ArgumentNullException.ThrowIfNull(preview);
+        ArgumentNullException.ThrowIfNull(
+            state);
+
+        ArgumentNullException.ThrowIfNull(
+            preview);
 
         if (!ReferenceEquals(
                 state,
@@ -100,9 +110,13 @@ public static class ResourceCostOperations
     }
 
     internal static ResourceCostLedgerEntry ApplyValidatedCommit(
+        EntityId targetEntityId,
         ResourceState state,
         ResourceCostPreview preview)
     {
+        ValidateTargetEntityId(
+            targetEntityId);
+
         state.SetValues(
             preview.CurrentAfter,
             preview.Maximum);
@@ -113,8 +127,20 @@ public static class ResourceCostOperations
                 preview.Request.Amount);
 
         return new ResourceCostLedgerEntry(
+            targetEntityId,
             preview.Request,
             result);
+    }
+
+    private static void ValidateTargetEntityId(
+        EntityId targetEntityId)
+    {
+        if (!targetEntityId.IsValid)
+        {
+            throw new ArgumentException(
+                "Target entity ID must be valid.",
+                nameof(targetEntityId));
+        }
     }
 
     private static void ValidateRequestTargetsState(

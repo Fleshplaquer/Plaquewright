@@ -9,9 +9,9 @@ internal sealed class StagedResourceLossOperation
         Preview.Request.Provenance;
 
     public StagedResourceLossOperation(
-        ResourceState originalState,
+        ResourceStateTarget target,
         ResourceLossPreview preview)
-        : base(originalState)
+        : base(target)
     {
         ArgumentNullException.ThrowIfNull(
             preview);

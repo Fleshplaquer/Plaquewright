@@ -1,3 +1,4 @@
+using Idler.Core.Entities;
 using Idler.Core.Resources;
 
 namespace Idler.Core.Tests.Resources;
@@ -151,6 +152,7 @@ public sealed class ResourceOperationProvenanceFlowTests
 
         var entry =
             ResourceLossOperations.Commit(
+                new EntityId(1UL),
                 state,
                 preview);
 
@@ -203,6 +205,7 @@ public sealed class ResourceOperationProvenanceFlowTests
 
         var entry =
             ResourceCostOperations.Commit(
+                new EntityId(1UL),
                 state,
                 preview);
 
@@ -242,6 +245,7 @@ public sealed class ResourceOperationProvenanceFlowTests
 
         var entry =
             ResourceRecoveryOperations.Commit(
+                new EntityId(1UL),
                 state,
                 preview);
 

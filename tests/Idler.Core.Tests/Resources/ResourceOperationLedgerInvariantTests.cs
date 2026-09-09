@@ -1,3 +1,4 @@
+using Idler.Core.Entities;
 using Idler.Core.Resources;
 
 namespace Idler.Core.Tests.Resources;
@@ -60,6 +61,7 @@ public sealed class ResourceOperationLedgerInvariantTests
                 request);
 
         return ResourceLossOperations.Commit(
+            new EntityId(1UL),
             state,
             preview);
     }

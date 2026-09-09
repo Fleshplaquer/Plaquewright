@@ -1,3 +1,4 @@
+using Idler.Core.Entities;
 using Idler.Core.Resources;
 
 namespace Idler.Core.Tests.Resources;
@@ -185,6 +186,7 @@ public sealed class ResourceCommitPreflightTests
 
         _ =
             ResourceLossOperations.Commit(
+                new EntityId(1UL),
                 state,
                 firstPreview);
 
@@ -235,6 +237,7 @@ public sealed class ResourceCommitPreflightTests
 
         var entry =
             ResourceLossOperations.ApplyValidatedCommit(
+                new EntityId(1UL),
                 state,
                 preview);
 

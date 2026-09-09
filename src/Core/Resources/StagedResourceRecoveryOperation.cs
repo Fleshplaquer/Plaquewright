@@ -9,9 +9,9 @@ internal sealed class StagedResourceRecoveryOperation
         Preview.Request.Provenance;
 
     public StagedResourceRecoveryOperation(
-        ResourceState originalState,
+        ResourceStateTarget target,
         ResourceRecoveryPreview preview)
-        : base(originalState)
+        : base(target)
     {
         ArgumentNullException.ThrowIfNull(
             preview);

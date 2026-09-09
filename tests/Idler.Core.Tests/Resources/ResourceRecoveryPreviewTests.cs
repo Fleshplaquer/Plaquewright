@@ -1,3 +1,4 @@
+using Idler.Core.Entities;
 using Idler.Core.Resources;
 
 namespace Idler.Core.Tests.Resources;
@@ -169,6 +170,7 @@ public sealed class ResourceRecoveryPreviewTests
 
         var entry =
             ResourceRecoveryOperations.Commit(
+                new EntityId(1UL),
                 state,
                 preview);
 
@@ -218,12 +220,14 @@ public sealed class ResourceRecoveryPreviewTests
         ResourceOperationCause.Recovery)));
 
         ResourceRecoveryOperations.Commit(
+            new EntityId(1UL),
             state,
             otherPreview);
 
         Assert.Throws<InvalidOperationException>(
             () =>
                 ResourceRecoveryOperations.Commit(
+                    new EntityId(1UL),
                     state,
                     stalePreview));
 
@@ -260,6 +264,7 @@ public sealed class ResourceRecoveryPreviewTests
         Assert.Throws<InvalidOperationException>(
             () =>
                 ResourceRecoveryOperations.Commit(
+                    new EntityId(1UL),
                     second,
                     preview));
 
@@ -293,6 +298,7 @@ public sealed class ResourceRecoveryPreviewTests
 
         var entry =
             ResourceRecoveryOperations.Commit(
+                new EntityId(1UL),
                 state,
                 preview);
 

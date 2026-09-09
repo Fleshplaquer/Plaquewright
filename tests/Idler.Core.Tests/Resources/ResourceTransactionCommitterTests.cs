@@ -1,3 +1,4 @@
+using Idler.Core.Entities;
 using Idler.Core.Resources;
 
 namespace Idler.Core.Tests.Resources;
@@ -33,18 +34,27 @@ public sealed class ResourceTransactionCommitterTests
             GetLifeId(
                 registry);
 
+        var entity =
+            CreateLifeEntity(
+                registry,
+                1UL,
+                100d,
+                100d);
+
+        var target =
+            new ResourceStateTarget(
+                entity,
+                lifeId);
+
         var state =
-            new ResourceState(
-                lifeId,
-                current: 100d,
-                maximum: 100d);
+            target.State;
 
         var draft =
             new ResourceTransactionDraft(
                 registry);
 
         draft.StageLoss(
-            state,
+            target,
             new ResourceLossRequest(
                 lifeId,
                 30d,
@@ -93,30 +103,39 @@ public sealed class ResourceTransactionCommitterTests
             GetLifeId(
                 registry);
 
+        var entity =
+            CreateLifeEntity(
+                registry,
+                1UL,
+                100d,
+                100d);
+
+        var target =
+            new ResourceStateTarget(
+                entity,
+                lifeId);
+
         var state =
-            new ResourceState(
-                lifeId,
-                current: 100d,
-                maximum: 100d);
+            target.State;
 
         var draft =
             new ResourceTransactionDraft(
                 registry);
 
         draft.StageLoss(
-            state,
+            target,
             CreateLossRequest(
                 lifeId,
                 30d));
 
         draft.StageLoss(
-            state,
+            target,
             CreateLossRequest(
                 lifeId,
                 20d));
 
         draft.StageRecovery(
-            state,
+            target,
             new ResourceRecoveryRequest(
                 lifeId,
                 10d,
@@ -166,30 +185,43 @@ public sealed class ResourceTransactionCommitterTests
             GetManaId(
                 registry);
 
+        var entity =
+            CreateLifeManaEntity(
+                registry,
+                1UL,
+                100d,
+                100d,
+                50d,
+                50d);
+
+        var lifeTarget =
+            new ResourceStateTarget(
+                entity,
+                lifeId);
+
+        var manaTarget =
+            new ResourceStateTarget(
+                entity,
+                manaId);
+
         var life =
-            new ResourceState(
-                lifeId,
-                current: 100d,
-                maximum: 100d);
+            lifeTarget.State;
 
         var mana =
-            new ResourceState(
-                manaId,
-                current: 50d,
-                maximum: 50d);
+            manaTarget.State;
 
         var draft =
             new ResourceTransactionDraft(
                 registry);
 
         draft.StageLoss(
-            life,
+            lifeTarget,
             CreateLossRequest(
                 lifeId,
                 25d));
 
         draft.StageCost(
-            mana,
+            manaTarget,
             new ResourceCostRequest(
                 manaId,
                 10d,
@@ -197,7 +229,7 @@ public sealed class ResourceTransactionCommitterTests
                     ResourceOperationCause.SkillCost)));
 
         draft.StageRecovery(
-            life,
+            lifeTarget,
             new ResourceRecoveryRequest(
                 lifeId,
                 5d,
@@ -247,37 +279,49 @@ public sealed class ResourceTransactionCommitterTests
             GetManaId(
                 registry);
 
+        var entity =
+            CreateLifeManaEntity(
+                registry,
+                1UL,
+                100d,
+                100d,
+                50d,
+                50d);
+
+        var lifeTarget =
+            new ResourceStateTarget(
+                entity,
+                lifeId);
+
+        var manaTarget =
+            new ResourceStateTarget(
+                entity,
+                manaId);
+
         var life =
-            new ResourceState(
-                lifeId,
-                current: 100d,
-                maximum: 100d);
+            lifeTarget.State;
 
         var mana =
-            new ResourceState(
-                manaId,
-                current: 50d,
-                maximum: 50d);
+            manaTarget.State;
 
         var draft =
             new ResourceTransactionDraft(
                 registry);
 
         draft.StageLoss(
-            life,
+            lifeTarget,
             CreateLossRequest(
                 lifeId,
                 25d));
 
         draft.StageCost(
-            mana,
+            manaTarget,
             new ResourceCostRequest(
                 manaId,
                 10d,
                 new ResourceOperationProvenance(
                     ResourceOperationCause.SkillCost)));
 
-        // Make the later projection stale.
         mana.SetValues(
             current: 40d,
             maximum: 50d);
@@ -291,7 +335,6 @@ public sealed class ResourceTransactionCommitterTests
                     draft,
                     ledger));
 
-        // Life must remain completely untouched.
         Assert.Equal(
             100d,
             life.Current);
@@ -300,7 +343,6 @@ public sealed class ResourceTransactionCommitterTests
             0UL,
             life.Revision);
 
-        // Only the explicit external mutation remains.
         Assert.Equal(
             40d,
             mana.Current);
@@ -309,7 +351,6 @@ public sealed class ResourceTransactionCommitterTests
             1UL,
             mana.Revision);
 
-        // No transaction operations became visible.
         Assert.Equal(
             0,
             ledger.Count);
@@ -325,6 +366,8 @@ public sealed class ResourceTransactionCommitterTests
             GetLifeId(
                 registry);
 
+        // Low-level operation test:
+        // naked ResourceState remains valid here.
         var existingState =
             new ResourceState(
                 lifeId,
@@ -339,9 +382,10 @@ public sealed class ResourceTransactionCommitterTests
                     5d));
 
         var existingEntry =
-            ResourceLossOperations.Commit(
-                existingState,
-                existingPreview);
+    ResourceLossOperations.Commit(
+        new EntityId(999UL),
+        existingState,
+        existingPreview);
 
         var ledger =
             new ResourceOperationLedger();
@@ -349,24 +393,30 @@ public sealed class ResourceTransactionCommitterTests
         ledger.Append(
             existingEntry);
 
-        var state =
-            new ResourceState(
-                lifeId,
-                current: 100d,
-                maximum: 100d);
+        var entity =
+            CreateLifeEntity(
+                registry,
+                1UL,
+                100d,
+                100d);
+
+        var target =
+            new ResourceStateTarget(
+                entity,
+                lifeId);
 
         var draft =
             new ResourceTransactionDraft(
                 registry);
 
         draft.StageLoss(
-            state,
+            target,
             CreateLossRequest(
                 lifeId,
                 10d));
 
         draft.StageRecovery(
-            state,
+            target,
             new ResourceRecoveryRequest(
                 lifeId,
                 5d,
@@ -402,18 +452,27 @@ public sealed class ResourceTransactionCommitterTests
             GetLifeId(
                 registry);
 
+        var entity =
+            CreateLifeEntity(
+                registry,
+                1UL,
+                100d,
+                100d);
+
+        var target =
+            new ResourceStateTarget(
+                entity,
+                lifeId);
+
         var state =
-            new ResourceState(
-                lifeId,
-                current: 100d,
-                maximum: 100d);
+            target.State;
 
         var draft =
             new ResourceTransactionDraft(
                 registry);
 
         draft.StageLoss(
-            state,
+            target,
             CreateLossRequest(
                 lifeId,
                 25d));
@@ -454,6 +513,47 @@ public sealed class ResourceTransactionCommitterTests
         Assert.Equal(
             1,
             ledger.Count);
+    }
+
+    private static EntityRuntimeState CreateLifeEntity(
+        CompiledResourceRegistry registry,
+        ulong entityId,
+        double current,
+        double maximum)
+    {
+        return new EntityRuntimeState(
+            new EntityId(entityId),
+            registry,
+            [
+                new ResourceState(
+                    GetLifeId(registry),
+                    current,
+                    maximum)
+            ]);
+    }
+
+    private static EntityRuntimeState CreateLifeManaEntity(
+        CompiledResourceRegistry registry,
+        ulong entityId,
+        double lifeCurrent,
+        double lifeMaximum,
+        double manaCurrent,
+        double manaMaximum)
+    {
+        return new EntityRuntimeState(
+            new EntityId(entityId),
+            registry,
+            [
+                new ResourceState(
+                    GetLifeId(registry),
+                    lifeCurrent,
+                    lifeMaximum),
+
+                new ResourceState(
+                    GetManaId(registry),
+                    manaCurrent,
+                    manaMaximum)
+            ]);
     }
 
     private static ResourceLossRequest CreateLossRequest(

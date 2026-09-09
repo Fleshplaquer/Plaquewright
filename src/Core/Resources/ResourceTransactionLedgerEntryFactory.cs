@@ -26,7 +26,7 @@ internal static class ResourceTransactionLedgerEntryFactory
     }
 
     private static ResourceOperationLedgerEntry CreateEntry(
-        StagedResourceOperation operation)
+    StagedResourceOperation operation)
     {
         ArgumentNullException.ThrowIfNull(
             operation);
@@ -35,11 +35,13 @@ internal static class ResourceTransactionLedgerEntryFactory
         {
             StagedResourceLossOperation loss =>
                 new ResourceLossLedgerEntry(
+                    loss.EntityId,
                     loss.Preview.Request,
                     loss.Preview.Result),
 
             StagedResourceCostOperation cost =>
                 new ResourceCostLedgerEntry(
+                    cost.EntityId,
                     cost.Preview.Request,
                     new ResourceCostResult(
                         cost.Preview.Request.ResourceId,
@@ -47,6 +49,7 @@ internal static class ResourceTransactionLedgerEntryFactory
 
             StagedResourceRecoveryOperation recovery =>
                 new ResourceRecoveryLedgerEntry(
+                    recovery.EntityId,
                     recovery.Preview.Request,
                     recovery.Preview.Result),
 

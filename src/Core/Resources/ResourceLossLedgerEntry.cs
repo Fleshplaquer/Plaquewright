@@ -1,3 +1,5 @@
+using Idler.Core.Entities;
+
 namespace Idler.Core.Resources;
 
 public sealed class ResourceLossLedgerEntry
@@ -8,27 +10,25 @@ public sealed class ResourceLossLedgerEntry
     public ResourceLossResult Result { get; }
 
     internal ResourceLossLedgerEntry(
+        EntityId targetEntityId,
         ResourceLossRequest request,
         ResourceLossResult result)
         : base(
+            targetEntityId,
             request.ResourceId,
             request.Provenance)
     {
-        if (request.ResourceId !=
-            result.ResourceId)
+        if (request.ResourceId != result.ResourceId)
         {
             throw new ArgumentException(
-                "Loss request and result must target the same resource.");
+                "Loss request and result must refer to the same resource.",
+                nameof(result));
         }
 
-        if (request.Amount !=
-            result.RequestedLoss)
-        {
-            throw new ArgumentException(
-                "Loss request amount must equal result requested loss.");
-        }
+        Request =
+            request;
 
-        Request = request;
-        Result = result;
+        Result =
+            result;
     }
 }

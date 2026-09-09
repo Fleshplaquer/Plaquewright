@@ -1,3 +1,4 @@
+using Idler.Core.Entities;
 using Idler.Core.Resources;
 
 namespace Idler.Core.Tests.Resources;
@@ -27,6 +28,7 @@ public sealed class ResourceLedgerEntryTests
 
         var entry =
             ResourceLossOperations.Commit(
+                new EntityId(1UL),
                 state,
                 preview);
 
@@ -87,6 +89,7 @@ public sealed class ResourceLedgerEntryTests
 
         var entry =
             ResourceCostOperations.Commit(
+                new EntityId(1UL),
                 state,
                 preview);
 
@@ -130,6 +133,7 @@ public sealed class ResourceLedgerEntryTests
 
         var entry =
             ResourceRecoveryOperations.Commit(
+                new EntityId(1UL),
                 state,
                 preview);
 
@@ -178,6 +182,7 @@ public sealed class ResourceLedgerEntryTests
 
         var entry =
             ResourceLossOperations.Commit(
+                new EntityId(1UL),
                 state,
                 preview);
 
@@ -244,6 +249,7 @@ public sealed class ResourceLedgerEntryTests
         Assert.Throws<InvalidOperationException>(
             () =>
                 ResourceCostOperations.Commit(
+                    new EntityId(1UL),
                     state,
                     preview));
 

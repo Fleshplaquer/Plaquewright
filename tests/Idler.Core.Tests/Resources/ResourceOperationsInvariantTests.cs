@@ -1,3 +1,4 @@
+using Idler.Core.Entities;
 using Idler.Core.Resources;
 
 namespace Idler.Core.Tests.Resources;
@@ -102,9 +103,10 @@ public sealed class ResourceOperationsInvariantTests
                         preview.Maximum);
 
                     var entry =
-                        ResourceLossOperations.Commit(
-                            state,
-                            preview);
+    ResourceLossOperations.Commit(
+        new EntityId(1UL),
+        state,
+        preview);
 
                     Assert.Equal(
                         preview.CurrentAfter,
@@ -213,6 +215,7 @@ public sealed class ResourceOperationsInvariantTests
 
                 var entry =
                     ResourceRecoveryOperations.Commit(
+                        new EntityId(1UL),
                         state,
                         preview);
 
@@ -261,6 +264,7 @@ public sealed class ResourceOperationsInvariantTests
         ResourceOperationCause.DamageDerived)));
 
         ResourceRecoveryOperations.Commit(
+            new EntityId(1UL),
             state,
             recoveryPreview);
 
@@ -275,6 +279,7 @@ public sealed class ResourceOperationsInvariantTests
         Assert.Throws<InvalidOperationException>(
             () =>
                 ResourceLossOperations.Commit(
+                    new EntityId(1UL),
                     state,
                     lossPreview));
 
@@ -305,6 +310,7 @@ public sealed class ResourceOperationsInvariantTests
         ResourceOperationCause.DamageDerived)));
 
         ResourceLossOperations.Commit(
+            new EntityId(1UL),
             state,
             first);
 
@@ -317,6 +323,7 @@ public sealed class ResourceOperationsInvariantTests
         ResourceOperationCause.DamageDerived)));
 
         ResourceLossOperations.Commit(
+            new EntityId(1UL),
             state,
             second);
 
@@ -347,6 +354,7 @@ public sealed class ResourceOperationsInvariantTests
         ResourceOperationCause.DamageDerived)));
 
         ResourceLossOperations.Commit(
+            new EntityId(1UL),
             state,
             preview);
 

@@ -1,3 +1,5 @@
+using Idler.Core.Entities;
+
 namespace Idler.Core.Resources;
 
 public sealed class ResourceCostLedgerEntry
@@ -8,27 +10,25 @@ public sealed class ResourceCostLedgerEntry
     public ResourceCostResult Result { get; }
 
     internal ResourceCostLedgerEntry(
+        EntityId targetEntityId,
         ResourceCostRequest request,
         ResourceCostResult result)
         : base(
+            targetEntityId,
             request.ResourceId,
             request.Provenance)
     {
-        if (request.ResourceId !=
-            result.ResourceId)
+        if (request.ResourceId != result.ResourceId)
         {
             throw new ArgumentException(
-                "Cost request and result must target the same resource.");
+                "Cost request and result must refer to the same resource.",
+                nameof(result));
         }
 
-        if (request.Amount !=
-            result.RequestedCost)
-        {
-            throw new ArgumentException(
-                "Cost request amount must equal result requested cost.");
-        }
+        Request =
+            request;
 
-        Request = request;
-        Result = result;
+        Result =
+            result;
     }
 }

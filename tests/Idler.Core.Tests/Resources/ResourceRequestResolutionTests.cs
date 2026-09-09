@@ -1,3 +1,4 @@
+using Idler.Core.Entities;
 using Idler.Core.Resources;
 
 namespace Idler.Core.Tests.Resources;
@@ -152,9 +153,10 @@ public sealed class ResourceRequestResolutionTests
                 preventedLoss: 20d);
 
         var entry =
-            ResourceLossOperations.Commit(
-                state,
-                preview);
+    ResourceLossOperations.Commit(
+        new EntityId(1UL),
+        state,
+        preview);
 
         Assert.Equal(
             preview.Result,
@@ -195,6 +197,7 @@ public sealed class ResourceRequestResolutionTests
 
         var entry =
             ResourceRecoveryOperations.Commit(
+                new EntityId(1UL),
                 state,
                 preview);
 

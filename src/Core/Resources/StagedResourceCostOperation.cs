@@ -9,9 +9,9 @@ internal sealed class StagedResourceCostOperation
         Preview.Request.Provenance;
 
     public StagedResourceCostOperation(
-        ResourceState originalState,
+        ResourceStateTarget target,
         ResourceCostPreview preview)
-        : base(originalState)
+        : base(target)
     {
         ArgumentNullException.ThrowIfNull(
             preview);

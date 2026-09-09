@@ -52,13 +52,16 @@ internal sealed class ResourceTransactionDraft
         _readOnlyOperations;
 
     public ResourceLossPreview StageLoss(
-        ResourceState state,
+        ResourceStateTarget target,
         ResourceLossRequest request,
         double preventedLoss = 0d)
     {
+        ValidateTarget(
+            target);
+
         var projection =
             GetProjectionCandidate(
-                state,
+                target.State,
                 out var isNew);
 
         var preview =
@@ -70,25 +73,28 @@ internal sealed class ResourceTransactionDraft
             preview);
 
         RegisterProjectionIfNew(
-            state,
+            target.State,
             projection,
             isNew);
 
         _operations.Add(
             new StagedResourceLossOperation(
-                state,
+                target,
                 preview));
 
         return preview;
     }
 
     public ResourceCostPreview StageCost(
-        ResourceState state,
+        ResourceStateTarget target,
         ResourceCostRequest request)
     {
+        ValidateTarget(
+            target);
+
         var projection =
             GetProjectionCandidate(
-                state,
+                target.State,
                 out var isNew);
 
         var preview =
@@ -99,25 +105,28 @@ internal sealed class ResourceTransactionDraft
             preview);
 
         RegisterProjectionIfNew(
-            state,
+            target.State,
             projection,
             isNew);
 
         _operations.Add(
             new StagedResourceCostOperation(
-                state,
+                target,
                 preview));
 
         return preview;
     }
 
     public ResourceRecoveryPreview StageRecovery(
-        ResourceState state,
+        ResourceStateTarget target,
         ResourceRecoveryRequest request)
     {
+        ValidateTarget(
+            target);
+
         var projection =
             GetProjectionCandidate(
-                state,
+                target.State,
                 out var isNew);
 
         var preview =
@@ -128,25 +137,38 @@ internal sealed class ResourceTransactionDraft
             preview);
 
         RegisterProjectionIfNew(
-            state,
+            target.State,
             projection,
             isNew);
 
         _operations.Add(
             new StagedResourceRecoveryOperation(
-                state,
+                target,
                 preview));
 
         return preview;
+    }
+
+    private void ValidateTarget(
+        ResourceStateTarget target)
+    {
+        ArgumentNullException.ThrowIfNull(
+            target);
+
+        if (!ReferenceEquals(
+                target.ResourceRegistry,
+                _registry))
+        {
+            throw new ArgumentException(
+                "Resource target belongs to a different resource registry.",
+                nameof(target));
+        }
     }
 
     private ResourceStateProjection GetProjectionCandidate(
         ResourceState state,
         out bool isNew)
     {
-        ArgumentNullException.ThrowIfNull(
-            state);
-
         if (_projectionsByState.TryGetValue(
                 state,
                 out var existing))

@@ -1,15 +1,27 @@
+using Idler.Core.Entities;
+
 namespace Idler.Core.Resources;
 
 public abstract class ResourceOperationLedgerEntry
 {
+    public EntityId TargetEntityId { get; }
+
     public ResourceId ResourceId { get; }
 
     public ResourceOperationProvenance Provenance { get; }
 
     protected ResourceOperationLedgerEntry(
+        EntityId targetEntityId,
         ResourceId resourceId,
         ResourceOperationProvenance provenance)
     {
+        if (!targetEntityId.IsValid)
+        {
+            throw new ArgumentException(
+                "Target entity ID must be valid.",
+                nameof(targetEntityId));
+        }
+
         if (!resourceId.IsValid)
         {
             throw new ArgumentException(
@@ -17,14 +29,13 @@ public abstract class ResourceOperationLedgerEntry
                 nameof(resourceId));
         }
 
-        if (!provenance.IsValid)
-        {
-            throw new ArgumentException(
-                "Resource operation provenance must be valid.",
-                nameof(provenance));
-        }
+        TargetEntityId =
+            targetEntityId;
 
-        ResourceId = resourceId;
-        Provenance = provenance;
+        ResourceId =
+            resourceId;
+
+        Provenance =
+            provenance;
     }
 }

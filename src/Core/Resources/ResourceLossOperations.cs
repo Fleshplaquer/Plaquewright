@@ -1,3 +1,5 @@
+using Idler.Core.Entities;
+
 namespace Idler.Core.Resources;
 
 public static class ResourceLossOperations
@@ -7,7 +9,8 @@ public static class ResourceLossOperations
         ResourceLossRequest request,
         double preventedLoss = 0d)
     {
-        ArgumentNullException.ThrowIfNull(state);
+        ArgumentNullException.ThrowIfNull(
+            state);
 
         ValidateRequestTargetsState(
             state,
@@ -46,14 +49,19 @@ public static class ResourceLossOperations
     }
 
     public static ResourceLossLedgerEntry Commit(
-    ResourceState state,
-    ResourceLossPreview preview)
+        EntityId targetEntityId,
+        ResourceState state,
+        ResourceLossPreview preview)
     {
+        ValidateTargetEntityId(
+            targetEntityId);
+
         ValidateCommit(
             state,
             preview);
 
         return ApplyValidatedCommit(
+            targetEntityId,
             state,
             preview);
     }
@@ -62,8 +70,11 @@ public static class ResourceLossOperations
         ResourceState state,
         ResourceLossPreview preview)
     {
-        ArgumentNullException.ThrowIfNull(state);
-        ArgumentNullException.ThrowIfNull(preview);
+        ArgumentNullException.ThrowIfNull(
+            state);
+
+        ArgumentNullException.ThrowIfNull(
+            preview);
 
         ValidatePreviewTarget(
             state,
@@ -76,16 +87,32 @@ public static class ResourceLossOperations
     }
 
     internal static ResourceLossLedgerEntry ApplyValidatedCommit(
+        EntityId targetEntityId,
         ResourceState state,
         ResourceLossPreview preview)
     {
+        ValidateTargetEntityId(
+            targetEntityId);
+
         state.SetValues(
             preview.CurrentAfter,
             preview.Maximum);
 
         return new ResourceLossLedgerEntry(
+            targetEntityId,
             preview.Request,
             preview.Result);
+    }
+
+    private static void ValidateTargetEntityId(
+        EntityId targetEntityId)
+    {
+        if (!targetEntityId.IsValid)
+        {
+            throw new ArgumentException(
+                "Target entity ID must be valid.",
+                nameof(targetEntityId));
+        }
     }
 
     private static void ValidateRequestTargetsState(
@@ -103,7 +130,8 @@ public static class ResourceLossOperations
         double preventedLoss,
         double requestedLoss)
     {
-        if (!double.IsFinite(preventedLoss))
+        if (!double.IsFinite(
+                preventedLoss))
         {
             throw new ArgumentOutOfRangeException(
                 nameof(preventedLoss),
