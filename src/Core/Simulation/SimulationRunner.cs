@@ -25,7 +25,7 @@ public sealed class SimulationRunner<TPayload>
     }
 
     public SimulationRunResult RunNext(
-        Action<ScheduledEvent<TPayload>> execute)
+        Action<SimulationEventContext<TPayload>> execute)
     {
         ArgumentNullException.ThrowIfNull(execute);
 
@@ -79,20 +79,41 @@ public sealed class SimulationRunner<TPayload>
         CurrentTime =
             scheduledEvent.Key.Time;
 
+        var context =
+            new SimulationEventContext<TPayload>(
+                _scheduler,
+                scheduledEvent);
+
+        SimulationBudgetKind? budgetExceededKind =
+            null;
+
+        _scheduler.BeginEventExecution(
+            scheduledEvent.Key);
+
         try
         {
-            execute(
-                scheduledEvent);
+            execute(context);
         }
         catch (SimulationBudgetExceededException exception)
         {
-            return AbortForBudget(
-                exception.Kind);
+            budgetExceededKind =
+                exception.Kind;
         }
         catch
         {
             _isFaulted = true;
             throw;
+        }
+        finally
+        {
+            _scheduler.EndEventExecution(
+                scheduledEvent.Key);
+        }
+
+        if (budgetExceededKind is { } kind)
+        {
+            return AbortForBudget(
+                kind);
         }
 
         ProcessedEvents =
@@ -114,7 +135,7 @@ public sealed class SimulationRunner<TPayload>
     }
 
     public SimulationRunResult RunToCompletion(
-        Action<ScheduledEvent<TPayload>> execute)
+        Action<SimulationEventContext<TPayload>> execute)
     {
         ArgumentNullException.ThrowIfNull(execute);
 

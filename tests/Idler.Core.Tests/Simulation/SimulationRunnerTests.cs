@@ -269,20 +269,18 @@ public sealed class SimulationRunnerTests
 
         var result =
             runner.RunNext(
-                scheduledEvent =>
-                {
-                    scheduler.ScheduleFrom(
-                        scheduledEvent.Key,
-                        scheduledEvent.Key.Time,
-                        SchedulerPhase.Execution,
+                context =>
+    {
+        context.Schedule(
+            context.CurrentTime,
+            SchedulerPhase.FollowUp,
                         "first-child");
 
-                    scheduler.ScheduleFrom(
-                        scheduledEvent.Key,
-                        scheduledEvent.Key.Time,
-                        SchedulerPhase.Execution,
-                        "second-child");
-                });
+        context.Schedule(
+            context.CurrentTime,
+SchedulerPhase.Execution,
+            "second-child");
+    });
 
         Assert.Equal(
             SimulationRunStatus.BudgetExceeded,
@@ -437,10 +435,9 @@ public sealed class SimulationRunnerTests
                     if (scheduledEvent.Key ==
                         parent)
                     {
-                        scheduler.ScheduleFrom(
-                            scheduledEvent.Key,
-                            scheduledEvent.Key.Time,
-                            SchedulerPhase.StateBoundary,
+                        scheduledEvent.Schedule(
+                            scheduledEvent.CurrentTime,
+                            SchedulerPhase.FollowUp,
                             "child-wave-one");
                     }
                 });
