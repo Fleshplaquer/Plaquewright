@@ -149,6 +149,32 @@ public sealed class SimulationRuntimeState
             hitExecution.Id);
     }
 
+    internal DamageResolutionContext CreateDamageResolutionContext(
+    DamageExecutionContext damageExecution,
+    DamageTargetContext damageTarget,
+    DamageResolutionQuantities quantities)
+    {
+        ArgumentNullException.ThrowIfNull(
+            damageExecution);
+
+        ArgumentNullException.ThrowIfNull(
+            damageTarget);
+
+        ArgumentNullException.ThrowIfNull(
+            quantities);
+
+        Entities.Get(
+            damageExecution.SourceEntityId);
+
+        Entities.Get(
+            damageTarget.TargetEntityId);
+
+        return new DamageResolutionContext(
+            damageExecution,
+            damageTarget,
+            quantities);
+    }
+
     public SimulationSeed RootSeed { get; }
 
     public CompiledResourceRegistry ResourceRegistry { get; }
