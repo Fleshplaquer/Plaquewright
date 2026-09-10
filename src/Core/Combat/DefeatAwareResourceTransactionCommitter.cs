@@ -30,6 +30,10 @@ internal static class DefeatAwareResourceTransactionCommitter
                 nameof(entity));
         }
 
+        ValidateSingleOwnerDraft(
+            draft,
+            entity);
+
         var currentEvaluation =
             EvaluateCurrent(
                 draft,
@@ -87,6 +91,40 @@ internal static class DefeatAwareResourceTransactionCommitter
             currentEvaluation,
             preDefeatPhaseResult,
             outcome);
+    }
+
+    private static void ValidateSingleOwnerDraft(
+        ResourceTransactionDraft draft,
+        EntityRuntimeState entity)
+    {
+        foreach (var operation in draft.Operations)
+        {
+            var operationEntityId =
+                operation switch
+                {
+                    StagedResourceLossOperation loss =>
+                        loss.EntityId,
+
+                    StagedResourceCostOperation cost =>
+                        cost.EntityId,
+
+                    StagedResourceRecoveryOperation recovery =>
+                        recovery.EntityId,
+
+                    _ =>
+                        throw new InvalidOperationException(
+                            $"Unsupported staged resource operation type '{operation.GetType().FullName}'.")
+                };
+
+            if (operationEntityId !=
+                entity.Id)
+            {
+                throw new InvalidOperationException(
+                    "The defeat-aware resource transaction commit currently supports only single-owner drafts. " +
+                    $"The draft contains an operation for entity {operationEntityId}, " +
+                    $"but the commit gate is evaluating entity {entity.Id}.");
+            }
+        }
     }
 
     private static ProjectedEntityDefeatEvaluation EvaluateCurrent(
