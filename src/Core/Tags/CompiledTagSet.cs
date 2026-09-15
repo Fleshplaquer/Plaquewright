@@ -6,11 +6,21 @@ public sealed class CompiledTagSet
 {
     private readonly ReadOnlyCollection<TagId> _directTags;
     private readonly ReadOnlyCollection<TagId> _effectiveTags;
+    private readonly CompiledTagRegistryIdentity
+    _registryIdentity;
+    internal CompiledTagRegistryIdentity RegistryIdentity =>
+    _registryIdentity;
 
     internal CompiledTagSet(
-        TagId[] directTags,
-        TagId[] effectiveTags)
+    CompiledTagRegistryIdentity registryIdentity,
+    TagId[] directTags,
+    TagId[] effectiveTags)
     {
+        ArgumentNullException.ThrowIfNull(
+    registryIdentity);
+
+        _registryIdentity =
+            registryIdentity;
         _directTags = Array.AsReadOnly(
             (TagId[])directTags.Clone());
 

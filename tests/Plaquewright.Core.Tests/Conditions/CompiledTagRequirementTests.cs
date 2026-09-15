@@ -30,6 +30,104 @@ public sealed class CompiledTagRequirementTests
         Assert.True(
             requirement.Matches(tags));
     }
+    [Fact]
+    public void Requirement_FromDifferentRegistry_IsRejectedEvenWhenNumericTagIdsCollide()
+    {
+        var fire =
+            TagKey.Parse(
+                "damage.fire");
+
+        var cold =
+            TagKey.Parse(
+                "damage.cold");
+
+        var fireRegistry =
+            TagRegistryCompiler.Compile(
+            [
+                new TagDefinition(
+                fire)
+            ]);
+
+        var coldRegistry =
+            TagRegistryCompiler.Compile(
+            [
+                new TagDefinition(
+                cold)
+            ]);
+
+        // Both independent registries assign their only tag ID 1.
+        Assert.Equal(
+            fireRegistry.GetId(
+                fire),
+            coldRegistry.GetId(
+                cold));
+
+        var tagSet =
+            fireRegistry.CompileTagSet(
+            [
+                fire
+            ]);
+
+        var requirement =
+            coldRegistry.CompileRequirement(
+                new TagRequirementDefinition(
+                    TagRequirementMode.All,
+                    [
+                        cold
+                    ]));
+
+        Assert.Throws<InvalidOperationException>(
+            () =>
+                requirement.Matches(
+                    tagSet));
+    }
+    [Fact]
+    public void Requirement_FromSeparatelyCompiledEquivalentRegistry_IsRejected()
+    {
+        var fire =
+            TagKey.Parse(
+                "damage.fire");
+
+        var firstRegistry =
+            TagRegistryCompiler.Compile(
+            [
+                new TagDefinition(
+                fire)
+            ]);
+
+        var secondRegistry =
+            TagRegistryCompiler.Compile(
+            [
+                new TagDefinition(
+                fire)
+            ]);
+
+        // Deterministic IDs remain equal.
+        Assert.Equal(
+            firstRegistry.GetId(
+                fire),
+            secondRegistry.GetId(
+                fire));
+
+        var tagSet =
+            firstRegistry.CompileTagSet(
+            [
+                fire
+            ]);
+
+        var requirement =
+            secondRegistry.CompileRequirement(
+                new TagRequirementDefinition(
+                    TagRequirementMode.All,
+                    [
+                        fire
+                    ]));
+
+        Assert.Throws<InvalidOperationException>(
+            () =>
+                requirement.Matches(
+                    tagSet));
+    }
 
     [Fact]
     public void AllRequirement_FailsWhenOneTagIsMissing()

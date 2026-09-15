@@ -6,24 +6,42 @@ namespace Plaquewright.Core.Conditions;
 public sealed class CompiledTagRequirement
 {
     private readonly ReadOnlyCollection<TagId> _tags;
+    private readonly CompiledTagRegistryIdentity
+    _registryIdentity;
 
     public TagRequirementMode Mode { get; }
 
     public IReadOnlyList<TagId> Tags => _tags;
 
     internal CompiledTagRequirement(
-        TagRequirementMode mode,
-        TagId[] tags)
+    CompiledTagRegistryIdentity registryIdentity,
+    TagRequirementMode mode,
+    TagId[] tags)
     {
+        ArgumentNullException.ThrowIfNull(
+    registryIdentity);
+
+        _registryIdentity =
+            registryIdentity;
         Mode = mode;
 
         _tags = Array.AsReadOnly(
             (TagId[])tags.Clone());
     }
 
-    public bool Matches(CompiledTagSet tagSet)
+    public bool Matches(
+    CompiledTagSet tagSet)
     {
-        ArgumentNullException.ThrowIfNull(tagSet);
+        ArgumentNullException.ThrowIfNull(
+            tagSet);
+
+        if (!ReferenceEquals(
+                _registryIdentity,
+                tagSet.RegistryIdentity))
+        {
+            throw new InvalidOperationException(
+                "Compiled tag requirement and tag set belong to different compiled tag registries.");
+        }
 
         return Mode switch
         {
@@ -33,10 +51,11 @@ public sealed class CompiledTagRequirement
             TagRequirementMode.Any =>
                 tagSet.MatchesAny(_tags),
 
-            _ => throw new ArgumentOutOfRangeException(
-                nameof(Mode),
-                Mode,
-                "Unknown tag requirement mode.")
+            _ =>
+                throw new ArgumentOutOfRangeException(
+                    nameof(Mode),
+                    Mode,
+                    "Unknown tag requirement mode.")
         };
     }
 }

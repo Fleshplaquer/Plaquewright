@@ -15,6 +15,9 @@ public sealed class CompiledTagRegistry
     private readonly ReadOnlyCollection<TagId>[]
         _effectiveImplications;
 
+    private readonly CompiledTagRegistryIdentity _identity =
+new();
+
     internal CompiledTagRegistry(
         Dictionary<TagKey, TagId> idsByKey,
         TagKey[] keysById,
@@ -96,12 +99,13 @@ public sealed class CompiledTagRegistry
         }
 
         return new CompiledTagSet(
-            directTags
-                .OrderBy(tag => tag.Value)
-                .ToArray(),
-            effectiveTags
-                .OrderBy(tag => tag.Value)
-                .ToArray());
+              _identity,
+              directTags
+                  .OrderBy(tag => tag.Value)
+                  .ToArray(),
+              effectiveTags
+                  .OrderBy(tag => tag.Value)
+                  .ToArray());
     }
 
     public CompiledTagRequirement CompileRequirement(
@@ -116,6 +120,7 @@ public sealed class CompiledTagRegistry
             .ToArray();
 
         return new CompiledTagRequirement(
+            _identity,
             definition.Mode,
             ids);
     }
