@@ -6,6 +6,19 @@ internal static class ResourceTransactionCommitter
         ResourceTransactionDraft draft,
         ResourceOperationLedger ledger)
     {
+        var preparedCommit =
+            Prepare(
+                draft,
+                ledger);
+
+        ApplyPrepared(
+            preparedCommit);
+    }
+
+    internal static PreparedResourceTransactionCommit Prepare(
+        ResourceTransactionDraft draft,
+        ResourceOperationLedger ledger)
+    {
         ArgumentNullException.ThrowIfNull(
             draft);
 
@@ -29,15 +42,27 @@ internal static class ResourceTransactionCommitter
             ledger.PrepareAppendRange(
                 entries);
 
+        return new PreparedResourceTransactionCommit(
+            draft,
+            ledger,
+            preparedLedgerAppend);
+    }
+
+    internal static void ApplyPrepared(
+        PreparedResourceTransactionCommit preparedCommit)
+    {
+        ArgumentNullException.ThrowIfNull(
+            preparedCommit);
+
         // From here onward there must be no ordinary
         // gameplay validation, allocation or callbacks.
 
         // 4. Publish final projected resource states.
         ResourceTransactionStateCommitter.ApplyValidated(
-            draft);
+            preparedCommit.Draft);
 
         // 5. Publish accepted causal gross operations.
-        ledger.ApplyPreparedAppend(
-            preparedLedgerAppend);
+        preparedCommit.Ledger.ApplyPreparedAppend(
+            preparedCommit.PreparedLedgerAppend);
     }
 }

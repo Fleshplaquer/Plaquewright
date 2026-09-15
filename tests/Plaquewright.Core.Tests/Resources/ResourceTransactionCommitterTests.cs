@@ -23,6 +23,92 @@ public sealed class ResourceTransactionCommitterTests
             0,
             ledger.Count);
     }
+    [Fact]
+    public void Prepare_DoesNotPublishUntilApplyPrepared()
+    {
+        var registry =
+            CreateRegistry();
+
+        var manaId =
+            GetManaId(
+                registry);
+
+        var entity =
+            new EntityRuntimeState(
+                new EntityId(1UL),
+                registry,
+                [
+                    new ResourceState(
+                    manaId,
+                    current: 150d,
+                    maximum: 200d)
+                ]);
+
+        var target =
+            new ResourceStateTarget(
+                entity,
+                manaId);
+
+        var draft =
+            new ResourceTransactionDraft(
+                registry);
+
+        draft.StageCost(
+            target,
+            new ResourceCostRequest(
+                manaId,
+                100d,
+                new ResourceOperationProvenance(
+                    ResourceOperationCause.Direct)));
+
+        var ledger =
+            new ResourceOperationLedger();
+
+        var prepared =
+            ResourceTransactionCommitter.Prepare(
+                draft,
+                ledger);
+
+        // PREPARE must not make gameplay state visible.
+        Assert.Equal(
+            150d,
+            target.State.Current);
+
+        Assert.Equal(
+            0UL,
+            target.State.Revision);
+
+        Assert.Equal(
+            0,
+            ledger.Count);
+
+        ResourceTransactionCommitter.ApplyPrepared(
+            prepared);
+
+        Assert.Equal(
+            50d,
+            target.State.Current);
+
+        Assert.Equal(
+            1UL,
+            target.State.Revision);
+
+        Assert.Equal(
+            1,
+            ledger.Count);
+
+        var entry =
+            Assert.IsType<ResourceCostLedgerEntry>(
+                ledger.Entries[0]);
+
+        Assert.Equal(
+            100d,
+            entry.Result.RequestedCost);
+
+        Assert.Equal(
+            100d,
+            entry.Result.ActualCost);
+    }
 
     [Fact]
     public void Commit_PublishesStateAndLedgerEntries()
