@@ -157,6 +157,13 @@ internal static class DefeatAwareResourceTransactionCommitter
                 "Pre-defeat phase result belongs to a different resource transaction draft.");
         }
 
+        if (phaseResult.DraftVersion !=
+            draft.Version)
+        {
+            throw new InvalidOperationException(
+                "Pre-defeat phase result is stale because the resource transaction draft changed after phase finalization.");
+        }
+
         if (!ReferenceEquals(
                 phaseResult.Context.Entity,
                 entity))

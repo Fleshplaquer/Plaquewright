@@ -61,6 +61,131 @@ public sealed class DefeatAwareResourceTransactionCommitterTests
     }
 
     [Fact]
+    public void PhaseResult_IsRejectedWhenDraftChangedEvenIfDefeatBooleansRemainEqual()
+    {
+        var setup =
+            CreateSetup();
+
+        var draft =
+            new ResourceTransactionDraft(
+                setup.Registry);
+
+        StageLifeLoss(
+            draft,
+            setup,
+            amount: 100d);
+
+        var context =
+            PreDefeatInterventionContextFactory.TryCreate(
+                draft,
+                setup.Entity,
+                DefeatRelevantResourcePolicy.AnyDepleted);
+
+        Assert.NotNull(
+            context);
+
+        var stalePhaseResult =
+            PreDefeatInterventionPhaseFinalizer.Finalize(
+                context);
+
+        Assert.True(
+            stalePhaseResult.FinalEvaluation.IsProjectedDefeated);
+
+        Assert.True(
+            stalePhaseResult.FinalEvaluation.IsNewDefeatTransition);
+
+        var soulId =
+            setup.Registry.GetId(
+                ResourceKey.Parse(
+                    "resource.soul"));
+
+        var soulTarget =
+            new ResourceStateTarget(
+                setup.Entity,
+                soulId);
+
+        // Change the draft after finalization without changing
+        // the relevant defeat booleans:
+        //
+        // Life remains projected at zero.
+        // Soul merely drops from 50 to 40.
+        draft.StageLoss(
+            soulTarget,
+            new ResourceLossRequest(
+                soulId,
+                amount: 10d,
+                new ResourceOperationProvenance(
+                    ResourceOperationCause.Direct)));
+
+        var currentObservation =
+            ProjectedEntityDefeatObserver.Observe(
+                draft,
+                setup.Entity);
+
+        var currentEvaluation =
+            ProjectedEntityDefeatEvaluator.Evaluate(
+                currentObservation,
+                DefeatRelevantResourcePolicy.AnyDepleted);
+
+        // This is the exact A02 regression:
+        // the old boolean-only validation would consider
+        // these equivalent.
+        Assert.Equal(
+            stalePhaseResult.FinalEvaluation.IsProjectedDefeated,
+            currentEvaluation.IsProjectedDefeated);
+
+        Assert.Equal(
+            stalePhaseResult.FinalEvaluation.IsNewDefeatTransition,
+            currentEvaluation.IsNewDefeatTransition);
+
+        var ledger =
+            new ResourceOperationLedger();
+
+        Assert.Throws<InvalidOperationException>(
+            () =>
+                DefeatAwareResourceTransactionCommitter.Commit(
+                    draft,
+                    ledger,
+                    setup.Entity,
+                    DefeatRelevantResourcePolicy.AnyDepleted,
+                    stalePhaseResult));
+
+        // Nothing became visible.
+        Assert.Equal(
+            100d,
+            setup.LifeTarget.State.Current);
+
+        Assert.Equal(
+            0UL,
+            setup.LifeTarget.State.Revision);
+
+        Assert.Equal(
+            50d,
+            soulTarget.State.Current);
+
+        Assert.Equal(
+            0UL,
+            soulTarget.State.Revision);
+
+        Assert.Equal(
+            0,
+            ledger.Count);
+
+        // But both staged projections are still present.
+        Assert.Equal(
+            0d,
+            draft.GetProjectedValues(
+                setup.LifeTarget)
+            .Current);
+
+        Assert.Equal(
+            40d,
+            draft.GetProjectedValues(
+                soulTarget)
+            .Current);
+    }
+
+    [Fact]
     public void NewDefeatTransition_WithoutPreDefeatPhase_IsRejectedBeforeCommit()
     {
         var setup =

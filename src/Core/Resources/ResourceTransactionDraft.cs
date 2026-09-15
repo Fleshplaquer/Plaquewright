@@ -11,6 +11,8 @@ internal sealed class ResourceTransactionDraft
         ResourceStateProjection> _projectionsByState =
             new(ReferenceEqualityComparer.Instance);
 
+    private ulong _version;
+
     private readonly List<ResourceStateProjection>
         _projections = [];
 
@@ -22,6 +24,9 @@ internal sealed class ResourceTransactionDraft
 
     private readonly ReadOnlyCollection<StagedResourceOperation>
         _readOnlyOperations;
+
+    internal ulong Version =>
+_version;
 
     public ResourceTransactionDraft(
         CompiledResourceRegistry registry)
@@ -58,6 +63,7 @@ internal sealed class ResourceTransactionDraft
     {
         ValidateTarget(
             target);
+        EnsureVersionCanAdvance();
 
         var projection =
             GetProjectionCandidate(
@@ -81,7 +87,7 @@ internal sealed class ResourceTransactionDraft
             new StagedResourceLossOperation(
                 target,
                 preview));
-
+        AdvanceVersion();
         return preview;
     }
 
@@ -91,6 +97,7 @@ internal sealed class ResourceTransactionDraft
     {
         ValidateTarget(
             target);
+        EnsureVersionCanAdvance();
 
         var projection =
             GetProjectionCandidate(
@@ -118,7 +125,7 @@ internal sealed class ResourceTransactionDraft
             new StagedResourceCostOperation(
                 target,
                 preview));
-
+        AdvanceVersion();
         return preview;
     }
 
@@ -128,6 +135,7 @@ internal sealed class ResourceTransactionDraft
     {
         ValidateTarget(
             target);
+        EnsureVersionCanAdvance();
 
         var projection =
             GetProjectionCandidate(
@@ -150,7 +158,7 @@ internal sealed class ResourceTransactionDraft
             new StagedResourceRecoveryOperation(
                 target,
                 preview));
-
+        AdvanceVersion();
         return preview;
     }
 
@@ -247,5 +255,19 @@ internal sealed class ResourceTransactionDraft
 
         _projections.Add(
             projection);
+    }
+    private void EnsureVersionCanAdvance()
+    {
+        if (_version ==
+            ulong.MaxValue)
+        {
+            throw new InvalidOperationException(
+                "Resource transaction draft version is exhausted.");
+        }
+    }
+
+    private void AdvanceVersion()
+    {
+        _version++;
     }
 }

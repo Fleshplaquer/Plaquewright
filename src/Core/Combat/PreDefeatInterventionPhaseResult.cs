@@ -15,6 +15,8 @@ public sealed class PreDefeatInterventionPhaseResult
     public bool RemainsProjectedDefeated =>
         FinalEvaluation.IsProjectedDefeated;
 
+    internal ulong DraftVersion { get; }
+
     internal PreDefeatInterventionPhaseResult(
         PreDefeatInterventionContext context,
         ProjectedEntityDefeatEvaluation finalEvaluation,
@@ -60,5 +62,8 @@ public sealed class PreDefeatInterventionPhaseResult
 
         Outcome =
             outcome;
+
+        DraftVersion =
+context.Draft.Version;
     }
 }
