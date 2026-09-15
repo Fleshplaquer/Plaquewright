@@ -33,6 +33,38 @@ public sealed class TagRegistryCompilerTests
             first.GetId(TagKey.Parse("damage.fire")),
             second.GetId(TagKey.Parse("damage.fire")));
     }
+    [Fact]
+    public void Compile_WithNullDefinition_ThrowsArgumentException()
+    {
+        Assert.Throws<ArgumentException>(
+            () =>
+                TagRegistryCompiler.Compile(
+                [
+                    new TagDefinition(
+                    TagKey.Parse(
+                        "damage")),
+
+                null!
+                ]));
+    }
+    [Fact]
+    public void Compile_WithNullDefinitionAmongValidDefinitions_ThrowsArgumentException()
+    {
+        Assert.Throws<ArgumentException>(
+            () =>
+                TagRegistryCompiler.Compile(
+                [
+                    new TagDefinition(
+                    TagKey.Parse(
+                        "damage")),
+
+                null!,
+
+                new TagDefinition(
+                    TagKey.Parse(
+                        "damage.fire"))
+                ]));
+    }
 
     [Fact]
     public void Compile_BuildsTransitiveImplications()

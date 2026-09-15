@@ -16,6 +16,27 @@ public sealed class DamageRangeResolverTests
             new DamageRange(100d, 150d),
             range);
     }
+    [Fact]
+    public void Resolve_WithUnknownPolicyAndOrderedCandidates_Throws()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () =>
+                DamageRangeResolver.Resolve(
+                    1d,
+                    2d,
+                    (RangeResolutionPolicy)999));
+    }
+
+    [Fact]
+    public void Resolve_WithUnknownPolicyAndInvertedCandidates_Throws()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () =>
+                DamageRangeResolver.Resolve(
+                    2d,
+                    1d,
+                    (RangeResolutionPolicy)999));
+    }
 
     [Fact]
     public void Resolve_WithInvertedCandidates_CollapsesBetween()

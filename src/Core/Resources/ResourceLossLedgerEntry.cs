@@ -18,10 +18,19 @@ public sealed class ResourceLossLedgerEntry
             request.ResourceId,
             request.Provenance)
     {
-        if (request.ResourceId != result.ResourceId)
+        if (request.ResourceId !=
+            result.ResourceId)
         {
             throw new ArgumentException(
                 "Loss request and result must refer to the same resource.",
+                nameof(result));
+        }
+
+        if (request.Amount !=
+            result.RequestedLoss)
+        {
+            throw new ArgumentException(
+                "Loss request amount must match the result requested loss.",
                 nameof(result));
         }
 

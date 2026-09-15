@@ -32,23 +32,23 @@ public static class DamageRangeResolver
         double candidateMax,
         RangeResolutionPolicy policy)
     {
+        if (policy !=
+            RangeResolutionPolicy.CollapseBetween)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(policy),
+                policy,
+                "Unknown range resolution policy.");
+        }
+
         if (candidateMin <= candidateMax)
         {
             return (candidateMin, candidateMax);
         }
 
-        return policy switch
-        {
-            RangeResolutionPolicy.CollapseBetween =>
-                CollapseBetween(
-                    candidateMin,
-                    candidateMax),
-
-            _ => throw new ArgumentOutOfRangeException(
-                nameof(policy),
-                policy,
-                "Unknown range resolution policy.")
-        };
+        return CollapseBetween(
+            candidateMin,
+            candidateMax);
     }
 
     private static (double Min, double Max) CollapseBetween(

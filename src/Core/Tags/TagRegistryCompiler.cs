@@ -9,6 +9,15 @@ public static class TagRegistryCompiler
 
         var definitionArray = definitions.ToArray();
 
+        if (definitionArray.Any(
+        definition =>
+            definition is null))
+        {
+            throw new ArgumentException(
+                "Tag definitions must not contain null entries.",
+                nameof(definitions));
+        }
+
         ValidateDuplicateKeys(definitionArray);
 
         var orderedDefinitions = definitionArray

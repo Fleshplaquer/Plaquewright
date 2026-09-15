@@ -8,16 +8,36 @@ public sealed class TagDefinition
 
     public TagKey Key { get; }
 
-    public IReadOnlyList<TagKey> ImpliedTags => _impliedTags;
+    public IReadOnlyList<TagKey> ImpliedTags =>
+        _impliedTags;
 
     public TagDefinition(
         TagKey key,
         IEnumerable<TagKey>? impliedTags = null)
     {
-        Key = key;
+        if (key == default)
+        {
+            throw new ArgumentException(
+                "Tag definition key must be valid.",
+                nameof(key));
+        }
 
-        var tags = impliedTags?.ToArray() ?? [];
+        var tags =
+            impliedTags?.ToArray() ?? [];
 
-        _impliedTags = Array.AsReadOnly(tags);
+        if (tags.Any(
+                tag =>
+                    tag == default))
+        {
+            throw new ArgumentException(
+                "Implied tag keys must be valid.",
+                nameof(impliedTags));
+        }
+
+        Key =
+            key;
+
+        _impliedTags =
+            Array.AsReadOnly(tags);
     }
 }

@@ -23,8 +23,8 @@ public sealed class ResourceOperationLedger
     public IReadOnlyList<ResourceOperationLedgerEntry> Entries =>
         _readOnlyEntries;
 
-    public void Append(
-        ResourceOperationLedgerEntry entry)
+    internal void Append(
+    ResourceOperationLedgerEntry entry)
     {
         ArgumentNullException.ThrowIfNull(
             entry);

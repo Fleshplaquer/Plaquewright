@@ -18,10 +18,19 @@ public sealed class ResourceRecoveryLedgerEntry
             request.ResourceId,
             request.Provenance)
     {
-        if (request.ResourceId != result.ResourceId)
+        if (request.ResourceId !=
+            result.ResourceId)
         {
             throw new ArgumentException(
                 "Recovery request and result must refer to the same resource.",
+                nameof(result));
+        }
+
+        if (request.Amount !=
+            result.RequestedRecovery)
+        {
+            throw new ArgumentException(
+                "Recovery request amount must match the result requested recovery.",
                 nameof(result));
         }
 

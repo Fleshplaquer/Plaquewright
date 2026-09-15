@@ -10,7 +10,7 @@ public abstract class ResourceOperationLedgerEntry
 
     public ResourceOperationProvenance Provenance { get; }
 
-    protected ResourceOperationLedgerEntry(
+    internal ResourceOperationLedgerEntry(
         EntityId targetEntityId,
         ResourceId resourceId,
         ResourceOperationProvenance provenance)
@@ -27,6 +27,13 @@ public abstract class ResourceOperationLedgerEntry
             throw new ArgumentException(
                 "Resource ID must be valid.",
                 nameof(resourceId));
+        }
+
+        if (!provenance.IsValid)
+        {
+            throw new ArgumentException(
+                "Resource operation provenance must be valid.",
+                nameof(provenance));
         }
 
         TargetEntityId =
