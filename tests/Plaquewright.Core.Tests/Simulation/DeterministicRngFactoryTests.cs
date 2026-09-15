@@ -32,6 +32,17 @@ public sealed class DeterministicRngFactoryTests
                 second.NextUInt64());
         }
     }
+    [Fact]
+    public void CreateStream_WithUnknownAlgorithmVersion_Throws()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () =>
+                DeterministicRngFactory.CreateStream(
+                    new SimulationSeed(123UL),
+                    RngDomainKey.Parse(
+                        "test.rng"),
+                    (RngAlgorithmVersion)999));
+    }
 
     [Fact]
     public void DifferentDomains_ProduceDifferentSequences()

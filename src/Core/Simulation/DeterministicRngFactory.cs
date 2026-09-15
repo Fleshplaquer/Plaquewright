@@ -8,8 +8,8 @@ public static class DeterministicRngFactory
         RngAlgorithmVersion algorithmVersion =
             RngAlgorithmVersion.SplitMix64V1)
     {
-        ValidateDomain(
-            domain);
+        ValidateDomain(domain);
+        ValidateAlgorithmVersion(algorithmVersion);
 
         var domainHash =
             StableHash64.Compute(
@@ -66,6 +66,19 @@ public static class DeterministicRngFactory
         return new DeterministicRng(
             initialState,
             algorithmVersion);
+    }
+
+    private static void ValidateAlgorithmVersion(
+    RngAlgorithmVersion algorithmVersion)
+    {
+        if (algorithmVersion !=
+            RngAlgorithmVersion.SplitMix64V1)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(algorithmVersion),
+                algorithmVersion,
+                "Unknown RNG algorithm version.");
+        }
     }
 
     private static void ValidateDomain(
