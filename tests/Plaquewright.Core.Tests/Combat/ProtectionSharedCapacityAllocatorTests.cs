@@ -216,6 +216,45 @@ public sealed class ProtectionSharedCapacityAllocatorTests
                     [10d]));
     }
 
+    [Fact]
+    public void DefaultPolicy_IsProportional()
+    {
+        var result =
+            ProtectionSharedCapacityAllocator.Allocate(
+                availableCapacity: 35d,
+                requestedCapacities:
+                [
+                    30d,
+                20d
+                ]);
+
+        Assert.Equal(
+            21d,
+            result.AllocatedCapacities[0]);
+
+        Assert.Equal(
+            14d,
+            result.AllocatedCapacities[1]);
+    }
+
+    [Fact]
+    public void UnknownPolicy_IsRejected()
+    {
+        var invalidPolicy =
+            (ProtectionSharedCapacityAllocationPolicy)999;
+
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () =>
+                ProtectionSharedCapacityAllocator.Allocate(
+                    availableCapacity: 35d,
+                    requestedCapacities:
+                    [
+                        30d,
+                    20d
+                    ],
+                    invalidPolicy));
+    }
+
     [Theory]
     [InlineData(-1d)]
     [InlineData(double.NaN)]

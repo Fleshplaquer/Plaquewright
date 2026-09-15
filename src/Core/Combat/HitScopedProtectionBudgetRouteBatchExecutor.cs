@@ -128,10 +128,9 @@ internal static class HitScopedProtectionBudgetRouteBatchExecutor
         }
 
         var allocation =
-            ProtectionSharedCapacityAllocator
-                .AllocateProportionally(
-                    sharedBudget!.RemainingCapacity,
-                    requestedBudgetUnits);
+            ProtectionSharedCapacityAllocator.Allocate(
+                sharedBudget!.RemainingCapacity,
+                requestedBudgetUnits);
 
         // Reserve the entire already-decided batch allocation
         // as one pending mutation. This preserves the A05

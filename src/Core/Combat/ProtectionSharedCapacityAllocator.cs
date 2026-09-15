@@ -4,6 +4,27 @@ namespace Plaquewright.Core.Combat;
 
 internal static class ProtectionSharedCapacityAllocator
 {
+
+    public static ProtectionSharedCapacityAllocation Allocate(
+    double availableCapacity,
+    IReadOnlyList<double> requestedCapacities,
+    ProtectionSharedCapacityAllocationPolicy policy =
+        ProtectionSharedCapacityAllocationPolicy.Proportional)
+    {
+        return policy switch
+        {
+            ProtectionSharedCapacityAllocationPolicy.Proportional =>
+                AllocateProportionally(
+                    availableCapacity,
+                    requestedCapacities),
+
+            _ =>
+                throw new ArgumentOutOfRangeException(
+                    nameof(policy),
+                    policy,
+                    "Unknown shared protection capacity allocation policy.")
+        };
+    }
     public static ProtectionSharedCapacityAllocation AllocateProportionally(
         double availableCapacity,
         IReadOnlyList<double> requestedCapacities)

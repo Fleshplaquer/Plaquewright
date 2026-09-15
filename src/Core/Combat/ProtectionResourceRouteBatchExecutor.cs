@@ -140,10 +140,9 @@ internal static class ProtectionResourceRouteBatchExecutor
                 resourceTarget);
 
         var allocation =
-            ProtectionSharedCapacityAllocator
-                .AllocateProportionally(
-                    projectedResource.Current,
-                    requestedResourceUnits);
+            ProtectionSharedCapacityAllocator.Allocate(
+    projectedResource.Current,
+    requestedResourceUnits);
 
         var items =
             new ProtectionResourceRouteBatchItemResult[
