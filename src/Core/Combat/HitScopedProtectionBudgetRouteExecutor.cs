@@ -58,23 +58,41 @@ internal static class HitScopedProtectionBudgetRouteExecutor
                 lane);
 
         var financingResult =
-            financingPlan.Reserve();
+            financingPlan.ReservePending(
+                out var reservationLease);
 
-        var shortfallRouting =
-            ProtectionShortfallRouter.Route(
-                financingResult);
+        try
+        {
+            var shortfallRouting =
+                ProtectionShortfallRouter.Route(
+                    financingResult);
 
-        var updatedState =
-            state.Apply(
-                binding.Assignment,
-                shortfallRouting);
+            var updatedState =
+                state.Apply(
+                    binding.Assignment,
+                    shortfallRouting);
 
-        return new HitScopedProtectionBudgetRouteExecutionResult(
-            state,
-            updatedState,
-            binding,
-            financingResult,
-            shortfallRouting);
+            var executionResult =
+                new HitScopedProtectionBudgetRouteExecutionResult(
+                    state,
+                    updatedState,
+                    binding,
+                    financingResult,
+                    shortfallRouting);
+
+            reservationLease.Commit();
+
+            return executionResult;
+        }
+        catch
+        {
+            if (!reservationLease.IsFinalized)
+            {
+                reservationLease.Abort();
+            }
+
+            throw;
+        }
     }
 
     private static ProtectionAssignmentLaneState? FindLane(

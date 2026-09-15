@@ -36,6 +36,173 @@ public sealed class HitScopedProtectionBudgetTests
     }
 
     [Fact]
+    public void PendingReservation_AbortRestoresPreviousCapacityExactly()
+    {
+        var hitExecutionId =
+            new HitExecutionId(7UL);
+
+        var budget =
+            new HitScopedProtectionBudget(
+                hitExecutionId,
+                initialCapacity: 100d);
+
+        budget.Reserve(
+            hitExecutionId,
+            requestedCapacity: 30d);
+
+        Assert.Equal(
+            30d,
+            budget.ReservedCapacity);
+
+        var pending =
+            budget.ReservePending(
+                hitExecutionId,
+                requestedCapacity: 50d);
+
+        Assert.Equal(
+            80d,
+            budget.ReservedCapacity);
+
+        Assert.Equal(
+            20d,
+            budget.RemainingCapacity);
+
+        pending.Abort();
+
+        Assert.Equal(
+            30d,
+            budget.ReservedCapacity);
+
+        Assert.Equal(
+            70d,
+            budget.RemainingCapacity);
+    }
+
+    [Fact]
+    public void PendingReservation_CommitKeepsReservedCapacity()
+    {
+        var hitExecutionId =
+            new HitExecutionId(7UL);
+
+        var budget =
+            new HitScopedProtectionBudget(
+                hitExecutionId,
+                initialCapacity: 100d);
+
+        var pending =
+            budget.ReservePending(
+                hitExecutionId,
+                requestedCapacity: 60d);
+
+        Assert.Equal(
+            60d,
+            budget.ReservedCapacity);
+
+        pending.Commit();
+
+        Assert.Equal(
+            60d,
+            budget.ReservedCapacity);
+
+        Assert.Equal(
+            40d,
+            budget.RemainingCapacity);
+
+        // Successful finalization must release the pending
+        // lifetime guard for future reservations.
+        var next =
+            budget.Reserve(
+                hitExecutionId,
+                requestedCapacity: 10d);
+
+        Assert.Equal(
+            10d,
+            next.Reserved);
+
+        Assert.Equal(
+            70d,
+            budget.ReservedCapacity);
+    }
+
+    [Fact]
+    public void PendingReservation_CannotBeFinalizedTwice()
+    {
+        var hitExecutionId =
+            new HitExecutionId(7UL);
+
+        var budget =
+            new HitScopedProtectionBudget(
+                hitExecutionId,
+                initialCapacity: 100d);
+
+        var pending =
+            budget.ReservePending(
+                hitExecutionId,
+                requestedCapacity: 40d);
+
+        pending.Commit();
+
+        Assert.Throws<InvalidOperationException>(
+            () =>
+                pending.Commit());
+
+        Assert.Throws<InvalidOperationException>(
+            () =>
+                pending.Abort());
+
+        Assert.Equal(
+            40d,
+            budget.ReservedCapacity);
+
+        Assert.Equal(
+            60d,
+            budget.RemainingCapacity);
+    }
+
+    [Fact]
+    public void PendingReservation_BlocksConcurrentReservationWithoutAdditionalConsumption()
+    {
+        var hitExecutionId =
+            new HitExecutionId(7UL);
+
+        var budget =
+            new HitScopedProtectionBudget(
+                hitExecutionId,
+                initialCapacity: 100d);
+
+        var pending =
+            budget.ReservePending(
+                hitExecutionId,
+                requestedCapacity: 40d);
+
+        Assert.Throws<InvalidOperationException>(
+            () =>
+                budget.Reserve(
+                    hitExecutionId,
+                    requestedCapacity: 20d));
+
+        Assert.Equal(
+            40d,
+            budget.ReservedCapacity);
+
+        Assert.Equal(
+            60d,
+            budget.RemainingCapacity);
+
+        pending.Abort();
+
+        Assert.Equal(
+            0d,
+            budget.ReservedCapacity);
+
+        Assert.Equal(
+            100d,
+            budget.RemainingCapacity);
+    }
+
+
+
+    [Fact]
     public void Reserve_ConsumesSharedCapacity()
     {
         var hitExecutionId =

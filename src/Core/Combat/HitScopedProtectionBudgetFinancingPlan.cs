@@ -70,11 +70,39 @@ public sealed class HitScopedProtectionBudgetFinancingPlan
                 HitExecutionId,
                 RequestedBudgetUnits);
 
+        return CreateResult(
+            reservation);
+    }
+
+    internal HitScopedProtectionBudgetFinancingResult ReservePending(
+    out HitScopedProtectionBudgetReservationLease reservationLease)
+    {
+        reservationLease =
+            Budget.ReservePending(
+                HitExecutionId,
+                RequestedBudgetUnits);
+
+        try
+        {
+            return CreateResult(
+                reservationLease.Reservation);
+        }
+        catch
+        {
+            reservationLease.Abort();
+
+            throw;
+        }
+    }
+
+    private HitScopedProtectionBudgetFinancingResult CreateResult(
+    HitScopedProtectionBudgetReservation reservation)
+    {
         var financedDamage =
-    Math.Min(
-        AssignedDamage,
-        reservation.Reserved /
-        BudgetUnitsPerDamage);
+            Math.Min(
+                AssignedDamage,
+                reservation.Reserved /
+                BudgetUnitsPerDamage);
 
         if (NumericComparison.AreEquivalent(
                 financedDamage,

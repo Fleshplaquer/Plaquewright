@@ -120,6 +120,67 @@ public sealed class HitScopedProtectionBudgetRouteExecutorTests
     }
 
     [Fact]
+    public void PreviousRoutingState_CannotReserveBudgetAgain()
+    {
+        var resolution =
+            ProtectionAssignmentResolver.Resolve(
+                damage: 100d,
+                [
+                    new ProtectionAssignmentRequest(
+                    requestedFraction: 0.4d)
+                ]);
+
+        var staleState =
+            StartHitBasedRouting(
+                resolution,
+                new HitExecutionId(7UL));
+
+        var budget =
+            new HitScopedProtectionBudget(
+                new HitExecutionId(7UL),
+                initialCapacity: 100d);
+
+        var binding =
+            new HitScopedProtectionBudgetRouteBinding(
+                resolution.Assignments[0],
+                budget,
+                budgetUnitsPerDamage: 1d,
+                ProtectionFinancingShortfallPolicy.SpillBack);
+
+        var execution =
+            HitScopedProtectionBudgetRouteExecutor.Execute(
+                staleState,
+                binding);
+
+        Assert.Equal(
+            40d,
+            budget.ReservedCapacity);
+
+        Assert.Equal(
+            60d,
+            budget.RemainingCapacity);
+
+        Assert.True(
+            execution.UpdatedState.IsComplete);
+
+        Assert.Throws<InvalidOperationException>(
+            () =>
+                HitScopedProtectionBudgetRouteExecutor.Execute(
+                    staleState,
+                    binding));
+
+        // Stale routing state is rejected before a second
+        // budget reservation occurs.
+        Assert.Equal(
+            40d,
+            budget.ReservedCapacity);
+
+        Assert.Equal(
+            60d,
+            budget.RemainingCapacity);
+    }
+
+    [Fact]
     public void ContinueRouting_NextHitBudgetRouteReceivesOnlyRemainingDamage()
     {
         var resolution =
