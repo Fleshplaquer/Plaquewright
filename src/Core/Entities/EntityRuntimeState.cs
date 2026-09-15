@@ -38,4 +38,28 @@ public sealed class EntityRuntimeState
                 resourceRegistry,
                 initialResources);
     }
+
+    internal EntityRuntimeState(
+     EntityId id,
+     ResourceStateSet resources)
+    {
+        if (!id.IsValid)
+        {
+            throw new ArgumentException(
+                "Entity ID must be valid.",
+                nameof(id));
+        }
+
+        ArgumentNullException.ThrowIfNull(
+            resources);
+
+        Id =
+            id;
+
+        ResourceRegistry =
+            resources.ResourceRegistry;
+
+        Resources =
+            resources;
+    }
 }

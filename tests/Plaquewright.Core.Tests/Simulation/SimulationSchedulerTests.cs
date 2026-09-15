@@ -13,6 +13,80 @@ public sealed class SimulationSchedulerTests
         Assert.True(scheduler.IsEmpty);
         Assert.Equal(0, scheduler.Count);
     }
+    [Fact]
+    public void Schedule_WithUnknownPhase_DoesNotConsumeSequence()
+    {
+        var scheduler =
+            new SimulationScheduler<string>();
+
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () =>
+                scheduler.Schedule(
+                    new SimulationTime(100L),
+                    (SchedulerPhase)255,
+                    "invalid"));
+
+        Assert.True(
+            scheduler.IsEmpty);
+
+        var validKey =
+            scheduler.Schedule(
+                new SimulationTime(100L),
+                SchedulerPhase.Execution,
+                "valid");
+
+        Assert.Equal(
+            1UL,
+            validKey.Sequence.Value);
+
+        Assert.Equal(
+            1,
+            scheduler.Count);
+    }
+
+    [Fact]
+    public void ScheduleFrom_WithUnknownPhase_DoesNotConsumeSequence()
+    {
+        var scheduler =
+            new SimulationScheduler<string>();
+
+        var parentKey =
+            scheduler.Schedule(
+                new SimulationTime(100L),
+                SchedulerPhase.Execution,
+                "parent");
+
+        Assert.Equal(
+            1UL,
+            parentKey.Sequence.Value);
+
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () =>
+                scheduler.ScheduleFrom(
+                    parentKey,
+                    new SimulationTime(100L),
+                    (SchedulerPhase)255,
+                    "invalid-child"));
+
+        Assert.Equal(
+            1,
+            scheduler.Count);
+
+        var validChildKey =
+            scheduler.ScheduleFrom(
+                parentKey,
+                new SimulationTime(100L),
+                SchedulerPhase.StateBoundary,
+                "valid-child");
+
+        Assert.Equal(
+            2UL,
+            validChildKey.Sequence.Value);
+
+        Assert.Equal(
+            2,
+            scheduler.Count);
+    }
 
     [Fact]
     public void Schedule_AddsEvent()

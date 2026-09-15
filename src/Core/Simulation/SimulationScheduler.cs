@@ -202,6 +202,8 @@ public sealed class SimulationScheduler<TPayload>
         TPayload payload)
     {
         ValidateQueueBudget();
+        ValidatePhase(
+    phase);
 
         var sequence =
             NextSequence();
@@ -223,6 +225,19 @@ public sealed class SimulationScheduler<TPayload>
             key);
 
         return key;
+    }
+
+    private static void ValidatePhase(
+    SchedulerPhase phase)
+    {
+        if (!Enum.IsDefined(
+                phase))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(phase),
+                phase,
+                "Unknown scheduler phase.");
+        }
     }
 
     private void ValidateQueueBudget()

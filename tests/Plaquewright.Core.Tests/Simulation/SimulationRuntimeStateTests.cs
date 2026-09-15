@@ -35,6 +35,91 @@ public sealed class SimulationRuntimeStateTests
     }
 
     [Fact]
+    public void CreateEntity_WhenResourceValidationFails_DoesNotConsumeEntityId()
+    {
+        var runtime =
+            new SimulationRuntimeState(
+                new SimulationSeed(1UL),
+                CreateRegistry());
+
+        Assert.Throws<ArgumentException>(
+            () =>
+                runtime.CreateEntity(
+                [
+                    null!
+                ]));
+
+        Assert.Equal(
+            0,
+            runtime.Entities.Count);
+
+        var firstValidEntity =
+            runtime.CreateEntity(
+                []);
+
+        Assert.Equal(
+            new EntityId(1UL),
+            firstValidEntity.Id);
+
+        Assert.Equal(
+            1,
+            runtime.Entities.Count);
+    }
+
+    [Fact]
+    public void CreateEntity_WhenDuplicateResourceStateValidationFails_DoesNotConsumeEntityId()
+    {
+        var registry =
+            CreateRegistry();
+
+        var runtime =
+            new SimulationRuntimeState(
+                new SimulationSeed(1UL),
+                registry);
+
+        var lifeId =
+            registry.GetId(
+                ResourceKey.Parse(
+                    "resource.life"));
+
+        Assert.Throws<InvalidOperationException>(
+            () =>
+                runtime.CreateEntity(
+                [
+                    new ResourceState(
+                    lifeId,
+                    current: 100d,
+                    maximum: 100d),
+
+                new ResourceState(
+                    lifeId,
+                    current: 50d,
+                    maximum: 100d)
+                ]));
+
+        Assert.Equal(
+            0,
+            runtime.Entities.Count);
+
+        var firstValidEntity =
+            runtime.CreateEntity(
+            [
+                new ResourceState(
+                lifeId,
+                current: 100d,
+                maximum: 100d)
+            ]);
+
+        Assert.Equal(
+            new EntityId(1UL),
+            firstValidEntity.Id);
+
+        Assert.Equal(
+            1,
+            runtime.Entities.Count);
+    }
+
+    [Fact]
     public void NewRuntime_HasNoEntities()
     {
         var runtime =

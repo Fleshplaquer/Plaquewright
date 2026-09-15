@@ -197,16 +197,27 @@ public sealed class SimulationRuntimeState
     }
 
     public EntityRuntimeState CreateEntity(
-        IEnumerable<ResourceState> initialResources)
+     IEnumerable<ResourceState> initialResources)
     {
         ArgumentNullException.ThrowIfNull(
             initialResources);
 
-        var entity =
-            new EntityRuntimeState(
-                _entityIdAllocator.Allocate(),
+        //
+        // Build and validate the complete resource state
+        // before consuming a deterministic entity ID.
+        //
+        var resources =
+            new ResourceStateSet(
                 ResourceRegistry,
                 initialResources);
+
+        var id =
+            _entityIdAllocator.Allocate();
+
+        var entity =
+            new EntityRuntimeState(
+                id,
+                resources);
 
         Entities.Add(
             entity);

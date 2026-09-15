@@ -6,6 +6,7 @@ public sealed class ResourceStateSet
 {
     private readonly ResourceState?[] _statesByIndex;
     private readonly ReadOnlyCollection<ResourceState> _states;
+    internal CompiledResourceRegistry ResourceRegistry { get; }
 
     public int Count =>
         _states.Count;
@@ -19,6 +20,9 @@ public sealed class ResourceStateSet
     {
         ArgumentNullException.ThrowIfNull(registry);
         ArgumentNullException.ThrowIfNull(states);
+
+        ResourceRegistry =
+            registry;
 
         _statesByIndex =
             new ResourceState?[registry.Count];
