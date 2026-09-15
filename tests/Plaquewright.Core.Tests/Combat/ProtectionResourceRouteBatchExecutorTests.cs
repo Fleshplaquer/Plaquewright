@@ -415,6 +415,349 @@ public sealed class ProtectionResourceRouteBatchExecutorTests
             manaTarget.State);
     }
 
+    [Fact]
+    public void ContinueRoutingShortfalls_CanEnterNormalSequentialFallbackRoutes()
+    {
+        var registry =
+            ResourceRegistryCompiler.Compile(
+            [
+                new ResourceDefinition(
+                ResourceKey.Parse(
+                    "resource.mana"),
+                ResourceRole.ProtectionSource),
+
+            new ResourceDefinition(
+                ResourceKey.Parse(
+                    "resource.barrier"),
+                ResourceRole.ProtectionSource)
+            ]);
+
+        var manaId =
+            registry.GetId(
+                ResourceKey.Parse(
+                    "resource.mana"));
+
+        var barrierId =
+            registry.GetId(
+                ResourceKey.Parse(
+                    "resource.barrier"));
+
+        var entity =
+            new EntityRuntimeState(
+                new EntityId(1UL),
+                registry,
+                [
+                    new ResourceState(
+                    manaId,
+                    current: 35d,
+                    maximum: 100d),
+
+                new ResourceState(
+                    barrierId,
+                    current: 15d,
+                    maximum: 100d)
+                ]);
+
+        var manaTarget =
+            new ResourceStateTarget(
+                entity,
+                manaId);
+
+        var barrierTarget =
+            new ResourceStateTarget(
+                entity,
+                barrierId);
+
+        var resolution =
+            ProtectionAssignmentResolver.Resolve(
+                damage: 100d,
+                [
+                    new ProtectionAssignmentRequest(
+                    requestedFraction: 0.3d),
+
+                new ProtectionAssignmentRequest(
+                    requestedFraction: 0.2d)
+                ]);
+
+        var state =
+            ProtectionAssignmentRoutingStarter.Start(
+                resolution);
+
+        var draft =
+            new ResourceTransactionDraft(
+                registry);
+
+        var batch =
+            ProtectionResourceRouteBatchExecutor.Stage(
+                draft,
+                state,
+                [
+                    new ProtectionResourceRouteBinding(
+                    resolution.Assignments[0],
+                    manaTarget,
+                    resourceUnitsPerDamage: 1d,
+                    ProtectionFinancingShortfallPolicy.ContinueRouting),
+
+                new ProtectionResourceRouteBinding(
+                    resolution.Assignments[1],
+                    manaTarget,
+                    resourceUnitsPerDamage: 1d,
+                    ProtectionFinancingShortfallPolicy.ContinueRouting)
+                ]);
+
+        state =
+            batch.UpdatedState;
+
+        // Shared 35 Mana:
+        // 30 / 20 claims become 21 / 14 financed.
+        // The remaining 9 / 6 stay on their own lanes.
+        Assert.Equal(
+            9d,
+            state.Lanes[0].ContinueRoutingDamage);
+
+        Assert.Equal(
+            6d,
+            state.Lanes[1].ContinueRoutingDamage);
+
+        Assert.Equal(
+            15d,
+            state.ContinueRoutingDamage);
+
+        Assert.Equal(
+            35d,
+            state.FinancedDamage);
+
+        Assert.Equal(
+            50d,
+            state.PrimaryPathDamage);
+
+        Assert.False(
+            state.IsComplete);
+
+        var firstFallback =
+            ProtectionResourceRouteExecutor.Stage(
+                draft,
+                state,
+                new ProtectionResourceRouteBinding(
+                    resolution.Assignments[0],
+                    barrierTarget,
+                    resourceUnitsPerDamage: 1d,
+                    ProtectionFinancingShortfallPolicy.SpillBack));
+
+        state =
+            firstFallback.UpdatedState;
+
+        // Critical boundary:
+        // sequential fallback sees only lane A's 9,
+        // never the original 30.
+        Assert.Equal(
+            9d,
+            firstFallback.FinancingResult.AssignedDamage);
+
+        Assert.Equal(
+            9d,
+            firstFallback.FinancedDamage);
+
+        Assert.Equal(
+            6d,
+            state.ContinueRoutingDamage);
+
+        var secondFallback =
+            ProtectionResourceRouteExecutor.Stage(
+                draft,
+                state,
+                new ProtectionResourceRouteBinding(
+                    resolution.Assignments[1],
+                    barrierTarget,
+                    resourceUnitsPerDamage: 1d,
+                    ProtectionFinancingShortfallPolicy.SpillBack));
+
+        state =
+            secondFallback.UpdatedState;
+
+        Assert.Equal(
+            6d,
+            secondFallback.FinancingResult.AssignedDamage);
+
+        Assert.Equal(
+            6d,
+            secondFallback.FinancedDamage);
+
+        Assert.Equal(
+            0d,
+            state.ContinueRoutingDamage);
+
+        Assert.Equal(
+            50d,
+            state.FinancedDamage);
+
+        Assert.Equal(
+            50d,
+            state.PrimaryPathDamage);
+
+        Assert.True(
+            state.IsComplete);
+
+        Assert.Equal(
+            100d,
+            state.AccountedDamage);
+
+        // 21 + 14 Mana,
+        // then sequentially 9 + 6 Barrier.
+        Assert.Equal(
+            2,
+            draft.ProjectedResourceCount);
+
+        Assert.Equal(
+            4,
+            draft.OperationCount);
+
+        Assert.Equal(
+            0d,
+            draft.GetProjectedValues(
+                manaTarget)
+            .Current);
+
+        Assert.Equal(
+            0d,
+            draft.GetProjectedValues(
+                barrierTarget)
+            .Current);
+
+        // Still projected only.
+        Assert.Equal(
+            35d,
+            manaTarget.State.Current);
+
+        Assert.Equal(
+            15d,
+            barrierTarget.State.Current);
+    }
+
+    [Fact]
+    public void ProportionalBatch_CommitsOneSharedStateAndSeparateAllocatedGrossOperations()
+    {
+        var setup =
+            CreateSetup(
+                currentMana: 35d);
+
+        var resolution =
+            ProtectionAssignmentResolver.Resolve(
+                damage: 100d,
+                [
+                    new ProtectionAssignmentRequest(
+                    requestedFraction: 0.3d),
+
+                new ProtectionAssignmentRequest(
+                    requestedFraction: 0.2d)
+                ]);
+
+        var state =
+            ProtectionAssignmentRoutingStarter.Start(
+                resolution);
+
+        var draft =
+            new ResourceTransactionDraft(
+                setup.Registry);
+
+        var execution =
+            ProtectionResourceRouteBatchExecutor.Stage(
+                draft,
+                state,
+                [
+                    new ProtectionResourceRouteBinding(
+                    resolution.Assignments[0],
+                    setup.ManaTarget,
+                    resourceUnitsPerDamage: 1d,
+                    ProtectionFinancingShortfallPolicy.SpillBack),
+
+                new ProtectionResourceRouteBinding(
+                    resolution.Assignments[1],
+                    setup.ManaTarget,
+                    resourceUnitsPerDamage: 1d,
+                    ProtectionFinancingShortfallPolicy.SpillBack)
+                ]);
+
+        Assert.True(
+            execution.UpdatedState.IsComplete);
+
+        Assert.Equal(
+            35d,
+            execution.UpdatedState.FinancedDamage);
+
+        var ledger =
+            new ResourceOperationLedger();
+
+        ResourceTransactionCommitter.Commit(
+            draft,
+            ledger);
+
+        // One concrete shared ResourceState is published once.
+        Assert.Equal(
+            0d,
+            setup.ManaState.Current);
+
+        Assert.Equal(
+            1UL,
+            setup.ManaState.Revision);
+
+        // But both allocated financing losses remain
+        // separately observable causal operations.
+        Assert.Equal(
+            2,
+            ledger.Count);
+
+        var firstEntry =
+            Assert.IsType<ResourceLossLedgerEntry>(
+                ledger.Entries[0]);
+
+        var secondEntry =
+            Assert.IsType<ResourceLossLedgerEntry>(
+                ledger.Entries[1]);
+
+        Assert.Equal(
+            ResourceOperationCause.ProtectionFinancing,
+            firstEntry.Provenance.Cause);
+
+        Assert.Equal(
+            ResourceOperationCause.ProtectionFinancing,
+            secondEntry.Provenance.Cause);
+
+        Assert.Equal(
+            21d,
+            firstEntry.Result.RequestedLoss);
+
+        Assert.Equal(
+            21d,
+            firstEntry.Result.ActualLoss);
+
+        Assert.Equal(
+            0d,
+            firstEntry.Result.Shortfall);
+
+        Assert.Equal(
+            14d,
+            secondEntry.Result.RequestedLoss);
+
+        Assert.Equal(
+            14d,
+            secondEntry.Result.ActualLoss);
+
+        Assert.Equal(
+            0d,
+            secondEntry.Result.Shortfall);
+
+        // The protection-financing shortfall still belongs
+        // to the original 30 / 20 claims.
+        Assert.Equal(
+            9d,
+            execution.Items[0].ResourceUnitShortfall);
+
+        Assert.Equal(
+            6d,
+            execution.Items[1].ResourceUnitShortfall);
+    }
+
     private sealed record TestSetup(
         CompiledResourceRegistry Registry,
         ResourceStateTarget ManaTarget,
