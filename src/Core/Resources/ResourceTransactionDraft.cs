@@ -100,6 +100,11 @@ internal sealed class ResourceTransactionDraft
         var preview =
             projection.PreviewCost(
                 request);
+        if (!preview.IsPayable)
+        {
+            throw new InvalidOperationException(
+                "An unpayable resource cost cannot be staged.");
+        }
 
         projection.Apply(
             preview);

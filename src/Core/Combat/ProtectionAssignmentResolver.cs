@@ -1,5 +1,6 @@
 namespace Plaquewright.Core.Combat;
 
+using Plaquewright.Core.Numerics;
 public static class ProtectionAssignmentResolver
 {
     public static ProtectionAssignmentResolution Resolve(
@@ -75,7 +76,7 @@ public static class ProtectionAssignmentResolver
                 copiedRequests.Length];
 
         var assignedSoFar =
-            0d;
+    0d;
 
         for (var index = 0;
              index < copiedRequests.Length;
@@ -88,20 +89,58 @@ public static class ProtectionAssignmentResolver
                 request.RequestedFraction *
                 assignmentScale;
 
+            var remainingDamage =
+                totalAssignedDamage -
+                assignedSoFar;
+
+            if (remainingDamage < 0d)
+            {
+                if (NumericComparison.AreEquivalent(
+                        remainingDamage,
+                        0d,
+                        scale: damage))
+                {
+                    remainingDamage =
+                        0d;
+                }
+                else
+                {
+                    throw new InvalidOperationException(
+                        "Protection assignments exceeded the total assigned damage.");
+                }
+            }
+
             double assignedDamage;
 
             if (index ==
                 lastPositiveIndex)
             {
                 assignedDamage =
-                    totalAssignedDamage -
-                    assignedSoFar;
+                    remainingDamage;
             }
             else
             {
                 assignedDamage =
                     damage *
                     appliedFraction;
+
+                if (assignedDamage >
+                    remainingDamage)
+                {
+                    if (NumericComparison.AreEquivalent(
+                            assignedDamage,
+                            remainingDamage,
+                            scale: damage))
+                    {
+                        assignedDamage =
+                            remainingDamage;
+                    }
+                    else
+                    {
+                        throw new InvalidOperationException(
+                            "Protection assignment exceeded the remaining assigned damage.");
+                    }
+                }
 
                 assignedSoFar +=
                     assignedDamage;

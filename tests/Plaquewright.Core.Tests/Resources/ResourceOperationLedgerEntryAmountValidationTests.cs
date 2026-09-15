@@ -47,9 +47,10 @@ public sealed class ResourceOperationLedgerEntryAmountValidationTests
                     ResourceOperationCause.SkillCost));
 
         var result =
-            new ResourceCostResult(
-                resourceId,
-                requestedCost: 10d);
+    new ResourceCostResult(
+        resourceId,
+        requestedCost: 10d,
+        actualCost: 10d);
 
         Assert.Throws<ArgumentException>(
             () =>

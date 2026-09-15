@@ -50,6 +50,92 @@ public sealed class ResourceRecoveryPreviewTests
     }
 
     [Fact]
+    public void PreviewRecovery_WhenRequestedRecoveryIsNotRepresentable_DoesNotReportPhantomActualRecovery()
+    {
+        var current =
+            1e16d;
+
+        var state =
+            CreateState(
+                current: current,
+                maximum: current + 10d);
+
+        var request =
+            new ResourceRecoveryRequest(
+                state.Id,
+                amount: 1d,
+                new ResourceOperationProvenance(
+                    ResourceOperationCause.Recovery));
+
+        var preview =
+            ResourceRecoveryOperations.Preview(
+                state,
+                request);
+
+        Assert.Equal(
+            current,
+            preview.CurrentBefore);
+
+        Assert.Equal(
+            current,
+            preview.CurrentAfter);
+
+        Assert.Equal(
+            0d,
+            preview.Result.ActualRecovery);
+
+        Assert.Equal(
+            1d,
+            preview.Result.Overflow);
+
+        Assert.Equal(
+            preview.CurrentAfter -
+            preview.CurrentBefore,
+            preview.Result.ActualRecovery);
+    }
+
+    [Fact]
+    public void PreviewRecovery_WhenRoundedAdditionWouldOverrecover_UsesConservativeRepresentableRecovery()
+    {
+        var current =
+            1e16d;
+
+        var state =
+            CreateState(
+                current: current,
+                maximum: current + 10d);
+
+        var request =
+            new ResourceRecoveryRequest(
+                state.Id,
+                amount: 3d,
+                new ResourceOperationProvenance(
+                    ResourceOperationCause.Recovery));
+
+        var preview =
+            ResourceRecoveryOperations.Preview(
+                state,
+                request);
+
+        Assert.Equal(
+            2d,
+            preview.Result.ActualRecovery);
+
+        Assert.Equal(
+            1d,
+            preview.Result.Overflow);
+
+        Assert.Equal(
+            current + 2d,
+            preview.CurrentAfter);
+
+        Assert.Equal(
+            preview.CurrentAfter -
+            preview.CurrentBefore,
+            preview.Result.ActualRecovery);
+    }
+
+    [Fact]
     public void PreviewRecovery_AccountsForOverflow()
     {
         var state =

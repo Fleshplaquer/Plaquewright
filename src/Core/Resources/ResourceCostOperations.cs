@@ -31,17 +31,33 @@ public static class ResourceCostOperations
         }
 
         var isAffordable =
-            state.Current >= request.Amount;
+    state.Current >=
+    request.Amount;
 
         var shortfall =
             isAffordable
                 ? 0d
-                : request.Amount - state.Current;
+                : request.Amount -
+                  state.Current;
+
+        var isRepresentable =
+            false;
 
         var currentAfter =
-            isAffordable
-                ? state.Current - request.Amount
-                : state.Current;
+            state.Current;
+
+        var projectedActualCost =
+            0d;
+
+        if (isAffordable)
+        {
+            isRepresentable =
+                ResourceQuantityMath.TryCalculateCurrentAfterCost(
+                    state.Current,
+                    request.Amount,
+                    out currentAfter,
+                    out projectedActualCost);
+        }
 
         return new ResourceCostPreview(
             targetState: state,
@@ -49,6 +65,8 @@ public static class ResourceCostOperations
             request: request,
             isAffordable: isAffordable,
             availableAmount: state.Current,
+            isRepresentable: isRepresentable,
+projectedActualCost: projectedActualCost,
             shortfall: shortfall,
             currentBefore: state.Current,
             currentAfter: currentAfter,
@@ -98,10 +116,10 @@ public static class ResourceCostOperations
                 "Resource cost preview is stale because the resource state changed after preview creation.");
         }
 
-        if (!preview.IsAffordable)
+        if (!preview.IsPayable)
         {
             throw new InvalidOperationException(
-                "An unaffordable resource cost cannot be committed.");
+                "An unpayable resource cost cannot be committed.");
         }
 
         state.ValidateCanSetValues(
@@ -122,9 +140,10 @@ public static class ResourceCostOperations
             preview.Maximum);
 
         var result =
-            new ResourceCostResult(
-                preview.Request.ResourceId,
-                preview.Request.Amount);
+    new ResourceCostResult(
+        preview.Request.ResourceId,
+        preview.Request.Amount,
+        preview.ProjectedActualCost);
 
         return new ResourceCostLedgerEntry(
             targetEntityId,

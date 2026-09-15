@@ -15,16 +15,12 @@ public static class ResourceRecoveryOperations
             state,
             request);
 
-        var availableCapacity =
-            state.Maximum - state.Current;
-
-        var actualRecovery =
-            Math.Min(
-                request.Amount,
-                availableCapacity);
-
         var currentAfter =
-            state.Current + actualRecovery;
+     ResourceQuantityMath.CalculateCurrentAfterRecovery(
+         state.Current,
+         state.Maximum,
+         request.Amount,
+         out var actualRecovery);
 
         var result =
             new ResourceRecoveryResult(

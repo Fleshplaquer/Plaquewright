@@ -57,7 +57,7 @@ public sealed class ResourceCostTransactionParticipant
                 _target.State,
                 _request);
 
-        if (!preview.IsAffordable)
+        if (!preview.IsPayable)
         {
             preparedChange =
                 null;

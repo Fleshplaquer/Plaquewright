@@ -52,6 +52,81 @@ public sealed class HitScopedProtectionBudgetFinancingPlanTests
     }
 
     [Fact]
+    public void FullBudgetFinancing_WithFractionalRate_DoesNotLeaveFloatingPointDamageShortfall()
+    {
+        var budget =
+            new HitScopedProtectionBudget(
+                new HitExecutionId(7UL),
+                initialCapacity: 1d);
+
+        var plan =
+            new HitScopedProtectionBudgetFinancingPlan(
+                budget,
+                assignedDamage: 0.1d,
+                budgetUnitsPerDamage: 0.7d,
+                ProtectionFinancingShortfallPolicy.SpillBack);
+
+        var result =
+            plan.Reserve();
+
+        Assert.Equal(
+            plan.RequestedBudgetUnits,
+            result.ReservedBudgetUnits);
+
+        Assert.Equal(
+            0d,
+            result.BudgetUnitShortfall);
+
+        Assert.Equal(
+            0.1d,
+            result.FinancedDamage);
+
+        Assert.Equal(
+            0d,
+            result.UnfinancedDamage);
+
+        Assert.Equal(
+            result.AssignedDamage,
+            result.FinancedDamage +
+            result.UnfinancedDamage);
+    }
+
+    [Fact]
+    public void PartialBudgetFinancing_WithFractionalRate_PreservesRealDamageShortfall()
+    {
+        var budget =
+            new HitScopedProtectionBudget(
+                new HitExecutionId(7UL),
+                initialCapacity: 0.05d);
+
+        var plan =
+            new HitScopedProtectionBudgetFinancingPlan(
+                budget,
+                assignedDamage: 0.1d,
+                budgetUnitsPerDamage: 0.7d,
+                ProtectionFinancingShortfallPolicy.SpillBack);
+
+        var result =
+            plan.Reserve();
+
+        Assert.True(
+            result.ReservedBudgetUnits <
+            result.RequestedBudgetUnits);
+
+        Assert.True(
+            result.FinancedDamage <
+            result.AssignedDamage);
+
+        Assert.True(
+            result.UnfinancedDamage >
+            0d);
+
+        Assert.Equal(
+            0d,
+            budget.RemainingCapacity);
+    }
+
+    [Fact]
     public void PartialBudgetFinancing_PreservesUnitSeparation()
     {
         var budget =

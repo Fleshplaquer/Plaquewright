@@ -9,8 +9,9 @@ public readonly record struct ResourceCostResult
     public double ActualCost { get; }
 
     internal ResourceCostResult(
-        ResourceId resourceId,
-        double requestedCost)
+    ResourceId resourceId,
+    double requestedCost,
+    double actualCost)
     {
         if (!resourceId.IsValid)
         {
@@ -19,7 +20,8 @@ public readonly record struct ResourceCostResult
                 nameof(resourceId));
         }
 
-        if (!double.IsFinite(requestedCost))
+        if (!double.IsFinite(
+                requestedCost))
         {
             throw new ArgumentOutOfRangeException(
                 nameof(requestedCost),
@@ -35,13 +37,42 @@ public readonly record struct ResourceCostResult
                 "Resource cost cannot be negative.");
         }
 
-        ResourceId = resourceId;
+        if (!double.IsFinite(
+                actualCost))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(actualCost),
+                actualCost,
+                "Actual resource cost must be finite.");
+        }
+
+        if (actualCost < 0d)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(actualCost),
+                actualCost,
+                "Actual resource cost cannot be negative.");
+        }
+
+        if (actualCost >
+            requestedCost)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(actualCost),
+                actualCost,
+                "Actual resource cost cannot exceed the requested cost.");
+        }
+
+        ResourceId =
+            resourceId;
 
         RequestedCost =
-            NormalizeZero(requestedCost);
+            NormalizeZero(
+                requestedCost);
 
         ActualCost =
-            RequestedCost;
+            NormalizeZero(
+                actualCost);
     }
 
     private static double NormalizeZero(

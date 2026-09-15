@@ -13,7 +13,8 @@ public sealed class ResourceCostResultTests
         var result =
             new ResourceCostResult(
                 id,
-                requestedCost: 50d);
+                requestedCost: 50d,
+                 actualCost: 50d);
 
         Assert.Equal(
             id,
@@ -29,15 +30,20 @@ public sealed class ResourceCostResultTests
     }
 
     [Fact]
-    public void ActualCost_AlwaysEqualsRequestedCost()
+    public void Constructor_PreservesActualCostSeparatelyFromRequestedCost()
     {
         var result =
             new ResourceCostResult(
                 new ResourceId(1),
-                requestedCost: 75d);
+                requestedCost: 0.1d,
+                actualCost: 0.09999999999999d);
 
         Assert.Equal(
-            result.RequestedCost,
+            0.1d,
+            result.RequestedCost);
+
+        Assert.Equal(
+            0.09999999999999d,
             result.ActualCost);
     }
 
@@ -47,7 +53,8 @@ public sealed class ResourceCostResultTests
         var result =
             new ResourceCostResult(
                 new ResourceId(1),
-                requestedCost: 0d);
+                requestedCost: 0d,
+                 actualCost: 0d);
 
         Assert.Equal(
             0d,
@@ -67,7 +74,34 @@ public sealed class ResourceCostResultTests
             () =>
                 new ResourceCostResult(
                     id,
-                    requestedCost: 10d));
+                    requestedCost: 10d,
+                     actualCost: 0d));
+    }
+    [Fact]
+    public void ActualCostGreaterThanRequestedCost_Throws()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () =>
+                new ResourceCostResult(
+                    new ResourceId(1),
+                    requestedCost: 10d,
+                    actualCost: 11d));
+    }
+
+    [Theory]
+    [InlineData(-1d)]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    [InlineData(double.NegativeInfinity)]
+    public void InvalidActualCost_Throws(
+        double actualCost)
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () =>
+                new ResourceCostResult(
+                    new ResourceId(1),
+                    requestedCost: 10d,
+                    actualCost: actualCost));
     }
 
     [Theory]
@@ -82,6 +116,7 @@ public sealed class ResourceCostResultTests
             () =>
                 new ResourceCostResult(
                     new ResourceId(1),
-                    requestedCost: value));
+                    requestedCost: value,
+                     actualCost: 0d));
     }
 }

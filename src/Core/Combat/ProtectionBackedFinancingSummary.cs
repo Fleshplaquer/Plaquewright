@@ -1,5 +1,7 @@
 namespace Plaquewright.Core.Combat;
 
+using Plaquewright.Core.Numerics;
+
 public sealed class ProtectionBackedFinancingSummary
 {
     public double AssignedDamage { get; }
@@ -28,9 +30,14 @@ public sealed class ProtectionBackedFinancingSummary
             unfinancedDamage,
             nameof(unfinancedDamage));
 
-        if (financedDamage +
-            unfinancedDamage !=
-            assignedDamage)
+        var accountedDamage =
+    financedDamage +
+    unfinancedDamage;
+
+        if (!NumericComparison.AreEquivalent(
+                accountedDamage,
+                assignedDamage,
+                scale: assignedDamage))
         {
             throw new InvalidOperationException(
                 "Protection financing must account for all assigned damage.");

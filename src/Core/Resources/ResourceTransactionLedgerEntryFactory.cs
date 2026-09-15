@@ -40,12 +40,13 @@ internal static class ResourceTransactionLedgerEntryFactory
                     loss.Preview.Result),
 
             StagedResourceCostOperation cost =>
-                new ResourceCostLedgerEntry(
-                    cost.EntityId,
-                    cost.Preview.Request,
-                    new ResourceCostResult(
-                        cost.Preview.Request.ResourceId,
-                        cost.Preview.Request.Amount)),
+    new ResourceCostLedgerEntry(
+        cost.EntityId,
+        cost.Preview.Request,
+        new ResourceCostResult(
+            cost.Preview.Request.ResourceId,
+            cost.Preview.Request.Amount,
+            cost.Preview.ProjectedActualCost)),
 
             StagedResourceRecoveryOperation recovery =>
                 new ResourceRecoveryLedgerEntry(

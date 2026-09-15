@@ -67,6 +67,60 @@ public sealed class ProtectionAssignmentResolverTests
             120d,
             result.AccountedDamage);
     }
+    [Fact]
+    public void TinyLastAssignment_DoesNotBecomeNegativeFromFloatingPointRounding()
+    {
+        var first =
+            new ProtectionAssignmentRequest(
+                requestedFraction: 0.1d);
+
+        var second =
+            new ProtectionAssignmentRequest(
+                requestedFraction: 0.7d);
+
+        var tiny =
+            new ProtectionAssignmentRequest(
+                requestedFraction: 1e-20d);
+
+        var result =
+            ProtectionAssignmentResolver.Resolve(
+                damage: 10d,
+                [
+                    first,
+                second,
+                tiny
+                ]);
+
+        Assert.Equal(
+            3,
+            result.Assignments.Count);
+
+        Assert.True(
+            result.Assignments[0].AssignedDamage >=
+            0d);
+
+        Assert.True(
+            result.Assignments[1].AssignedDamage >=
+            0d);
+
+        Assert.Equal(
+            0d,
+            result.Assignments[2].AssignedDamage);
+
+        var summedAssignments =
+            result.Assignments.Sum(
+                assignment =>
+                    assignment.AssignedDamage);
+
+        Assert.Equal(
+            result.TotalAssignedDamage,
+            summedAssignments);
+
+        Assert.Equal(
+            result.InitialDamage,
+            result.PrimaryPathDamage +
+            summedAssignments);
+    }
 
     [Fact]
     public void MultipleAssignments_BelowOneHundredPercent_LeavePrimaryDamage()

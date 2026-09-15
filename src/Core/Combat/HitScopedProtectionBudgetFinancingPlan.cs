@@ -1,5 +1,6 @@
 namespace Plaquewright.Core.Combat;
 
+using Plaquewright.Core.Numerics;
 public sealed class HitScopedProtectionBudgetFinancingPlan
 {
     public HitScopedProtectionBudget Budget { get; }
@@ -70,10 +71,19 @@ public sealed class HitScopedProtectionBudgetFinancingPlan
                 RequestedBudgetUnits);
 
         var financedDamage =
-            Math.Min(
+    Math.Min(
+        AssignedDamage,
+        reservation.Reserved /
+        BudgetUnitsPerDamage);
+
+        if (NumericComparison.AreEquivalent(
+                financedDamage,
                 AssignedDamage,
-                reservation.Reserved /
-                BudgetUnitsPerDamage);
+                scale: AssignedDamage))
+        {
+            financedDamage =
+                AssignedDamage;
+        }
 
         var unfinancedDamage =
             Math.Max(

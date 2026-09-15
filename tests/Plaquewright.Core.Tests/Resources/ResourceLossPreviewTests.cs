@@ -50,6 +50,94 @@ public sealed class ResourceLossPreviewTests
     }
 
     [Fact]
+    public void Preview_WhenRequestedLossIsNotRepresentable_DoesNotReportPhantomActualLoss()
+    {
+        var resourceId =
+            new ResourceId(1);
+
+        var state =
+            new ResourceState(
+                resourceId,
+                current: 1e16d,
+                maximum: 1e16d);
+
+        var request =
+            new ResourceLossRequest(
+                resourceId,
+                amount: 1d,
+                new ResourceOperationProvenance(
+                    ResourceOperationCause.Direct));
+
+        var preview =
+            ResourceLossOperations.Preview(
+                state,
+                request);
+
+        Assert.Equal(
+            1e16d,
+            preview.CurrentBefore);
+
+        Assert.Equal(
+            1e16d,
+            preview.CurrentAfter);
+
+        Assert.Equal(
+            0d,
+            preview.Result.ActualLoss);
+
+        Assert.Equal(
+            1d,
+            preview.Result.Shortfall);
+
+        Assert.Equal(
+            preview.CurrentBefore -
+            preview.CurrentAfter,
+            preview.Result.ActualLoss);
+    }
+
+    [Fact]
+    public void Preview_WhenRoundedSubtractionWouldOvercharge_UsesConservativeRepresentableLoss()
+    {
+        var resourceId =
+            new ResourceId(1);
+
+        var state =
+            new ResourceState(
+                resourceId,
+                current: 1e16d,
+                maximum: 1e16d);
+
+        var request =
+            new ResourceLossRequest(
+                resourceId,
+                amount: 3d,
+                new ResourceOperationProvenance(
+                    ResourceOperationCause.Direct));
+
+        var preview =
+            ResourceLossOperations.Preview(
+                state,
+                request);
+
+        Assert.Equal(
+            2d,
+            preview.Result.ActualLoss);
+
+        Assert.Equal(
+            1d,
+            preview.Result.Shortfall);
+
+        Assert.Equal(
+            1e16d - 2d,
+            preview.CurrentAfter);
+
+        Assert.Equal(
+            preview.CurrentBefore -
+            preview.CurrentAfter,
+            preview.Result.ActualLoss);
+    }
+
+    [Fact]
     public void PreviewLoss_AccountsForPrevention()
     {
         var state =

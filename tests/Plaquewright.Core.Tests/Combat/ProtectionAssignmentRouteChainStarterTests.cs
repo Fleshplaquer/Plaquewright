@@ -44,6 +44,37 @@ public sealed class ProtectionAssignmentRouteChainStarterTests
         Assert.False(
             chain.IsComplete);
     }
+    [Fact]
+    public void SingleAssignment_WithOrdinaryFractionalRounding_StartsRouteChain()
+    {
+        var assignment =
+            ProtectionAssignmentResolver.Resolve(
+                damage: 100d,
+                [
+                    new ProtectionAssignmentRequest(
+                    requestedFraction: 0.07d)
+                ]);
+
+        Assert.NotEqual(
+            assignment.Assignments[0].AssignedDamage,
+            assignment.TotalAssignedDamage);
+
+        var chain =
+            ProtectionAssignmentRouteChainStarter.Start(
+                assignment);
+
+        Assert.Equal(
+            assignment.PrimaryPathDamage,
+            chain.PrimaryPathDamage);
+
+        Assert.Equal(
+            assignment.Assignments[0].AssignedDamage,
+            chain.ContinueRoutingDamage);
+
+        Assert.Equal(
+            0d,
+            chain.FinancedDamage);
+    }
 
     [Fact]
     public void NoAssignments_StartsCompletedPrimaryOnlyChain()

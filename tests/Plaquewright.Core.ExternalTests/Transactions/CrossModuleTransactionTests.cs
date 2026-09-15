@@ -171,6 +171,66 @@ public sealed class CrossModuleTransactionTests
     }
 
     [Fact]
+    public void PayGoldAndOpenDoor_WhenGoldIsAffordableButNotRepresentable_CommitsNeither()
+    {
+        var setup =
+            CreateResourceSetup(
+                currentGold: 1e16d,
+                maximumGold: 1e16d);
+
+        var door =
+            new DoorState();
+
+        var openDoor =
+            new DoorTransactionParticipant(
+                door,
+                canOpen: true);
+
+        var payGold =
+            CreateGoldCostParticipant(
+                setup,
+                amount: 1d);
+
+        //
+        // Door deliberately prepares first.
+        //
+        // Gold is nominally affordable:
+        // 1e16 >= 1
+        //
+        // But subtracting 1 from 1e16 cannot be represented
+        // by the current double-based ResourceState.
+        //
+        var committed =
+            TransactionCoordinator.TryCommit(
+                openDoor,
+                payGold);
+
+        Assert.False(
+            committed);
+
+        // Door prepared successfully but must never apply.
+        Assert.False(
+            door.IsOpen);
+
+        Assert.Equal(
+            0,
+            door.OpenCount);
+
+        // Gold must remain completely untouched.
+        Assert.Equal(
+            1e16d,
+            setup.GoldTarget.State.Current);
+
+        Assert.Equal(
+            0UL,
+            setup.GoldTarget.State.Revision);
+
+        Assert.Equal(
+            0,
+            setup.Ledger.Count);
+    }
+
+    [Fact]
     public void PayGoldAndOpenDoor_WhenDoorPreparesBeforeGoldRejects_CommitsNeither()
     {
         var setup =
@@ -240,7 +300,8 @@ public sealed class CrossModuleTransactionTests
     }
 
     private static ResourceSetup CreateResourceSetup(
-        double currentGold)
+    double currentGold,
+    double? maximumGold = null)
     {
         var registry =
             ResourceRegistryCompiler.Compile(
@@ -264,7 +325,7 @@ public sealed class CrossModuleTransactionTests
                     new ResourceState(
                         goldId,
                         currentGold,
-                        maximum: 1000d)
+                        maximum: maximumGold ?? 1000d)
                 ]);
 
         var goldTarget =

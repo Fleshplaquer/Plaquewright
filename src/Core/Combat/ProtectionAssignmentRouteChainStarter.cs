@@ -1,5 +1,7 @@
 namespace Plaquewright.Core.Combat;
 
+using Plaquewright.Core.Numerics;
+
 internal static class ProtectionAssignmentRouteChainStarter
 {
     public static ProtectionRouteChainState Start(
@@ -40,8 +42,10 @@ internal static class ProtectionAssignmentRouteChainStarter
             activeAssignment?.AssignedDamage ??
             0d;
 
-        if (protectionRoutingDamage !=
-            assignmentResolution.TotalAssignedDamage)
+        if (!NumericComparison.AreEquivalent(
+        protectionRoutingDamage,
+        assignmentResolution.TotalAssignedDamage,
+        scale: assignmentResolution.InitialDamage))
         {
             throw new InvalidOperationException(
                 "Protection assignment resolution cannot be represented by a single protection route chain.");

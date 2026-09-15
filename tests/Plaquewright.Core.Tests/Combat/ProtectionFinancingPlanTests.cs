@@ -43,6 +43,68 @@ public sealed class ProtectionFinancingPlanTests
     }
 
     [Fact]
+    public void FullFinancing_WithFractionalRate_DoesNotLeaveFloatingPointDamageShortfall()
+    {
+        var plan =
+            new ProtectionFinancingPlan(
+                assignedDamage: 0.1d,
+                resourceUnitsPerDamage: 0.7d,
+                ProtectionFinancingShortfallPolicy.SpillBack);
+
+        var result =
+            plan.Resolve(
+                actualResourceUnitsSpent:
+                    plan.RequestedResourceUnits);
+
+        Assert.Equal(
+            plan.RequestedResourceUnits,
+            result.ActualResourceUnitsSpent);
+
+        Assert.Equal(
+            0d,
+            result.ResourceUnitShortfall);
+
+        Assert.Equal(
+            0.1d,
+            result.FinancedDamage);
+
+        Assert.Equal(
+            0d,
+            result.UnfinancedDamage);
+
+        Assert.Equal(
+            result.AssignedDamage,
+            result.FinancedDamage +
+            result.UnfinancedDamage);
+    }
+
+    [Fact]
+    public void PartialFinancing_WithFractionalRate_PreservesRealDamageShortfall()
+    {
+        var plan =
+            new ProtectionFinancingPlan(
+                assignedDamage: 0.1d,
+                resourceUnitsPerDamage: 0.7d,
+                ProtectionFinancingShortfallPolicy.SpillBack);
+
+        var actualSpent =
+            plan.RequestedResourceUnits -
+            0.001d;
+
+        var result =
+            plan.Resolve(
+                actualSpent);
+
+        Assert.True(
+            result.FinancedDamage <
+            result.AssignedDamage);
+
+        Assert.True(
+            result.UnfinancedDamage >
+            0d);
+    }
+
+    [Fact]
     public void PartialFinancing_WithOneToOneRate_LeavesDamageShortfall()
     {
         var plan =

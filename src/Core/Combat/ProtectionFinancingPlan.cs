@@ -1,5 +1,6 @@
 namespace Plaquewright.Core.Combat;
 
+using Plaquewright.Core.Numerics;
 public sealed class ProtectionFinancingPlan
 {
     public double AssignedDamage { get; }
@@ -80,10 +81,19 @@ public sealed class ProtectionFinancingPlan
         }
 
         var financedDamage =
-            Math.Min(
+    Math.Min(
+        AssignedDamage,
+        actualResourceUnitsSpent /
+        ResourceUnitsPerDamage);
+
+        if (NumericComparison.AreEquivalent(
+                financedDamage,
                 AssignedDamage,
-                actualResourceUnitsSpent /
-                ResourceUnitsPerDamage);
+                scale: AssignedDamage))
+        {
+            financedDamage =
+                AssignedDamage;
+        }
 
         return new ProtectionFinancingResult(
             this,

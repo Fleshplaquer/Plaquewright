@@ -20,6 +20,14 @@ public sealed class ResourceCostPreview
 
     public double Maximum { get; }
 
+    public bool IsRepresentable { get; }
+
+    public bool IsPayable =>
+        IsAffordable &&
+        IsRepresentable;
+
+    internal double ProjectedActualCost { get; }
+
     internal ResourceCostPreview(
         ResourceState targetState,
         ulong expectedRevision,
@@ -29,6 +37,8 @@ public sealed class ResourceCostPreview
         double shortfall,
         double currentBefore,
         double currentAfter,
+        bool isRepresentable,
+double projectedActualCost,
         double maximum)
     {
         ArgumentNullException.ThrowIfNull(
@@ -43,5 +53,10 @@ public sealed class ResourceCostPreview
         CurrentBefore = currentBefore;
         CurrentAfter = currentAfter;
         Maximum = maximum;
+        IsRepresentable =
+    isRepresentable;
+
+        ProjectedActualCost =
+            projectedActualCost;
     }
 }

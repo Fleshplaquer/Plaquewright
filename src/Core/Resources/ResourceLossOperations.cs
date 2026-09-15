@@ -21,16 +21,14 @@ public static class ResourceLossOperations
             request.Amount);
 
         var remainingLoss =
-            request.Amount - preventedLoss;
-
-        var actualLoss =
-            Math.Min(
-                state.Current,
-                remainingLoss);
+    request.Amount -
+    preventedLoss;
 
         var currentAfter =
-            state.Current - actualLoss;
-
+            ResourceQuantityMath.CalculateCurrentAfterLoss(
+                state.Current,
+                remainingLoss,
+                out var actualLoss);
         var result =
             new ResourceLossResult(
                 state.Id,
