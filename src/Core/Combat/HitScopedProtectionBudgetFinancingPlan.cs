@@ -95,6 +95,50 @@ public sealed class HitScopedProtectionBudgetFinancingPlan
         }
     }
 
+    internal HitScopedProtectionBudgetFinancingResult
+    ResolveReservedBudgetUnits(
+        double reservedBudgetUnits)
+    {
+        if (!double.IsFinite(
+                reservedBudgetUnits))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(reservedBudgetUnits),
+                reservedBudgetUnits,
+                "Reserved protection budget units must be finite.");
+        }
+
+        if (reservedBudgetUnits < 0d)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(reservedBudgetUnits),
+                reservedBudgetUnits,
+                "Reserved protection budget units cannot be negative.");
+        }
+
+        if (reservedBudgetUnits >
+            RequestedBudgetUnits)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(reservedBudgetUnits),
+                reservedBudgetUnits,
+                "Reserved protection budget units cannot exceed requested budget units.");
+        }
+
+        var reservation =
+            new HitScopedProtectionBudgetReservation(
+                requested:
+                    RequestedBudgetUnits,
+                reserved:
+                    reservedBudgetUnits,
+                shortfall:
+                    RequestedBudgetUnits -
+                    reservedBudgetUnits);
+
+        return CreateResult(
+            reservation);
+    }
+
     private HitScopedProtectionBudgetFinancingResult CreateResult(
     HitScopedProtectionBudgetReservation reservation)
     {
