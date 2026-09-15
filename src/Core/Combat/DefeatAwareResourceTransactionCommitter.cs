@@ -13,41 +13,297 @@ internal static class DefeatAwareResourceTransactionCommitter
         PreDefeatInterventionPhaseResult? preDefeatPhaseResult = null)
     {
         ArgumentNullException.ThrowIfNull(
+            entity);
+
+        var results =
+            Commit(
+                draft,
+                ledger,
+                [
+                    new DefeatAwareResourceTransactionOwnerCommitRequest(
+                        entity,
+                        policy,
+                        preDefeatPhaseResult)
+                ]);
+
+        return results[0];
+    }
+
+    public static IReadOnlyList<DefeatAwareResourceTransactionCommitResult>
+        Commit(
+            ResourceTransactionDraft draft,
+            ResourceOperationLedger ledger,
+            IReadOnlyList<DefeatAwareResourceTransactionOwnerCommitRequest>
+                ownerRequests)
+    {
+        ArgumentNullException.ThrowIfNull(
             draft);
 
         ArgumentNullException.ThrowIfNull(
             ledger);
 
         ArgumentNullException.ThrowIfNull(
-            entity);
+            ownerRequests);
 
-        if (!ReferenceEquals(
-                draft.ResourceRegistry,
-                entity.ResourceRegistry))
+        var requests =
+            MaterializeRequests(
+                ownerRequests);
+
+        ValidateOwnerRequests(
+            draft,
+            requests);
+
+        ValidateDraftOwnership(
+            draft,
+            requests);
+
+        var results =
+            new DefeatAwareResourceTransactionCommitResult[
+                requests.Length];
+
+        for (var index = 0;
+             index < requests.Length;
+             index++)
         {
-            throw new ArgumentException(
-                "Entity belongs to a different resource registry than the transaction draft.",
-                nameof(entity));
+            results[index] =
+                EvaluateOwner(
+                    draft,
+                    requests[index]);
         }
 
-        ValidateSingleOwnerDraft(
+        // Materialize the read-only result before committing.
+        //
+        // After the resource commit starts, no further
+        // defeat validation is allowed to fail.
+        var readOnlyResults =
+            Array.AsReadOnly(
+                results);
+
+        // All owners have now passed the defeat gate.
+        // The entire resource draft is still committed exactly once.
+        ResourceTransactionCommitter.Commit(
             draft,
-            entity);
+            ledger);
+
+        return readOnlyResults;
+    }
+
+    private static DefeatAwareResourceTransactionOwnerCommitRequest[]
+        MaterializeRequests(
+            IReadOnlyList<
+                DefeatAwareResourceTransactionOwnerCommitRequest>
+                ownerRequests)
+    {
+        var requests =
+            new DefeatAwareResourceTransactionOwnerCommitRequest[
+                ownerRequests.Count];
+
+        for (var index = 0;
+             index < ownerRequests.Count;
+             index++)
+        {
+            var request =
+                ownerRequests[index];
+
+            if (request is null)
+            {
+                throw new ArgumentException(
+                    "Defeat-aware owner requests cannot contain null entries.",
+                    nameof(ownerRequests));
+            }
+
+            requests[index] =
+                request;
+        }
+
+        return requests;
+    }
+
+    private static void ValidateOwnerRequests(
+        ResourceTransactionDraft draft,
+        IReadOnlyList<
+            DefeatAwareResourceTransactionOwnerCommitRequest>
+            requests)
+    {
+        for (var index = 0;
+             index < requests.Count;
+             index++)
+        {
+            var request =
+                requests[index];
+
+            if (!ReferenceEquals(
+                    draft.ResourceRegistry,
+                    request.Entity.ResourceRegistry))
+            {
+                throw new ArgumentException(
+                    "Entity belongs to a different resource registry than the transaction draft.",
+                    nameof(requests));
+            }
+
+            for (var otherIndex = 0;
+                 otherIndex < index;
+                 otherIndex++)
+            {
+                if (requests[otherIndex].Entity.Id ==
+                    request.Entity.Id)
+                {
+                    throw new InvalidOperationException(
+                        $"Defeat-aware transaction contains more than one owner request for entity {request.Entity.Id}.");
+                }
+            }
+        }
+    }
+
+    private static void ValidateDraftOwnership(
+        ResourceTransactionDraft draft,
+        IReadOnlyList<
+            DefeatAwareResourceTransactionOwnerCommitRequest>
+            requests)
+    {
+        foreach (var projection in draft.Projections)
+        {
+            var owningRequestIndex =
+                FindOwningRequestIndex(
+                    requests,
+                    projection.OriginalState);
+
+            if (owningRequestIndex < 0)
+            {
+                throw new InvalidOperationException(
+                    "The resource transaction draft contains a projected resource state whose owning entity was not supplied to the defeat-aware commit gate.");
+            }
+        }
+
+        foreach (var operation in draft.Operations)
+        {
+            var entityId =
+                GetOperationEntityId(
+                    operation);
+
+            if (!ContainsEntityId(
+                    requests,
+                    entityId))
+            {
+                throw new InvalidOperationException(
+                    $"The resource transaction draft contains an operation for entity {entityId}, but that entity was not supplied to the defeat-aware commit gate.");
+            }
+        }
+    }
+
+    private static int FindOwningRequestIndex(
+        IReadOnlyList<
+            DefeatAwareResourceTransactionOwnerCommitRequest>
+            requests,
+        ResourceState state)
+    {
+        var matchIndex =
+            -1;
+
+        for (var requestIndex = 0;
+             requestIndex < requests.Count;
+             requestIndex++)
+        {
+            if (!EntityOwnsState(
+                    requests[requestIndex].Entity,
+                    state))
+            {
+                continue;
+            }
+
+            if (matchIndex >= 0)
+            {
+                throw new InvalidOperationException(
+                    "A projected resource state is owned by more than one supplied entity.");
+            }
+
+            matchIndex =
+                requestIndex;
+        }
+
+        return matchIndex;
+    }
+
+    private static bool EntityOwnsState(
+        EntityRuntimeState entity,
+        ResourceState state)
+    {
+        foreach (var entityState in entity.Resources.States)
+        {
+            if (ReferenceEquals(
+                    entityState,
+                    state))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool ContainsEntityId(
+        IReadOnlyList<
+            DefeatAwareResourceTransactionOwnerCommitRequest>
+            requests,
+        EntityId entityId)
+    {
+        foreach (var request in requests)
+        {
+            if (request.Entity.Id ==
+                entityId)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static EntityId GetOperationEntityId(
+        StagedResourceOperation operation)
+    {
+        ArgumentNullException.ThrowIfNull(
+            operation);
+
+        return operation switch
+        {
+            StagedResourceLossOperation loss =>
+                loss.EntityId,
+
+            StagedResourceCostOperation cost =>
+                cost.EntityId,
+
+            StagedResourceRecoveryOperation recovery =>
+                recovery.EntityId,
+
+            _ =>
+                throw new InvalidOperationException(
+                    $"Unsupported staged resource operation type '{operation.GetType().FullName}'.")
+        };
+    }
+
+    private static DefeatAwareResourceTransactionCommitResult
+        EvaluateOwner(
+            ResourceTransactionDraft draft,
+            DefeatAwareResourceTransactionOwnerCommitRequest request)
+    {
+        var entity =
+            request.Entity;
 
         var currentEvaluation =
             EvaluateCurrent(
                 draft,
                 entity,
-                policy);
+                request.Policy);
 
         DefeatAwareResourceTransactionCommitOutcome outcome;
 
-        if (preDefeatPhaseResult is null)
+        if (request.PreDefeatPhaseResult is null)
         {
             if (currentEvaluation.IsNewDefeatTransition)
             {
                 throw new InvalidOperationException(
-                    "A new projected defeat transition must pass through the pre-defeat intervention phase before commit.");
+                    $"Entity {entity.Id} has a new projected defeat transition that must pass through the pre-defeat intervention phase before commit.");
             }
 
             outcome =
@@ -59,12 +315,12 @@ internal static class DefeatAwareResourceTransactionCommitter
             ValidatePhaseResult(
                 draft,
                 entity,
-                policy,
+                request.Policy,
                 currentEvaluation,
-                preDefeatPhaseResult);
+                request.PreDefeatPhaseResult);
 
             outcome =
-                preDefeatPhaseResult.Outcome switch
+                request.PreDefeatPhaseResult.Outcome switch
                 {
                     PreDefeatInterventionPhaseOutcome.Resolved =>
                         DefeatAwareResourceTransactionCommitOutcome
@@ -80,51 +336,11 @@ internal static class DefeatAwareResourceTransactionCommitter
                 };
         }
 
-        // All defeat-related validation happens before
-        // the atomic resource transaction is committed.
-        ResourceTransactionCommitter.Commit(
-            draft,
-            ledger);
-
         return new DefeatAwareResourceTransactionCommitResult(
             entity.Id,
             currentEvaluation,
-            preDefeatPhaseResult,
+            request.PreDefeatPhaseResult,
             outcome);
-    }
-
-    private static void ValidateSingleOwnerDraft(
-        ResourceTransactionDraft draft,
-        EntityRuntimeState entity)
-    {
-        foreach (var operation in draft.Operations)
-        {
-            var operationEntityId =
-                operation switch
-                {
-                    StagedResourceLossOperation loss =>
-                        loss.EntityId,
-
-                    StagedResourceCostOperation cost =>
-                        cost.EntityId,
-
-                    StagedResourceRecoveryOperation recovery =>
-                        recovery.EntityId,
-
-                    _ =>
-                        throw new InvalidOperationException(
-                            $"Unsupported staged resource operation type '{operation.GetType().FullName}'.")
-                };
-
-            if (operationEntityId !=
-                entity.Id)
-            {
-                throw new InvalidOperationException(
-                    "The defeat-aware resource transaction commit currently supports only single-owner drafts. " +
-                    $"The draft contains an operation for entity {operationEntityId}, " +
-                    $"but the commit gate is evaluating entity {entity.Id}.");
-            }
-        }
     }
 
     private static ProjectedEntityDefeatEvaluation EvaluateCurrent(

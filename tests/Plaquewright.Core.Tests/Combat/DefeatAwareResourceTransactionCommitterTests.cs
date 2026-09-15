@@ -648,20 +648,17 @@ public sealed class DefeatAwareResourceTransactionCommitterTests
     private static TestSetup CreateSetup()
     {
         var registry =
-            ResourceRegistryCompiler.Compile(
-            [
-                new ResourceDefinition(
-                    ResourceKey.Parse(
-                        "resource.life"),
-                    ResourceRole.DamageTarget |
-                    ResourceRole.DefeatRelevant),
+            CreateRegistry();
 
-                new ResourceDefinition(
-                    ResourceKey.Parse(
-                        "resource.soul"),
-                    ResourceRole.DefeatRelevant)
-            ]);
+        return CreateSetup(
+            registry,
+            new EntityId(1UL));
+    }
 
+    private static TestSetup CreateSetup(
+        CompiledResourceRegistry registry,
+        EntityId entityId)
+    {
         var lifeId =
             registry.GetId(
                 ResourceKey.Parse(
@@ -674,18 +671,18 @@ public sealed class DefeatAwareResourceTransactionCommitterTests
 
         var entity =
             new EntityRuntimeState(
-                new EntityId(1UL),
+                entityId,
                 registry,
                 [
                     new ResourceState(
-                        lifeId,
-                        current: 100d,
-                        maximum: 100d),
+                    lifeId,
+                    current: 100d,
+                    maximum: 100d),
 
-                    new ResourceState(
-                        soulId,
-                        current: 50d,
-                        maximum: 100d)
+                new ResourceState(
+                    soulId,
+                    current: 50d,
+                    maximum: 100d)
                 ]);
 
         return new TestSetup(
@@ -695,6 +692,515 @@ public sealed class DefeatAwareResourceTransactionCommitterTests
             new ResourceStateTarget(
                 entity,
                 lifeId));
+    }
+
+    [Fact]
+    public void MultiOwnerDraft_WithoutDefeatTransitions_CommitsAllOwnersAtomically()
+    {
+        var registry =
+            CreateRegistry();
+
+        var first =
+            CreateSetup(
+                registry,
+                new EntityId(1UL));
+
+        var second =
+            CreateSetup(
+                registry,
+                new EntityId(2UL));
+
+        var draft =
+            new ResourceTransactionDraft(
+                registry);
+
+        StageLifeLoss(
+            draft,
+            first,
+            amount: 40d);
+
+        StageLifeLoss(
+            draft,
+            second,
+            amount: 30d);
+
+        var ledger =
+            new ResourceOperationLedger();
+
+        var results =
+            DefeatAwareResourceTransactionCommitter.Commit(
+                draft,
+                ledger,
+                [
+                    new DefeatAwareResourceTransactionOwnerCommitRequest(
+                    first.Entity,
+                    DefeatRelevantResourcePolicy.AnyDepleted),
+
+                new DefeatAwareResourceTransactionOwnerCommitRequest(
+                    second.Entity,
+                    DefeatRelevantResourcePolicy.AnyDepleted)
+                ]);
+
+        Assert.Equal(
+            2,
+            results.Count);
+
+        Assert.Equal(
+            first.Entity.Id,
+            results[0].EntityId);
+
+        Assert.Equal(
+            second.Entity.Id,
+            results[1].EntityId);
+
+        Assert.Equal(
+            DefeatAwareResourceTransactionCommitOutcome.NoDefeatTransition,
+            results[0].Outcome);
+
+        Assert.Equal(
+            DefeatAwareResourceTransactionCommitOutcome.NoDefeatTransition,
+            results[1].Outcome);
+
+        Assert.Equal(
+            60d,
+            first.LifeTarget.State.Current);
+
+        Assert.Equal(
+            70d,
+            second.LifeTarget.State.Current);
+
+        Assert.Equal(
+            1UL,
+            first.LifeTarget.State.Revision);
+
+        Assert.Equal(
+            1UL,
+            second.LifeTarget.State.Revision);
+
+        Assert.Equal(
+            2,
+            ledger.Count);
+    }
+
+    [Fact]
+    public void MultiOwnerDraft_MissingPhaseForOneDefeatedOwner_RejectsEntireCommit()
+    {
+        var registry =
+            CreateRegistry();
+
+        var first =
+            CreateSetup(
+                registry,
+                new EntityId(1UL));
+
+        var second =
+            CreateSetup(
+                registry,
+                new EntityId(2UL));
+
+        var draft =
+            new ResourceTransactionDraft(
+                registry);
+
+        StageLifeLoss(
+            draft,
+            first,
+            amount: 100d);
+
+        StageLifeLoss(
+            draft,
+            second,
+            amount: 100d);
+
+        var firstContext =
+            PreDefeatInterventionContextFactory.TryCreate(
+                draft,
+                first.Entity,
+                DefeatRelevantResourcePolicy.AnyDepleted);
+
+        Assert.NotNull(
+            firstContext);
+
+        var firstPhaseResult =
+            PreDefeatInterventionPhaseFinalizer.Finalize(
+                firstContext);
+
+        var ledger =
+            new ResourceOperationLedger();
+
+        Assert.Throws<InvalidOperationException>(
+            () =>
+                DefeatAwareResourceTransactionCommitter.Commit(
+                    draft,
+                    ledger,
+                    [
+                        new DefeatAwareResourceTransactionOwnerCommitRequest(
+                        first.Entity,
+                        DefeatRelevantResourcePolicy.AnyDepleted,
+                        firstPhaseResult),
+
+                    new DefeatAwareResourceTransactionOwnerCommitRequest(
+                        second.Entity,
+                        DefeatRelevantResourcePolicy.AnyDepleted)
+                    ]));
+
+        // Owner A passed its gate, but Owner B did not.
+        // Therefore neither becomes visible.
+        Assert.Equal(
+            100d,
+            first.LifeTarget.State.Current);
+
+        Assert.Equal(
+            100d,
+            second.LifeTarget.State.Current);
+
+        Assert.Equal(
+            0UL,
+            first.LifeTarget.State.Revision);
+
+        Assert.Equal(
+            0UL,
+            second.LifeTarget.State.Revision);
+
+        Assert.Equal(
+            0,
+            ledger.Count);
+    }
+
+    [Fact]
+    public void MultiOwnerDraft_WithPhaseForEveryDefeatedOwner_CommitsOnceAllOwnersPass()
+    {
+        var registry =
+            CreateRegistry();
+
+        var first =
+            CreateSetup(
+                registry,
+                new EntityId(1UL));
+
+        var second =
+            CreateSetup(
+                registry,
+                new EntityId(2UL));
+
+        var draft =
+            new ResourceTransactionDraft(
+                registry);
+
+        StageLifeLoss(
+            draft,
+            first,
+            amount: 100d);
+
+        StageLifeLoss(
+            draft,
+            second,
+            amount: 100d);
+
+        var firstContext =
+            PreDefeatInterventionContextFactory.TryCreate(
+                draft,
+                first.Entity,
+                DefeatRelevantResourcePolicy.AnyDepleted);
+
+        var secondContext =
+            PreDefeatInterventionContextFactory.TryCreate(
+                draft,
+                second.Entity,
+                DefeatRelevantResourcePolicy.AnyDepleted);
+
+        Assert.NotNull(
+            firstContext);
+
+        Assert.NotNull(
+            secondContext);
+
+        // No draft mutation occurs between these finalizations,
+        // so both results bind to the same current draft version.
+        var firstPhaseResult =
+            PreDefeatInterventionPhaseFinalizer.Finalize(
+                firstContext);
+
+        var secondPhaseResult =
+            PreDefeatInterventionPhaseFinalizer.Finalize(
+                secondContext);
+
+        var ledger =
+            new ResourceOperationLedger();
+
+        var results =
+            DefeatAwareResourceTransactionCommitter.Commit(
+                draft,
+                ledger,
+                [
+                    new DefeatAwareResourceTransactionOwnerCommitRequest(
+                    first.Entity,
+                    DefeatRelevantResourcePolicy.AnyDepleted,
+                    firstPhaseResult),
+
+                new DefeatAwareResourceTransactionOwnerCommitRequest(
+                    second.Entity,
+                    DefeatRelevantResourcePolicy.AnyDepleted,
+                    secondPhaseResult)
+                ]);
+
+        Assert.Equal(
+            2,
+            results.Count);
+
+        Assert.Equal(
+            DefeatAwareResourceTransactionCommitOutcome.DefeatAccepted,
+            results[0].Outcome);
+
+        Assert.Equal(
+            DefeatAwareResourceTransactionCommitOutcome.DefeatAccepted,
+            results[1].Outcome);
+
+        Assert.Equal(
+            0d,
+            first.LifeTarget.State.Current);
+
+        Assert.Equal(
+            0d,
+            second.LifeTarget.State.Current);
+
+        Assert.Equal(
+            1UL,
+            first.LifeTarget.State.Revision);
+
+        Assert.Equal(
+            1UL,
+            second.LifeTarget.State.Revision);
+
+        Assert.Equal(
+            2,
+            ledger.Count);
+    }
+
+    [Fact]
+    public void MultiOwnerDraft_SameIdDifferentEntity_DoesNotSatisfyOwnerGate()
+    {
+        var registry =
+            CreateRegistry();
+
+        var actualOwner =
+            CreateSetup(
+                registry,
+                new EntityId(1UL));
+
+        var sameIdImposter =
+            CreateSetup(
+                registry,
+                new EntityId(1UL));
+
+        var draft =
+            new ResourceTransactionDraft(
+                registry);
+
+        StageLifeLoss(
+            draft,
+            actualOwner,
+            amount: 40d);
+
+        var ledger =
+            new ResourceOperationLedger();
+
+        Assert.Throws<InvalidOperationException>(
+            () =>
+                DefeatAwareResourceTransactionCommitter.Commit(
+                    draft,
+                    ledger,
+                    [
+                        new DefeatAwareResourceTransactionOwnerCommitRequest(
+                        sameIdImposter.Entity,
+                        DefeatRelevantResourcePolicy.AnyDepleted)
+                    ]));
+
+        Assert.Equal(
+            100d,
+            actualOwner.LifeTarget.State.Current);
+
+        Assert.Equal(
+            0UL,
+            actualOwner.LifeTarget.State.Revision);
+
+        Assert.Equal(
+            100d,
+            sameIdImposter.LifeTarget.State.Current);
+
+        Assert.Equal(
+            0UL,
+            sameIdImposter.LifeTarget.State.Revision);
+
+        Assert.Equal(
+            0,
+            ledger.Count);
+    }
+    [Fact]
+    public void MultiOwnerDraft_OwnerWithoutDefeatRelevantResources_DoesNotRequirePreDefeatPhase()
+    {
+        var registry =
+            ResourceRegistryCompiler.Compile(
+            [
+                new ResourceDefinition(
+                ResourceKey.Parse(
+                    "resource.life"),
+                ResourceRole.DamageTarget |
+                ResourceRole.DefeatRelevant),
+
+            new ResourceDefinition(
+                ResourceKey.Parse(
+                    "resource.mana"),
+                ResourceRole.CostSource)
+            ]);
+
+        var lifeId =
+            registry.GetId(
+                ResourceKey.Parse(
+                    "resource.life"));
+
+        var manaId =
+            registry.GetId(
+                ResourceKey.Parse(
+                    "resource.mana"));
+
+        var firstEntity =
+            new EntityRuntimeState(
+                new EntityId(1UL),
+                registry,
+                [
+                    new ResourceState(
+                    lifeId,
+                    current: 100d,
+                    maximum: 100d)
+                ]);
+
+        var secondEntity =
+            new EntityRuntimeState(
+                new EntityId(2UL),
+                registry,
+                [
+                    new ResourceState(
+                    manaId,
+                    current: 50d,
+                    maximum: 100d)
+                ]);
+
+        var lifeTarget =
+            new ResourceStateTarget(
+                firstEntity,
+                lifeId);
+
+        var manaTarget =
+            new ResourceStateTarget(
+                secondEntity,
+                manaId);
+
+        var draft =
+            new ResourceTransactionDraft(
+                registry);
+
+        draft.StageLoss(
+            lifeTarget,
+            new ResourceLossRequest(
+                lifeId,
+                amount: 100d,
+                new ResourceOperationProvenance(
+                    ResourceOperationCause.DamageDerived)));
+
+        draft.StageCost(
+            manaTarget,
+            new ResourceCostRequest(
+                manaId,
+                amount: 10d,
+                new ResourceOperationProvenance(
+                    ResourceOperationCause.SkillCost)));
+
+        var firstContext =
+            PreDefeatInterventionContextFactory.TryCreate(
+                draft,
+                firstEntity,
+                DefeatRelevantResourcePolicy.AnyDepleted);
+
+        Assert.NotNull(
+            firstContext);
+
+        var firstPhaseResult =
+            PreDefeatInterventionPhaseFinalizer.Finalize(
+                firstContext);
+
+        var ledger =
+            new ResourceOperationLedger();
+
+        var results =
+            DefeatAwareResourceTransactionCommitter.Commit(
+                draft,
+                ledger,
+                [
+                    new DefeatAwareResourceTransactionOwnerCommitRequest(
+                    firstEntity,
+                    DefeatRelevantResourcePolicy.AnyDepleted,
+                    firstPhaseResult),
+
+                new DefeatAwareResourceTransactionOwnerCommitRequest(
+                    secondEntity,
+                    DefeatRelevantResourcePolicy.AnyDepleted)
+                ]);
+
+        Assert.Equal(
+            2,
+            results.Count);
+
+        Assert.Equal(
+            DefeatAwareResourceTransactionCommitOutcome.DefeatAccepted,
+            results[0].Outcome);
+
+        Assert.Equal(
+            DefeatAwareResourceTransactionCommitOutcome.NoDefeatTransition,
+            results[1].Outcome);
+
+        Assert.False(
+            results[1].FinalEvaluation.IsProjectedDefeated);
+
+        Assert.False(
+            results[1].FinalEvaluation.IsNewDefeatTransition);
+
+        Assert.Equal(
+            0d,
+            lifeTarget.State.Current);
+
+        Assert.Equal(
+            40d,
+            manaTarget.State.Current);
+
+        Assert.Equal(
+            1UL,
+            lifeTarget.State.Revision);
+
+        Assert.Equal(
+            1UL,
+            manaTarget.State.Revision);
+
+        Assert.Equal(
+            2,
+            ledger.Count);
+    }
+
+    private static CompiledResourceRegistry CreateRegistry()
+    {
+        return ResourceRegistryCompiler.Compile(
+        [
+            new ResourceDefinition(
+            ResourceKey.Parse(
+                "resource.life"),
+            ResourceRole.DamageTarget |
+            ResourceRole.DefeatRelevant),
+
+        new ResourceDefinition(
+            ResourceKey.Parse(
+                "resource.soul"),
+            ResourceRole.DefeatRelevant)
+        ]);
     }
 
     private sealed record TestSetup(
