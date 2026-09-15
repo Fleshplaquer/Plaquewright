@@ -30,6 +30,35 @@ public sealed class DamageResolutionQuantities
     }
 
     internal static DamageResolutionQuantities Create(
+    IncomingDamage incoming,
+    double postMitigationAmount,
+    double postTakenScalingAmount,
+    ProtectionAssignmentRoutingState protectionRouting)
+    {
+        ArgumentNullException.ThrowIfNull(
+            protectionRouting);
+
+        var postMitigation =
+            incoming.AdvanceToPostMitigation(
+                postMitigationAmount);
+
+        var postTakenScaling =
+            postMitigation.AdvanceToPostTakenScaling(
+                postTakenScalingAmount);
+
+        var taken =
+            DamageTakenResolver.Resolve(
+                postTakenScaling,
+                protectionRouting);
+
+        return new DamageResolutionQuantities(
+            incoming,
+            postMitigation,
+            postTakenScaling,
+            taken);
+    }
+
+    internal static DamageResolutionQuantities Create(
         IncomingDamage incoming,
         double postMitigationAmount,
         double postTakenScalingAmount,

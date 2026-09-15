@@ -36,6 +36,71 @@ public sealed class DamageResolutionQuantitiesTests
     }
 
     [Fact]
+    public void Create_WithProtectionRouting_UsesFinalPrimaryPathDamageAsDamageTaken()
+    {
+        var incoming =
+            new IncomingDamage(
+                100d);
+
+        var protectionResolution =
+            ProtectionAssignmentResolver.Resolve(
+                damage: 80d,
+                [
+                    new ProtectionAssignmentRequest(
+                    requestedFraction: 0.5d)
+                ]);
+
+        var protectionRouting =
+            ProtectionAssignmentRoutingStarter.Start(
+                protectionResolution);
+
+        var financing =
+            new ProtectionFinancingPlan(
+                assignedDamage:
+                    protectionRouting.Lanes[0].ContinueRoutingDamage,
+                resourceUnitsPerDamage: 1d,
+                ProtectionFinancingShortfallPolicy.SpillBack)
+            .Resolve(
+                actualResourceUnitsSpent: 30d);
+
+        protectionRouting =
+            protectionRouting.Apply(
+                protectionResolution.Assignments[0],
+                ProtectionShortfallRouter.Route(
+                    financing));
+
+        Assert.True(
+            protectionRouting.IsComplete);
+
+        Assert.Equal(
+            50d,
+            protectionRouting.PrimaryPathDamage);
+
+        var quantities =
+            DamageResolutionQuantities.Create(
+                incoming,
+                postMitigationAmount: 90d,
+                postTakenScalingAmount: 80d,
+                protectionRouting);
+
+        Assert.Equal(
+            100d,
+            quantities.Incoming.Amount);
+
+        Assert.Equal(
+            90d,
+            quantities.PostMitigation.Amount);
+
+        Assert.Equal(
+            80d,
+            quantities.PostTakenScaling.Amount);
+
+        Assert.Equal(
+            50d,
+            quantities.Taken.Amount);
+    }
+
+    [Fact]
     public void Create_DoesNotRequireNumericallyMonotonicStages()
     {
         var quantities =
