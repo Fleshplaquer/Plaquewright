@@ -1,6 +1,6 @@
 using Godot;
 
-namespace IdleGodot;
+namespace Plaquewright;
 
 public partial class Main : Node
 {

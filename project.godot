@@ -10,7 +10,7 @@ config_version=5
 
 [application]
 
-config/name="Idle-Godot"
+config/name="Plaquewright"
 run/main_scene="uid://cuktb66w387nk"
 config/features=PackedStringArray("4.7", "C#", "Forward Plus")
 config/icon="res://icon.svg"
@@ -22,7 +22,7 @@ window/stretch/aspect="expand"
 
 [dotnet]
 
-project/assembly_name="Idle-Godot"
+project/assembly_name="Plaquewright"
 
 [physics]
 
