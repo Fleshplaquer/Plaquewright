@@ -1,4 +1,4 @@
-namespace Idler.Core.Simulation;
+namespace Plaquewright.Core.Simulation;
 
 public readonly record struct ScheduledSequence
     : IComparable<ScheduledSequence>

@@ -1,6 +1,6 @@
-using Idler.Core.Resources;
+using Plaquewright.Core.Resources;
 
-namespace Idler.Core.Entities;
+namespace Plaquewright.Core.Entities;
 
 public sealed class EntityRuntimeState
 {

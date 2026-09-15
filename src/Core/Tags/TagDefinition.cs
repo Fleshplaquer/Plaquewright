@@ -1,6 +1,6 @@
 using System.Collections.ObjectModel;
 
-namespace Idler.Core.Tags;
+namespace Plaquewright.Core.Tags;
 
 public sealed class TagDefinition
 {

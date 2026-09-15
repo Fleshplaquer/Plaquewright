@@ -1,4 +1,4 @@
-namespace Idler.Core.Simulation;
+namespace Plaquewright.Core.Simulation;
 
 public sealed class SimulationRunner<TPayload>
 {

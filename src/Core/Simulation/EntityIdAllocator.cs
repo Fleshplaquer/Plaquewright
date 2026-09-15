@@ -1,6 +1,6 @@
-namespace Idler.Core.Simulation;
+namespace Plaquewright.Core.Simulation;
 
-using Idler.Core.Entities;
+using Plaquewright.Core.Entities;
 
 public sealed class EntityIdAllocator
 {

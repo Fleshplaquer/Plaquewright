@@ -1,7 +1,7 @@
-using Idler.Core.Entities;
-using Idler.Core.Resources;
+using Plaquewright.Core.Entities;
+using Plaquewright.Core.Resources;
 
-namespace Idler.Core.Combat;
+namespace Plaquewright.Core.Combat;
 
 public sealed class DamageResourceLossPlan
 {

@@ -1,4 +1,4 @@
-namespace Idler.Core.Tags;
+namespace Plaquewright.Core.Tags;
 
 public static class TagRegistryCompiler
 {

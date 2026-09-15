@@ -1,4 +1,4 @@
-namespace Idler.Core.Stats;
+namespace Plaquewright.Core.Stats;
 
 public static class ModifierMath
 {

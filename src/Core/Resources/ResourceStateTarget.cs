@@ -1,6 +1,6 @@
-using Idler.Core.Entities;
+using Plaquewright.Core.Entities;
 
-namespace Idler.Core.Resources;
+namespace Plaquewright.Core.Resources;
 
 public sealed class ResourceStateTarget
 {

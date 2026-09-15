@@ -1,6 +1,6 @@
-using Idler.Core.Stats;
+using Plaquewright.Core.Stats;
 
-namespace Idler.Core.Combat;
+namespace Plaquewright.Core.Combat;
 
 public sealed class DamageRangeModifierAccumulator
 {

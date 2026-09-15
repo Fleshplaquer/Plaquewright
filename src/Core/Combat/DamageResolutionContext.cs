@@ -1,7 +1,7 @@
-using Idler.Core.Entities;
-using Idler.Core.Simulation;
+using Plaquewright.Core.Entities;
+using Plaquewright.Core.Simulation;
 
-namespace Idler.Core.Combat;
+namespace Plaquewright.Core.Combat;
 
 public sealed class DamageResolutionContext
 {

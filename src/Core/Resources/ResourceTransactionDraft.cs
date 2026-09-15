@@ -1,6 +1,6 @@
 using System.Collections.ObjectModel;
 
-namespace Idler.Core.Resources;
+namespace Plaquewright.Core.Resources;
 
 internal sealed class ResourceTransactionDraft
 {

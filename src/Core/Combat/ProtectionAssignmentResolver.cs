@@ -1,4 +1,4 @@
-namespace Idler.Core.Combat;
+namespace Plaquewright.Core.Combat;
 
 public static class ProtectionAssignmentResolver
 {

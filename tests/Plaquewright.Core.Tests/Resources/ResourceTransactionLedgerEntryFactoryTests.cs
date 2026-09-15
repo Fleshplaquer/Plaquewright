@@ -1,0 +1,594 @@
+using Plaquewright.Core.Entities;
+using Plaquewright.Core.Resources;
+
+namespace Plaquewright.Core.Tests.Resources;
+
+public sealed class ResourceTransactionLedgerEntryFactoryTests
+{
+    [Fact]
+    public void EmptyDraft_ProducesNoEntries()
+    {
+        var draft =
+            new ResourceTransactionDraft(
+                CreateRegistry());
+
+        var entries =
+            ResourceTransactionLedgerEntryFactory.CreateEntries(
+                draft);
+
+        Assert.Empty(
+            entries);
+    }
+
+    [Fact]
+    public void CreateEntries_DoesNotMutateOriginalState()
+    {
+        var registry =
+            CreateRegistry();
+
+        var lifeId =
+            GetLifeId(
+                registry);
+
+        var entity =
+            CreateLifeEntity(
+                registry,
+                1UL,
+                100d,
+                100d);
+
+        var target =
+            new ResourceStateTarget(
+                entity,
+                lifeId);
+
+        var state =
+            target.State;
+
+        var draft =
+            new ResourceTransactionDraft(
+                registry);
+
+        draft.StageLoss(
+            target,
+            new ResourceLossRequest(
+                lifeId,
+                25d,
+                new ResourceOperationProvenance(
+                    ResourceOperationCause.DamageDerived)));
+
+        var entries =
+            ResourceTransactionLedgerEntryFactory.CreateEntries(
+                draft);
+
+        Assert.Single(
+            entries);
+
+        Assert.Equal(
+            100d,
+            state.Current);
+
+        Assert.Equal(
+            0UL,
+            state.Revision);
+    }
+
+    [Fact]
+    public void CreateEntries_PreservesOperationOrder()
+    {
+        var registry =
+            CreateRegistry();
+
+        var lifeId =
+            GetLifeId(
+                registry);
+
+        var manaId =
+            GetManaId(
+                registry);
+
+        var entity =
+            CreateLifeManaEntity(
+                registry,
+                1UL,
+                100d,
+                100d,
+                50d,
+                50d);
+
+        var lifeTarget =
+            new ResourceStateTarget(
+                entity,
+                lifeId);
+
+        var manaTarget =
+            new ResourceStateTarget(
+                entity,
+                manaId);
+
+        var draft =
+            new ResourceTransactionDraft(
+                registry);
+
+        draft.StageLoss(
+            lifeTarget,
+            new ResourceLossRequest(
+                lifeId,
+                30d,
+                new ResourceOperationProvenance(
+                    ResourceOperationCause.DamageDerived)));
+
+        draft.StageCost(
+            manaTarget,
+            new ResourceCostRequest(
+                manaId,
+                10d,
+                new ResourceOperationProvenance(
+                    ResourceOperationCause.SkillCost)));
+
+        draft.StageRecovery(
+            lifeTarget,
+            new ResourceRecoveryRequest(
+                lifeId,
+                5d,
+                new ResourceOperationProvenance(
+                    ResourceOperationCause.Leech)));
+
+        var entries =
+            ResourceTransactionLedgerEntryFactory.CreateEntries(
+                draft);
+
+        Assert.Equal(
+            3,
+            entries.Count);
+
+        Assert.IsType<ResourceLossLedgerEntry>(
+            entries[0]);
+
+        Assert.IsType<ResourceCostLedgerEntry>(
+            entries[1]);
+
+        Assert.IsType<ResourceRecoveryLedgerEntry>(
+            entries[2]);
+    }
+
+    [Fact]
+    public void LossEntry_PreservesExactStagedRequestAndResult()
+    {
+        var registry =
+            CreateRegistry();
+
+        var lifeId =
+            GetLifeId(
+                registry);
+
+        var entity =
+            CreateLifeEntity(
+                registry,
+                1UL,
+                40d,
+                100d);
+
+        var target =
+            new ResourceStateTarget(
+                entity,
+                lifeId);
+
+        var request =
+            new ResourceLossRequest(
+                lifeId,
+                100d,
+                new ResourceOperationProvenance(
+                    ResourceOperationCause.DamageDerived));
+
+        var draft =
+            new ResourceTransactionDraft(
+                registry);
+
+        var preview =
+            draft.StageLoss(
+                target,
+                request,
+                preventedLoss: 20d);
+
+        var entries =
+            ResourceTransactionLedgerEntryFactory.CreateEntries(
+                draft);
+
+        var entry =
+            Assert.IsType<ResourceLossLedgerEntry>(
+                entries[0]);
+
+        Assert.Equal(
+            request,
+            entry.Request);
+
+        Assert.Equal(
+            preview.Result,
+            entry.Result);
+
+        Assert.Equal(
+            100d,
+            entry.Result.RequestedLoss);
+
+        Assert.Equal(
+            20d,
+            entry.Result.PreventedLoss);
+
+        Assert.Equal(
+            40d,
+            entry.Result.ActualLoss);
+
+        Assert.Equal(
+            40d,
+            entry.Result.Shortfall);
+    }
+
+    [Fact]
+    public void CostEntry_ContainsSuccessfulQuantitativeResult()
+    {
+        var registry =
+            CreateRegistry();
+
+        var manaId =
+            GetManaId(
+                registry);
+
+        var entity =
+            CreateManaEntity(
+                registry,
+                1UL,
+                50d,
+                50d);
+
+        var target =
+            new ResourceStateTarget(
+                entity,
+                manaId);
+
+        var request =
+            new ResourceCostRequest(
+                manaId,
+                20d,
+                new ResourceOperationProvenance(
+                    ResourceOperationCause.SkillCost));
+
+        var draft =
+            new ResourceTransactionDraft(
+                registry);
+
+        draft.StageCost(
+            target,
+            request);
+
+        var entries =
+            ResourceTransactionLedgerEntryFactory.CreateEntries(
+                draft);
+
+        var entry =
+            Assert.IsType<ResourceCostLedgerEntry>(
+                entries[0]);
+
+        Assert.Equal(
+            request,
+            entry.Request);
+
+        Assert.Equal(
+            20d,
+            entry.Result.RequestedCost);
+
+        Assert.Equal(
+            20d,
+            entry.Result.ActualCost);
+
+        Assert.Equal(
+            ResourceOperationCause.SkillCost,
+            entry.Provenance.Cause);
+    }
+
+    [Fact]
+    public void RecoveryEntry_PreservesExactStagedRequestAndResult()
+    {
+        var registry =
+            CreateRegistry();
+
+        var lifeId =
+            GetLifeId(
+                registry);
+
+        var entity =
+            CreateLifeEntity(
+                registry,
+                1UL,
+                80d,
+                100d);
+
+        var target =
+            new ResourceStateTarget(
+                entity,
+                lifeId);
+
+        var request =
+            new ResourceRecoveryRequest(
+                lifeId,
+                50d,
+                new ResourceOperationProvenance(
+                    ResourceOperationCause.Leech));
+
+        var draft =
+            new ResourceTransactionDraft(
+                registry);
+
+        var preview =
+            draft.StageRecovery(
+                target,
+                request);
+
+        var entries =
+            ResourceTransactionLedgerEntryFactory.CreateEntries(
+                draft);
+
+        var entry =
+            Assert.IsType<ResourceRecoveryLedgerEntry>(
+                entries[0]);
+
+        Assert.Equal(
+            request,
+            entry.Request);
+
+        Assert.Equal(
+            preview.Result,
+            entry.Result);
+
+        Assert.Equal(
+            20d,
+            entry.Result.ActualRecovery);
+
+        Assert.Equal(
+            30d,
+            entry.Result.Overflow);
+    }
+
+    [Fact]
+    public void MultipleOperationsOnSameState_ProduceSeparateGrossEntries()
+    {
+        var registry =
+            CreateRegistry();
+
+        var lifeId =
+            GetLifeId(
+                registry);
+
+        var entity =
+            CreateLifeEntity(
+                registry,
+                1UL,
+                100d,
+                100d);
+
+        var target =
+            new ResourceStateTarget(
+                entity,
+                lifeId);
+
+        var state =
+            target.State;
+
+        var draft =
+            new ResourceTransactionDraft(
+                registry);
+
+        draft.StageLoss(
+            target,
+            CreateLossRequest(
+                lifeId,
+                30d));
+
+        draft.StageLoss(
+            target,
+            CreateLossRequest(
+                lifeId,
+                20d));
+
+        draft.StageRecovery(
+            target,
+            new ResourceRecoveryRequest(
+                lifeId,
+                10d,
+                new ResourceOperationProvenance(
+                    ResourceOperationCause.Recovery)));
+
+        var entries =
+            ResourceTransactionLedgerEntryFactory.CreateEntries(
+                draft);
+
+        Assert.Equal(
+            3,
+            entries.Count);
+
+        var firstLoss =
+            Assert.IsType<ResourceLossLedgerEntry>(
+                entries[0]);
+
+        var secondLoss =
+            Assert.IsType<ResourceLossLedgerEntry>(
+                entries[1]);
+
+        var recovery =
+            Assert.IsType<ResourceRecoveryLedgerEntry>(
+                entries[2]);
+
+        Assert.Equal(
+            30d,
+            firstLoss.Result.ActualLoss);
+
+        Assert.Equal(
+            20d,
+            secondLoss.Result.ActualLoss);
+
+        Assert.Equal(
+            10d,
+            recovery.Result.ActualRecovery);
+
+        Assert.Equal(
+            60d,
+            draft.Projections[0].Current);
+
+        Assert.Equal(
+            100d,
+            state.Current);
+
+        Assert.Equal(
+            0UL,
+            state.Revision);
+    }
+
+    [Fact]
+    public void ReturnedCollection_IsReadOnly()
+    {
+        var registry =
+            CreateRegistry();
+
+        var lifeId =
+            GetLifeId(
+                registry);
+
+        var entity =
+            CreateLifeEntity(
+                registry,
+                1UL,
+                100d,
+                100d);
+
+        var target =
+            new ResourceStateTarget(
+                entity,
+                lifeId);
+
+        var draft =
+            new ResourceTransactionDraft(
+                registry);
+
+        draft.StageLoss(
+            target,
+            CreateLossRequest(
+                lifeId,
+                10d));
+
+        var entries =
+            ResourceTransactionLedgerEntryFactory.CreateEntries(
+                draft);
+
+        var list =
+            Assert.IsAssignableFrom<
+                IList<ResourceOperationLedgerEntry>>(
+                entries);
+
+        Assert.Throws<NotSupportedException>(
+            () =>
+                list.Add(
+                    entries[0]));
+    }
+
+    private static EntityRuntimeState CreateLifeEntity(
+        CompiledResourceRegistry registry,
+        ulong entityId,
+        double current,
+        double maximum)
+    {
+        return new EntityRuntimeState(
+            new EntityId(entityId),
+            registry,
+            [
+                new ResourceState(
+                    GetLifeId(registry),
+                    current,
+                    maximum)
+            ]);
+    }
+
+    private static EntityRuntimeState CreateManaEntity(
+        CompiledResourceRegistry registry,
+        ulong entityId,
+        double current,
+        double maximum)
+    {
+        return new EntityRuntimeState(
+            new EntityId(entityId),
+            registry,
+            [
+                new ResourceState(
+                    GetManaId(registry),
+                    current,
+                    maximum)
+            ]);
+    }
+
+    private static EntityRuntimeState CreateLifeManaEntity(
+        CompiledResourceRegistry registry,
+        ulong entityId,
+        double lifeCurrent,
+        double lifeMaximum,
+        double manaCurrent,
+        double manaMaximum)
+    {
+        return new EntityRuntimeState(
+            new EntityId(entityId),
+            registry,
+            [
+                new ResourceState(
+                    GetLifeId(registry),
+                    lifeCurrent,
+                    lifeMaximum),
+
+                new ResourceState(
+                    GetManaId(registry),
+                    manaCurrent,
+                    manaMaximum)
+            ]);
+    }
+
+    private static ResourceLossRequest CreateLossRequest(
+        ResourceId resourceId,
+        double amount)
+    {
+        return new ResourceLossRequest(
+            resourceId,
+            amount,
+            new ResourceOperationProvenance(
+                ResourceOperationCause.Direct));
+    }
+
+    private static ResourceId GetLifeId(
+        CompiledResourceRegistry registry)
+    {
+        return registry.GetId(
+            ResourceKey.Parse(
+                "resource.life"));
+    }
+
+    private static ResourceId GetManaId(
+        CompiledResourceRegistry registry)
+    {
+        return registry.GetId(
+            ResourceKey.Parse(
+                "resource.mana"));
+    }
+
+    private static CompiledResourceRegistry CreateRegistry()
+    {
+        return ResourceRegistryCompiler.Compile(
+        [
+            new ResourceDefinition(
+                ResourceKey.Parse(
+                    "resource.life"),
+                ResourceRole.DamageTarget |
+                ResourceRole.DefeatRelevant),
+
+            new ResourceDefinition(
+                ResourceKey.Parse(
+                    "resource.mana"),
+                ResourceRole.CostSource)
+        ]);
+    }
+}

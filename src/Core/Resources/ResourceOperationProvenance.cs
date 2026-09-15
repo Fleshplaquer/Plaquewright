@@ -1,4 +1,4 @@
-namespace Idler.Core.Resources;
+namespace Plaquewright.Core.Resources;
 
 public readonly record struct ResourceOperationProvenance
 {

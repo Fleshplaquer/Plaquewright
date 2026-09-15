@@ -1,4 +1,4 @@
-namespace Idler.Core.Stats;
+namespace Plaquewright.Core.Stats;
 
 public sealed class ModifierAccumulator
 {

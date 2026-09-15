@@ -1,4 +1,4 @@
-namespace Idler.Core.Resources;
+namespace Plaquewright.Core.Resources;
 
 internal sealed class StagedResourceLossOperation
     : StagedResourceOperation

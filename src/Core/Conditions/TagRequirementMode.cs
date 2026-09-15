@@ -1,4 +1,4 @@
-namespace Idler.Core.Conditions;
+namespace Plaquewright.Core.Conditions;
 
 public enum TagRequirementMode
 {

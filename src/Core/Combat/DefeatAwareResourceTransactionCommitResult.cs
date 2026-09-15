@@ -1,6 +1,6 @@
-using Idler.Core.Entities;
+using Plaquewright.Core.Entities;
 
-namespace Idler.Core.Combat;
+namespace Plaquewright.Core.Combat;
 
 public sealed class DefeatAwareResourceTransactionCommitResult
 {

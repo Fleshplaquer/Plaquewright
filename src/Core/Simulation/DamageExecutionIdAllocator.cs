@@ -1,6 +1,6 @@
-using Idler.Core.Combat;
+using Plaquewright.Core.Combat;
 
-namespace Idler.Core.Simulation;
+namespace Plaquewright.Core.Simulation;
 
 internal sealed class DamageExecutionIdAllocator
 {

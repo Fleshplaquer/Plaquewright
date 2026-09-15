@@ -1,4 +1,4 @@
-namespace Idler.Core.Entities;
+namespace Plaquewright.Core.Entities;
 
 public readonly record struct EntityId
     : IComparable<EntityId>

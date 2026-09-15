@@ -1,7 +1,7 @@
 using System.Collections.ObjectModel;
-using Idler.Core.Conditions;
+using Plaquewright.Core.Conditions;
 
-namespace Idler.Core.Tags;
+namespace Plaquewright.Core.Tags;
 
 public sealed class CompiledTagRegistry
 {

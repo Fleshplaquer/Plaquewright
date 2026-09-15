@@ -1,7 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 
-namespace Idler.Core.Resources;
+namespace Plaquewright.Core.Resources;
 
 public sealed class ResourceOperationLedger
 {

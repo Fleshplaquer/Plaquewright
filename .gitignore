@@ -69,3 +69,12 @@ builds/
 dist/
 exports/
 artifacts/
+
+.vs/
+.idea/
+TestResults/
+coverage/
+*.coverage
+.env
+.env.*
+!.env.example

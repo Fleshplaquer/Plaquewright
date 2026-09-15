@@ -1,6 +1,6 @@
-using Idler.Core.Entities;
+using Plaquewright.Core.Entities;
 
-namespace Idler.Core.Simulation;
+namespace Plaquewright.Core.Simulation;
 
 public sealed class GameplayExecutionContext
 {

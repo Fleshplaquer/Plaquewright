@@ -1,8 +1,8 @@
-using Idler.Core.Entities;
-using Idler.Core.Resources;
-using Idler.Core.Combat;
+using Plaquewright.Core.Entities;
+using Plaquewright.Core.Resources;
+using Plaquewright.Core.Combat;
 
-namespace Idler.Core.Simulation;
+namespace Plaquewright.Core.Simulation;
 
 public sealed class SimulationRuntimeState
 {
