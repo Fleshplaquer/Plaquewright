@@ -19,9 +19,17 @@ public sealed class DamageQuantityTransitionTests
             postMitigation.AdvanceToPostTakenScaling(
                 90d);
 
+        var protectionRouting =
+             DamageResolutionTestFactory
+                 .CreateCompletedProtectionRouting(
+                     postTakenScalingAmount:
+                         postTakenScaling.Amount,
+                     damageTakenAmount: 70d);
+
         var damageTaken =
-            postTakenScaling.AdvanceToDamageTaken(
-                70d);
+            DamageTakenResolver.Resolve(
+                postTakenScaling,
+                protectionRouting);
 
         var actualResourceLoss =
             damageTaken.AdvanceToActualResourceLoss(
@@ -99,9 +107,17 @@ public sealed class DamageQuantityTransitionTests
             postMitigation.AdvanceToPostTakenScaling(
                 100d);
 
+        var protectionRouting =
+            DamageResolutionTestFactory
+                .CreateCompletedProtectionRouting(
+                    postTakenScalingAmount:
+                        postTakenScaling.Amount,
+                    damageTakenAmount: 40d);
+
         var damageTaken =
-            postTakenScaling.AdvanceToDamageTaken(
-                40d);
+            DamageTakenResolver.Resolve(
+                postTakenScaling,
+                protectionRouting);
 
         Assert.Equal(
             40d,
@@ -123,9 +139,17 @@ public sealed class DamageQuantityTransitionTests
             postMitigation.AdvanceToPostTakenScaling(
                 10d);
 
+        var protectionRouting =
+            DamageResolutionTestFactory
+                .CreateCompletedProtectionRouting(
+                    postTakenScalingAmount:
+                        postTakenScaling.Amount,
+                    damageTakenAmount: 10d);
+
         var damageTaken =
-            postTakenScaling.AdvanceToDamageTaken(
-                10d);
+            DamageTakenResolver.Resolve(
+                postTakenScaling,
+                protectionRouting);
 
         var actualResourceLoss =
             damageTaken.AdvanceToActualResourceLoss(
