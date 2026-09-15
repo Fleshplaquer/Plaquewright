@@ -1,5 +1,71 @@
-# Godot 4+ specific ignores
+# ============================================================
+# Plaquewright
+# Godot + .NET / C#
+# ============================================================
+
+# --- Godot generated/cache ---
 .godot/
-/android/
-**/bin/
-**/obj/
+*.translation
+
+# Older Godot / Mono leftovers
+.import/
+.mono/
+
+# --- .NET build output ---
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+[Rr]eleases/
+
+# Test / coverage output
+TestResults/
+coverage/
+coverage.xml
+*.coverage
+*.coveragexml
+
+# --- Visual Studio ---
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# --- JetBrains Rider / IntelliJ ---
+.idea/
+*.sln.iml
+
+# --- VS Code ---
+.vscode/
+
+# --- OS files ---
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# --- Logs / temporary files ---
+*.log
+*.tmp
+*.temp
+*~
+*.bak
+
+# --- Local environment / secrets ---
+.env
+.env.*
+!.env.example
+
+secrets.json
+*.pfx
+*.p12
+*.keystore
+*.jks
+*.key
+
+# --- Generated builds / exports ---
+build/
+builds/
+dist/
+exports/
+artifacts/
