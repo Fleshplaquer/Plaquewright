@@ -1,8 +1,12 @@
 namespace Plaquewright.Core.Combat;
 
+using Plaquewright.Core.Resources;
+
 public sealed class ProtectionAssignmentRoutingState
 {
     private readonly ProtectionAssignmentLaneState[] _lanes;
+    private readonly ProtectionAssignmentRoutingLifetime
+    _lifetime;
 
     public ProtectionAssignmentResolution AssignmentResolution { get; }
 
@@ -95,15 +99,19 @@ public sealed class ProtectionAssignmentRoutingState
     }
 
     private ProtectionAssignmentRoutingState(
-        ProtectionAssignmentResolution assignmentResolution,
-        ProtectionAssignmentLaneState[] lanes,
-        HitExecutionId? relatedHitExecutionId)
+     ProtectionAssignmentResolution assignmentResolution,
+     ProtectionAssignmentLaneState[] lanes,
+     HitExecutionId? relatedHitExecutionId,
+     ProtectionAssignmentRoutingLifetime lifetime)
     {
         ArgumentNullException.ThrowIfNull(
             assignmentResolution);
 
         ArgumentNullException.ThrowIfNull(
             lanes);
+
+        ArgumentNullException.ThrowIfNull(
+lifetime);
 
         if (relatedHitExecutionId.HasValue &&
             relatedHitExecutionId.Value == default)
@@ -121,6 +129,8 @@ public sealed class ProtectionAssignmentRoutingState
 
         _lanes =
             lanes;
+        _lifetime =
+lifetime;
 
         Lanes =
             Array.AsReadOnly(
@@ -170,14 +180,17 @@ public sealed class ProtectionAssignmentRoutingState
     }
 
     internal ProtectionAssignmentRoutingState Apply(
-        ProtectionAssignmentResult assignment,
-        ProtectionShortfallRoutingResult routing)
+    ProtectionAssignmentResult assignment,
+    ProtectionShortfallRoutingResult routing)
     {
         ArgumentNullException.ThrowIfNull(
             assignment);
 
         ArgumentNullException.ThrowIfNull(
             routing);
+
+        _lifetime.ValidateCurrent(
+            this);
 
         var laneIndex =
             FindLaneIndex(
@@ -197,14 +210,25 @@ public sealed class ProtectionAssignmentRoutingState
             lanes[laneIndex].Apply(
                 routing);
 
-        return new ProtectionAssignmentRoutingState(
-            AssignmentResolution,
-            lanes,
-            RelatedHitExecutionId);
+        var updatedState =
+            new ProtectionAssignmentRoutingState(
+                AssignmentResolution,
+                lanes,
+                RelatedHitExecutionId,
+                _lifetime);
+
+        _lifetime.Advance(
+            this,
+            updatedState);
+
+        return updatedState;
     }
 
     internal ProtectionAssignmentRoutingState FinalizeUnresolvedToPrimaryPath()
     {
+        _lifetime.ValidateCurrent(
+            this);
+
         if (IsComplete)
         {
             return this;
@@ -223,10 +247,18 @@ public sealed class ProtectionAssignmentRoutingState
                     .FinalizeUnresolvedToPrimaryPath();
         }
 
-        return new ProtectionAssignmentRoutingState(
-            AssignmentResolution,
-            lanes,
-            RelatedHitExecutionId);
+        var updatedState =
+            new ProtectionAssignmentRoutingState(
+                AssignmentResolution,
+                lanes,
+                RelatedHitExecutionId,
+                _lifetime);
+
+        _lifetime.Advance(
+            this,
+            updatedState);
+
+        return updatedState;
     }
 
     private static ProtectionAssignmentRoutingState StartCore(
@@ -246,10 +278,20 @@ public sealed class ProtectionAssignmentRoutingState
                     assignmentResolution.Assignments[index]);
         }
 
-        return new ProtectionAssignmentRoutingState(
-            assignmentResolution,
-            lanes,
-            relatedHitExecutionId);
+        var lifetime =
+    new ProtectionAssignmentRoutingLifetime();
+
+        var state =
+            new ProtectionAssignmentRoutingState(
+                assignmentResolution,
+                lanes,
+                relatedHitExecutionId,
+                lifetime);
+
+        lifetime.Initialize(
+            state);
+
+        return state;
     }
 
     private int FindLaneIndex(
@@ -276,5 +318,27 @@ public sealed class ProtectionAssignmentRoutingState
         return value == 0d
             ? 0d
             : value;
+    }
+
+    internal void ValidateCurrentForTransition()
+    {
+        _lifetime.ValidateCurrent(
+            this);
+    }
+
+    internal void ValidateResourceTransactionDraft(
+        ResourceTransactionDraft draft)
+    {
+        _lifetime.ValidateResourceTransactionDraft(
+            this,
+            draft);
+    }
+
+    internal void BindResourceTransactionDraft(
+        ResourceTransactionDraft draft)
+    {
+        _lifetime.BindResourceTransactionDraft(
+            this,
+            draft);
     }
 }

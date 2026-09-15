@@ -9,14 +9,17 @@ internal static class ProtectionResourceRouteExecutor
         ProtectionAssignmentRoutingState state,
         ProtectionResourceRouteBinding binding)
     {
+
         ArgumentNullException.ThrowIfNull(
-            draft);
+    draft);
 
         ArgumentNullException.ThrowIfNull(
             state);
 
         ArgumentNullException.ThrowIfNull(
             binding);
+        state.ValidateResourceTransactionDraft(
+    draft);
 
         var lane =
             FindLane(
@@ -58,9 +61,12 @@ internal static class ProtectionResourceRouteExecutor
                 financingResult);
 
         var updatedState =
-            state.Apply(
-                binding.Assignment,
-                shortfallRouting);
+    state.Apply(
+        binding.Assignment,
+        shortfallRouting);
+
+        updatedState.BindResourceTransactionDraft(
+            draft);
 
         return new ProtectionResourceRouteExecutionResult(
             state,

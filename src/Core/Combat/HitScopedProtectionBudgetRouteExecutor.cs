@@ -12,6 +12,8 @@ internal static class HitScopedProtectionBudgetRouteExecutor
         ArgumentNullException.ThrowIfNull(
             binding);
 
+        state.ValidateCurrentForTransition();
+
         var lane =
             FindLane(
                 state,

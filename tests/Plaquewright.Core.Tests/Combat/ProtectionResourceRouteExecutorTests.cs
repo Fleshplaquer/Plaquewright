@@ -138,6 +138,262 @@ public sealed class ProtectionResourceRouteExecutorTests
     }
 
     [Fact]
+    public void PreviousRoutingState_AfterSuccessfulRoute_IsStaleBeforeAdditionalStaging()
+    {
+        var setup =
+            CreateSingleResourceSetup(
+                currentMana: 20d);
+
+        var resolution =
+            ProtectionAssignmentResolver.Resolve(
+                damage: 100d,
+                [
+                    new ProtectionAssignmentRequest(
+                    requestedFraction: 0.3d)
+                ]);
+
+        var staleState =
+            ProtectionAssignmentRoutingStarter.Start(
+                resolution);
+
+        var binding =
+            new ProtectionResourceRouteBinding(
+                resolution.Assignments[0],
+                setup.ManaTarget,
+                resourceUnitsPerDamage: 1d,
+                ProtectionFinancingShortfallPolicy.ContinueRouting);
+
+        var draft =
+            new ResourceTransactionDraft(
+                setup.Registry);
+
+        var firstExecution =
+            ProtectionResourceRouteExecutor.Stage(
+                draft,
+                staleState,
+                binding);
+
+        Assert.Equal(
+            1,
+            draft.OperationCount);
+
+        Assert.Equal(
+            1,
+            draft.ProjectedResourceCount);
+
+        Assert.Equal(
+            10d,
+            firstExecution.UpdatedState
+                .ContinueRoutingDamage);
+
+        Assert.Throws<InvalidOperationException>(
+            () =>
+                ProtectionResourceRouteExecutor.Stage(
+                    draft,
+                    staleState,
+                    binding));
+
+        // Reusing the stale state must not stage anything.
+        Assert.Equal(
+            1,
+            draft.OperationCount);
+
+        Assert.Equal(
+            1,
+            draft.ProjectedResourceCount);
+
+        Assert.Equal(
+            0d,
+            draft.Projections[0].Current);
+
+        Assert.Equal(
+            20d,
+            setup.ManaState.Current);
+
+        Assert.Equal(
+            0UL,
+            setup.ManaState.Revision);
+    }
+
+    [Fact]
+    public void UpdatedRoutingState_BoundToResourceDraft_RejectsDifferentDraftBeforeStaging()
+    {
+        var setup =
+            CreateTwoResourceSetup(
+                currentMana: 20d,
+                currentBarrier: 4d);
+
+        var resolution =
+            ProtectionAssignmentResolver.Resolve(
+                damage: 100d,
+                [
+                    new ProtectionAssignmentRequest(
+                    requestedFraction: 0.3d)
+                ]);
+
+        var state =
+            ProtectionAssignmentRoutingStarter.Start(
+                resolution);
+
+        var assignment =
+            resolution.Assignments[0];
+
+        var manaBinding =
+            new ProtectionResourceRouteBinding(
+                assignment,
+                setup.ManaTarget,
+                resourceUnitsPerDamage: 1d,
+                ProtectionFinancingShortfallPolicy.ContinueRouting);
+
+        var firstDraft =
+            new ResourceTransactionDraft(
+                setup.Registry);
+
+        state =
+            ProtectionResourceRouteExecutor.Stage(
+                firstDraft,
+                state,
+                manaBinding)
+            .UpdatedState;
+
+        Assert.Equal(
+            10d,
+            state.ContinueRoutingDamage);
+
+        Assert.Equal(
+            1,
+            firstDraft.OperationCount);
+
+        var barrierBinding =
+            new ProtectionResourceRouteBinding(
+                assignment,
+                setup.BarrierTarget,
+                resourceUnitsPerDamage: 1d,
+                ProtectionFinancingShortfallPolicy.SpillBack);
+
+        var secondDraft =
+            new ResourceTransactionDraft(
+                setup.Registry);
+
+        Assert.Throws<InvalidOperationException>(
+            () =>
+                ProtectionResourceRouteExecutor.Stage(
+                    secondDraft,
+                    state,
+                    barrierBinding));
+
+        // Foreign draft remains completely untouched.
+        Assert.Equal(
+            0,
+            secondDraft.OperationCount);
+
+        Assert.Equal(
+            0,
+            secondDraft.ProjectedResourceCount);
+
+        // Original draft also remains exactly as it was.
+        Assert.Equal(
+            1,
+            firstDraft.OperationCount);
+
+        Assert.Equal(
+            1,
+            firstDraft.ProjectedResourceCount);
+
+        Assert.Equal(
+            20d,
+            setup.ManaState.Current);
+
+        Assert.Equal(
+            4d,
+            setup.BarrierState.Current);
+    }
+
+    [Fact]
+    public void FailedRouteValidation_DoesNotConsumeOrBindRoutingState()
+    {
+        var setup =
+            CreateSingleResourceSetup(
+                currentMana: 50d);
+
+        var firstResolution =
+            ProtectionAssignmentResolver.Resolve(
+                damage: 100d,
+                [
+                    new ProtectionAssignmentRequest(
+                    requestedFraction: 0.3d)
+                ]);
+
+        var foreignResolution =
+            ProtectionAssignmentResolver.Resolve(
+                damage: 100d,
+                [
+                    new ProtectionAssignmentRequest(
+                    requestedFraction: 0.3d)
+                ]);
+
+        var state =
+            ProtectionAssignmentRoutingStarter.Start(
+                firstResolution);
+
+        var foreignBinding =
+            new ProtectionResourceRouteBinding(
+                foreignResolution.Assignments[0],
+                setup.ManaTarget,
+                resourceUnitsPerDamage: 1d,
+                ProtectionFinancingShortfallPolicy.SpillBack);
+
+        var failedDraft =
+            new ResourceTransactionDraft(
+                setup.Registry);
+
+        Assert.Throws<InvalidOperationException>(
+            () =>
+                ProtectionResourceRouteExecutor.Stage(
+                    failedDraft,
+                    state,
+                    foreignBinding));
+
+        Assert.Equal(
+            0,
+            failedDraft.OperationCount);
+
+        Assert.Equal(
+            0,
+            failedDraft.ProjectedResourceCount);
+
+        // The failed attempt must not have consumed the state
+        // or bound it to failedDraft.
+        var validBinding =
+            new ProtectionResourceRouteBinding(
+                firstResolution.Assignments[0],
+                setup.ManaTarget,
+                resourceUnitsPerDamage: 1d,
+                ProtectionFinancingShortfallPolicy.SpillBack);
+
+        var validDraft =
+            new ResourceTransactionDraft(
+                setup.Registry);
+
+        var execution =
+            ProtectionResourceRouteExecutor.Stage(
+                validDraft,
+                state,
+                validBinding);
+
+        Assert.True(
+            execution.UpdatedState.IsComplete);
+
+        Assert.Equal(
+            1,
+            validDraft.OperationCount);
+
+        Assert.Equal(
+            1,
+            validDraft.ProjectedResourceCount);
+    }
+
+    [Fact]
     public void ContinueRouting_NextRouteReceivesOnlyRemainingLaneDamage()
     {
         var setup =
