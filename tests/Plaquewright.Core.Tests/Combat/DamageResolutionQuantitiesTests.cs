@@ -12,7 +12,7 @@ public sealed class DamageResolutionQuantitiesTests
                 100d);
 
         var quantities =
-            DamageResolutionQuantities.Create(
+            DamageResolutionTestFactory.Create(
                 incoming,
                 postMitigationAmount: 80d,
                 postTakenScalingAmount: 90d,
@@ -101,14 +101,14 @@ public sealed class DamageResolutionQuantitiesTests
     }
 
     [Fact]
-    public void Create_DoesNotRequireNumericallyMonotonicStages()
+    public void Create_DoesNotRequirePreProtectionStagesToBeNumericallyMonotonic()
     {
         var quantities =
-            DamageResolutionQuantities.Create(
+            DamageResolutionTestFactory.Create(
                 new IncomingDamage(100d),
                 postMitigationAmount: 125d,
                 postTakenScalingAmount: 75d,
-                damageTakenAmount: 90d);
+                damageTakenAmount: 60d);
 
         Assert.Equal(
             100d,
@@ -123,7 +123,7 @@ public sealed class DamageResolutionQuantitiesTests
             quantities.PostTakenScaling.Amount);
 
         Assert.Equal(
-            90d,
+            60d,
             quantities.Taken.Amount);
     }
 
@@ -135,13 +135,19 @@ public sealed class DamageResolutionQuantitiesTests
     public void Create_WithInvalidPostMitigationAmount_Throws(
         double amount)
     {
+        var protectionRouting =
+    DamageResolutionTestFactory
+        .CreateCompletedProtectionRouting(
+            postTakenScalingAmount: 80d,
+            damageTakenAmount: 70d);
+
         Assert.Throws<ArgumentOutOfRangeException>(
             () =>
                 DamageResolutionQuantities.Create(
                     new IncomingDamage(100d),
                     postMitigationAmount: amount,
                     postTakenScalingAmount: 80d,
-                    damageTakenAmount: 70d));
+                    protectionRouting));
     }
 
     [Theory]
@@ -152,37 +158,44 @@ public sealed class DamageResolutionQuantitiesTests
     public void Create_WithInvalidPostTakenScalingAmount_Throws(
         double amount)
     {
+        var protectionRouting =
+    DamageResolutionTestFactory
+        .CreateCompletedProtectionRouting(
+            postTakenScalingAmount: 80d,
+            damageTakenAmount: 70d);
+
         Assert.Throws<ArgumentOutOfRangeException>(
             () =>
                 DamageResolutionQuantities.Create(
                     new IncomingDamage(100d),
                     postMitigationAmount: 90d,
                     postTakenScalingAmount: amount,
-                    damageTakenAmount: 70d));
+                    protectionRouting));
     }
 
-    [Theory]
-    [InlineData(-1d)]
-    [InlineData(double.NaN)]
-    [InlineData(double.PositiveInfinity)]
-    [InlineData(double.NegativeInfinity)]
-    public void Create_WithInvalidDamageTakenAmount_Throws(
-        double amount)
+    [Fact]
+    public void Create_WithProtectionRoutingForDifferentPostTakenScalingDamage_Throws()
     {
-        Assert.Throws<ArgumentOutOfRangeException>(
+        var protectionRouting =
+            DamageResolutionTestFactory
+                .CreateCompletedProtectionRouting(
+                    postTakenScalingAmount: 80d,
+                    damageTakenAmount: 70d);
+
+        Assert.Throws<InvalidOperationException>(
             () =>
                 DamageResolutionQuantities.Create(
                     new IncomingDamage(100d),
                     postMitigationAmount: 90d,
-                    postTakenScalingAmount: 80d,
-                    damageTakenAmount: amount));
+                    postTakenScalingAmount: 81d,
+                    protectionRouting));
     }
 
     [Fact]
     public void Snapshot_IsIndependentFromLaterResourceLoss()
     {
         var quantities =
-            DamageResolutionQuantities.Create(
+            DamageResolutionTestFactory.Create(
                 new IncomingDamage(100d),
                 postMitigationAmount: 80d,
                 postTakenScalingAmount: 70d,
