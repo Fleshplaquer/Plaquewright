@@ -5,6 +5,8 @@ namespace Plaquewright.Core.Combat;
 
 public sealed class HitExecutionContext
 {
+    internal SimulationRuntimeIdentity? RuntimeIdentity { get; }
+
     public HitExecutionId Id { get; }
 
     public ExecutionId GameplayExecutionId { get; }
@@ -21,6 +23,73 @@ public sealed class HitExecutionContext
         EntityId sourceEntityId,
         EntityId targetEntityId,
         SimulationTime startedAt)
+    {
+        Validate(
+            id,
+            gameplayExecutionId,
+            sourceEntityId,
+            targetEntityId);
+
+        Id =
+            id;
+
+        GameplayExecutionId =
+            gameplayExecutionId;
+
+        SourceEntityId =
+            sourceEntityId;
+
+        TargetEntityId =
+            targetEntityId;
+
+        StartedAt =
+            startedAt;
+
+        RuntimeIdentity =
+            null;
+    }
+
+    internal HitExecutionContext(
+        HitExecutionId id,
+        ExecutionId gameplayExecutionId,
+        EntityId sourceEntityId,
+        EntityId targetEntityId,
+        SimulationTime startedAt,
+        SimulationRuntimeIdentity runtimeIdentity)
+    {
+        Validate(
+            id,
+            gameplayExecutionId,
+            sourceEntityId,
+            targetEntityId);
+
+        ArgumentNullException.ThrowIfNull(
+            runtimeIdentity);
+
+        Id =
+            id;
+
+        GameplayExecutionId =
+            gameplayExecutionId;
+
+        SourceEntityId =
+            sourceEntityId;
+
+        TargetEntityId =
+            targetEntityId;
+
+        StartedAt =
+            startedAt;
+
+        RuntimeIdentity =
+            runtimeIdentity;
+    }
+
+    private static void Validate(
+        HitExecutionId id,
+        ExecutionId gameplayExecutionId,
+        EntityId sourceEntityId,
+        EntityId targetEntityId)
     {
         if (!id.IsValid)
         {
@@ -49,20 +118,5 @@ public sealed class HitExecutionContext
                 "Target entity ID must be valid.",
                 nameof(targetEntityId));
         }
-
-        Id =
-            id;
-
-        GameplayExecutionId =
-            gameplayExecutionId;
-
-        SourceEntityId =
-            sourceEntityId;
-
-        TargetEntityId =
-            targetEntityId;
-
-        StartedAt =
-            startedAt;
     }
 }

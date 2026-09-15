@@ -47,20 +47,18 @@ public static class ResourceLossOperations
     }
 
     public static ResourceLossLedgerEntry Commit(
-        EntityId targetEntityId,
-        ResourceState state,
-        ResourceLossPreview preview)
+    ResourceStateTarget target,
+    ResourceLossPreview preview)
     {
-        ValidateTargetEntityId(
-            targetEntityId);
+        ArgumentNullException.ThrowIfNull(
+            target);
 
         ValidateCommit(
-            state,
+            target.State,
             preview);
 
         return ApplyValidatedCommit(
-            targetEntityId,
-            state,
+            target,
             preview);
     }
 
@@ -85,32 +83,20 @@ public static class ResourceLossOperations
     }
 
     internal static ResourceLossLedgerEntry ApplyValidatedCommit(
-        EntityId targetEntityId,
-        ResourceState state,
-        ResourceLossPreview preview)
+    ResourceStateTarget target,
+    ResourceLossPreview preview)
     {
-        ValidateTargetEntityId(
-            targetEntityId);
+        ArgumentNullException.ThrowIfNull(
+            target);
 
-        state.SetValues(
+        target.State.SetValues(
             preview.CurrentAfter,
             preview.Maximum);
 
         return new ResourceLossLedgerEntry(
-            targetEntityId,
+            target.EntityId,
             preview.Request,
             preview.Result);
-    }
-
-    private static void ValidateTargetEntityId(
-        EntityId targetEntityId)
-    {
-        if (!targetEntityId.IsValid)
-        {
-            throw new ArgumentException(
-                "Target entity ID must be valid.",
-                nameof(targetEntityId));
-        }
     }
 
     private static void ValidateRequestTargetsState(

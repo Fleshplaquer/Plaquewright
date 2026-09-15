@@ -5,6 +5,8 @@ namespace Plaquewright.Core.Combat;
 
 public sealed class DamageExecutionContext
 {
+    internal SimulationRuntimeIdentity? RuntimeIdentity { get; }
+
     public DamageExecutionId Id { get; }
 
     public ExecutionId GameplayExecutionId { get; }
@@ -18,6 +20,63 @@ public sealed class DamageExecutionContext
         ExecutionId gameplayExecutionId,
         EntityId sourceEntityId,
         SimulationTime startedAt)
+    {
+        Validate(
+            id,
+            gameplayExecutionId,
+            sourceEntityId);
+
+        Id =
+            id;
+
+        GameplayExecutionId =
+            gameplayExecutionId;
+
+        SourceEntityId =
+            sourceEntityId;
+
+        StartedAt =
+            startedAt;
+
+        RuntimeIdentity =
+            null;
+    }
+
+    internal DamageExecutionContext(
+        DamageExecutionId id,
+        ExecutionId gameplayExecutionId,
+        EntityId sourceEntityId,
+        SimulationTime startedAt,
+        SimulationRuntimeIdentity runtimeIdentity)
+    {
+        Validate(
+            id,
+            gameplayExecutionId,
+            sourceEntityId);
+
+        ArgumentNullException.ThrowIfNull(
+            runtimeIdentity);
+
+        Id =
+            id;
+
+        GameplayExecutionId =
+            gameplayExecutionId;
+
+        SourceEntityId =
+            sourceEntityId;
+
+        StartedAt =
+            startedAt;
+
+        RuntimeIdentity =
+            runtimeIdentity;
+    }
+
+    private static void Validate(
+        DamageExecutionId id,
+        ExecutionId gameplayExecutionId,
+        EntityId sourceEntityId)
     {
         if (!id.IsValid)
         {
@@ -39,17 +98,5 @@ public sealed class DamageExecutionContext
                 "Source entity ID must be valid.",
                 nameof(sourceEntityId));
         }
-
-        Id =
-            id;
-
-        GameplayExecutionId =
-            gameplayExecutionId;
-
-        SourceEntityId =
-            sourceEntityId;
-
-        StartedAt =
-            startedAt;
     }
 }

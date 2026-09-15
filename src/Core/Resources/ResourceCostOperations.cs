@@ -74,20 +74,18 @@ projectedActualCost: projectedActualCost,
     }
 
     public static ResourceCostLedgerEntry Commit(
-        EntityId targetEntityId,
-        ResourceState state,
-        ResourceCostPreview preview)
+    ResourceStateTarget target,
+    ResourceCostPreview preview)
     {
-        ValidateTargetEntityId(
-            targetEntityId);
+        ArgumentNullException.ThrowIfNull(
+            target);
 
         ValidateCommit(
-            state,
+            target.State,
             preview);
 
         return ApplyValidatedCommit(
-            targetEntityId,
-            state,
+            target,
             preview);
     }
 
@@ -128,38 +126,26 @@ projectedActualCost: projectedActualCost,
     }
 
     internal static ResourceCostLedgerEntry ApplyValidatedCommit(
-        EntityId targetEntityId,
-        ResourceState state,
-        ResourceCostPreview preview)
+    ResourceStateTarget target,
+    ResourceCostPreview preview)
     {
-        ValidateTargetEntityId(
-            targetEntityId);
+        ArgumentNullException.ThrowIfNull(
+            target);
 
-        state.SetValues(
+        target.State.SetValues(
             preview.CurrentAfter,
             preview.Maximum);
 
         var result =
-    new ResourceCostResult(
-        preview.Request.ResourceId,
-        preview.Request.Amount,
-        preview.ProjectedActualCost);
+            new ResourceCostResult(
+                preview.Request.ResourceId,
+                preview.Request.Amount,
+                preview.ProjectedActualCost);
 
         return new ResourceCostLedgerEntry(
-            targetEntityId,
+            target.EntityId,
             preview.Request,
             result);
-    }
-
-    private static void ValidateTargetEntityId(
-        EntityId targetEntityId)
-    {
-        if (!targetEntityId.IsValid)
-        {
-            throw new ArgumentException(
-                "Target entity ID must be valid.",
-                nameof(targetEntityId));
-        }
     }
 
     private static void ValidateRequestTargetsState(

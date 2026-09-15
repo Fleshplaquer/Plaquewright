@@ -134,29 +134,53 @@ public sealed class ResourceRequestResolutionTests
     [Fact]
     public void LossCommit_ReturnsExactlyPreviewedResult()
     {
-        var state =
-            new ResourceState(
-                new ResourceId(1),
-                current: 40d,
-                maximum: 100d);
+        var registry =
+            ResourceRegistryCompiler.Compile(
+            [
+                new ResourceDefinition(
+                ResourceKey.Parse(
+                    "resource.life"),
+                ResourceRole.DamageTarget)
+            ]);
+
+        var lifeId =
+            registry.GetId(
+                ResourceKey.Parse(
+                    "resource.life"));
+
+        var entity =
+            new EntityRuntimeState(
+                new EntityId(1UL),
+                registry,
+                [
+                    new ResourceState(
+                    lifeId,
+                    current: 40d,
+                    maximum: 100d)
+                ]);
+
+        var target =
+            new ResourceStateTarget(
+                entity,
+                lifeId);
 
         var request =
             new ResourceLossRequest(
-                state.Id,
-                amount: 100d, new ResourceOperationProvenance(
-        ResourceOperationCause.DamageDerived));
+                lifeId,
+                amount: 100d,
+                new ResourceOperationProvenance(
+                    ResourceOperationCause.DamageDerived));
 
         var preview =
             ResourceLossOperations.Preview(
-                state,
+                target.State,
                 request,
                 preventedLoss: 20d);
 
         var entry =
-    ResourceLossOperations.Commit(
-        new EntityId(1UL),
-        state,
-        preview);
+            ResourceLossOperations.Commit(
+                target,
+                preview);
 
         Assert.Equal(
             preview.Result,
@@ -172,33 +196,56 @@ public sealed class ResourceRequestResolutionTests
 
         Assert.Equal(
             0d,
-            state.Current);
+            target.State.Current);
     }
-
     [Fact]
     public void RecoveryCommit_ReturnsExactlyPreviewedResult()
     {
-        var state =
-            new ResourceState(
-                new ResourceId(1),
-                current: 80d,
-                maximum: 100d);
+        var registry =
+            ResourceRegistryCompiler.Compile(
+            [
+                new ResourceDefinition(
+                ResourceKey.Parse(
+                    "resource.life"),
+                ResourceRole.DamageTarget)
+            ]);
+
+        var lifeId =
+            registry.GetId(
+                ResourceKey.Parse(
+                    "resource.life"));
+
+        var entity =
+            new EntityRuntimeState(
+                new EntityId(1UL),
+                registry,
+                [
+                    new ResourceState(
+                    lifeId,
+                    current: 80d,
+                    maximum: 100d)
+                ]);
+
+        var target =
+            new ResourceStateTarget(
+                entity,
+                lifeId);
 
         var request =
             new ResourceRecoveryRequest(
-                state.Id,
-                amount: 50d, new ResourceOperationProvenance(
-        ResourceOperationCause.DamageDerived));
+                lifeId,
+                amount: 50d,
+                new ResourceOperationProvenance(
+                    ResourceOperationCause.DamageDerived));
 
         var preview =
             ResourceRecoveryOperations.Preview(
-                state,
+                target.State,
                 request);
 
         var entry =
             ResourceRecoveryOperations.Commit(
-                new EntityId(1UL),
-                state,
+                target,
                 preview);
 
         Assert.Equal(
@@ -215,6 +262,7 @@ public sealed class ResourceRequestResolutionTests
 
         Assert.Equal(
             100d,
-            state.Current);
+            target.State.Current);
     }
+
 }

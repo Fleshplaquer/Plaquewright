@@ -159,27 +159,50 @@ public sealed class ResourceOperationLedgerTests
     private static ResourceLossLedgerEntry CreateLossEntry(
         double amount)
     {
-        var state =
-            new ResourceState(
-                new ResourceId(1),
-                current: 100d,
-                maximum: 100d);
+        var registry =
+            ResourceRegistryCompiler.Compile(
+            [
+                new ResourceDefinition(
+                ResourceKey.Parse(
+                    "resource.life"),
+                ResourceRole.DamageTarget)
+            ]);
+
+        var lifeId =
+            registry.GetId(
+                ResourceKey.Parse(
+                    "resource.life"));
+
+        var entity =
+            new EntityRuntimeState(
+                new EntityId(1UL),
+                registry,
+                [
+                    new ResourceState(
+                    lifeId,
+                    current: 100d,
+                    maximum: 100d)
+                ]);
+
+        var target =
+            new ResourceStateTarget(
+                entity,
+                lifeId);
 
         var request =
             new ResourceLossRequest(
-                state.Id,
+                lifeId,
                 amount,
                 new ResourceOperationProvenance(
                     ResourceOperationCause.DamageDerived));
 
         var preview =
             ResourceLossOperations.Preview(
-                state,
+                target.State,
                 request);
 
         return ResourceLossOperations.Commit(
-            new EntityId(1UL),
-            state,
+            target,
             preview);
     }
 
@@ -194,19 +217,33 @@ public sealed class ResourceOperationLedgerTests
             ResourceRegistryCompiler.Compile(
             [
                 new ResourceDefinition(
-                    key,
-                    ResourceRole.CostSource)
+                key,
+                ResourceRole.CostSource)
             ]);
 
-        var state =
-            new ResourceState(
-                registry.GetId(key),
-                current: 100d,
-                maximum: 100d);
+        var manaId =
+            registry.GetId(
+                key);
+
+        var entity =
+            new EntityRuntimeState(
+                new EntityId(1UL),
+                registry,
+                [
+                    new ResourceState(
+                    manaId,
+                    current: 100d,
+                    maximum: 100d)
+                ]);
+
+        var target =
+            new ResourceStateTarget(
+                entity,
+                manaId);
 
         var request =
             new ResourceCostRequest(
-                state.Id,
+                manaId,
                 amount,
                 new ResourceOperationProvenance(
                     ResourceOperationCause.SkillCost));
@@ -214,39 +251,61 @@ public sealed class ResourceOperationLedgerTests
         var preview =
             ResourceCostOperations.Preview(
                 registry,
-                state,
+                target.State,
                 request);
 
         return ResourceCostOperations.Commit(
-            new EntityId(1UL),
-            state,
+            target,
             preview);
     }
 
     private static ResourceRecoveryLedgerEntry CreateRecoveryEntry(
         double amount)
     {
-        var state =
-            new ResourceState(
-                new ResourceId(1),
-                current: 50d,
-                maximum: 100d);
+        var registry =
+            ResourceRegistryCompiler.Compile(
+            [
+                new ResourceDefinition(
+                ResourceKey.Parse(
+                    "resource.life"),
+                ResourceRole.DamageTarget)
+            ]);
+
+        var lifeId =
+            registry.GetId(
+                ResourceKey.Parse(
+                    "resource.life"));
+
+        var entity =
+            new EntityRuntimeState(
+                new EntityId(1UL),
+                registry,
+                [
+                    new ResourceState(
+                    lifeId,
+                    current: 50d,
+                    maximum: 100d)
+                ]);
+
+        var target =
+            new ResourceStateTarget(
+                entity,
+                lifeId);
 
         var request =
             new ResourceRecoveryRequest(
-                state.Id,
+                lifeId,
                 amount,
                 new ResourceOperationProvenance(
                     ResourceOperationCause.Recovery));
 
         var preview =
             ResourceRecoveryOperations.Preview(
-                state,
+                target.State,
                 request);
 
         return ResourceRecoveryOperations.Commit(
-            new EntityId(1UL),
-            state,
+            target,
             preview);
     }
 }

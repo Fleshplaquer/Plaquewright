@@ -210,39 +210,64 @@ public sealed class ResourceLossPreviewTests
     [Fact]
     public void CommitLoss_AppliesPreviewedState()
     {
-        var state =
-            CreateState(
-                current: 100d,
-                maximum: 100d);
+        var registry =
+            ResourceRegistryCompiler.Compile(
+            [
+                new ResourceDefinition(
+                ResourceKey.Parse(
+                    "resource.life"),
+                ResourceRole.DamageTarget)
+            ]);
+
+        var lifeId =
+            registry.GetId(
+                ResourceKey.Parse(
+                    "resource.life"));
+
+        var entity =
+            new EntityRuntimeState(
+                new EntityId(1UL),
+                registry,
+                [
+                    new ResourceState(
+                    lifeId,
+                    current: 100d,
+                    maximum: 100d)
+                ]);
+
+        var target =
+            new ResourceStateTarget(
+                entity,
+                lifeId);
 
         var request =
             new ResourceLossRequest(
-                state.Id,
-                amount: 25d, new ResourceOperationProvenance(
-        ResourceOperationCause.Direct));
+                lifeId,
+                amount: 25d,
+                new ResourceOperationProvenance(
+                    ResourceOperationCause.Direct));
 
         var preview =
             ResourceLossOperations.Preview(
-                state,
+                target.State,
                 request);
 
         var entry =
             ResourceLossOperations.Commit(
-                new EntityId(1UL),
-                state,
+                target,
                 preview);
 
         Assert.Equal(
             75d,
-            state.Current);
+            target.State.Current);
 
         Assert.Equal(
             100d,
-            state.Maximum);
+            target.State.Maximum);
 
         Assert.Equal(
             1UL,
-            state.Revision);
+            target.State.Revision);
 
         Assert.Equal(
             25d,
@@ -252,110 +277,196 @@ public sealed class ResourceLossPreviewTests
     [Fact]
     public void CommitLoss_RejectsStalePreview()
     {
-        var state =
-            CreateState(
-                current: 100d,
-                maximum: 100d);
+        var registry =
+            ResourceRegistryCompiler.Compile(
+            [
+                new ResourceDefinition(
+                ResourceKey.Parse(
+                    "resource.life"),
+                ResourceRole.DamageTarget)
+            ]);
+
+        var lifeId =
+            registry.GetId(
+                ResourceKey.Parse(
+                    "resource.life"));
+
+        var entity =
+            new EntityRuntimeState(
+                new EntityId(1UL),
+                registry,
+                [
+                    new ResourceState(
+                    lifeId,
+                    current: 100d,
+                    maximum: 100d)
+                ]);
+
+        var target =
+            new ResourceStateTarget(
+                entity,
+                lifeId);
 
         var stalePreview =
             ResourceLossOperations.Preview(
-                state,
+                target.State,
                 new ResourceLossRequest(
-                    state.Id,
-                    amount: 25d, new ResourceOperationProvenance(
-        ResourceOperationCause.Direct)));
+                    lifeId,
+                    amount: 25d,
+                    new ResourceOperationProvenance(
+                        ResourceOperationCause.Direct)));
 
         var otherPreview =
             ResourceLossOperations.Preview(
-                state,
+                target.State,
                 new ResourceLossRequest(
-                    state.Id,
-                    amount: 10d, new ResourceOperationProvenance(
-        ResourceOperationCause.Direct)));
+                    lifeId,
+                    amount: 10d,
+                    new ResourceOperationProvenance(
+                        ResourceOperationCause.Direct)));
 
         ResourceLossOperations.Commit(
-            new EntityId(1UL),
-            state,
+            target,
             otherPreview);
 
         Assert.Throws<InvalidOperationException>(
             () =>
                 ResourceLossOperations.Commit(
-                    new EntityId(1UL),
-                    state,
+                    target,
                     stalePreview));
 
         Assert.Equal(
             90d,
-            state.Current);
+            target.State.Current);
     }
 
     [Fact]
     public void CommitLoss_RejectsDifferentStateWithSameResourceId()
     {
-        var first =
-            CreateState(
-                current: 100d,
-                maximum: 100d);
+        var registry =
+            ResourceRegistryCompiler.Compile(
+            [
+                new ResourceDefinition(
+                ResourceKey.Parse(
+                    "resource.life"),
+                ResourceRole.DamageTarget)
+            ]);
 
-        var second =
-            CreateState(
-                current: 100d,
-                maximum: 100d);
+        var lifeId =
+            registry.GetId(
+                ResourceKey.Parse(
+                    "resource.life"));
+
+        var firstEntity =
+            new EntityRuntimeState(
+                new EntityId(1UL),
+                registry,
+                [
+                    new ResourceState(
+                    lifeId,
+                    current: 100d,
+                    maximum: 100d)
+                ]);
+
+        var secondEntity =
+            new EntityRuntimeState(
+                new EntityId(2UL),
+                registry,
+                [
+                    new ResourceState(
+                    lifeId,
+                    current: 100d,
+                    maximum: 100d)
+                ]);
+
+        var firstTarget =
+            new ResourceStateTarget(
+                firstEntity,
+                lifeId);
+
+        var secondTarget =
+            new ResourceStateTarget(
+                secondEntity,
+                lifeId);
 
         var preview =
             ResourceLossOperations.Preview(
-                first,
+                firstTarget.State,
                 new ResourceLossRequest(
-                    first.Id,
-                    amount: 25d, new ResourceOperationProvenance(
-        ResourceOperationCause.Direct)));
+                    lifeId,
+                    amount: 25d,
+                    new ResourceOperationProvenance(
+                        ResourceOperationCause.Direct)));
 
         Assert.Throws<InvalidOperationException>(
             () =>
                 ResourceLossOperations.Commit(
-                    new EntityId(1UL),
-                    second,
+                    secondTarget,
                     preview));
 
         Assert.Equal(
             100d,
-            second.Current);
+            secondTarget.State.Current);
 
         Assert.Equal(
             0UL,
-            second.Revision);
+            secondTarget.State.Revision);
     }
 
     [Fact]
     public void ZeroLossCommit_IsStillExplicitCommit()
     {
-        var state =
-            CreateState(
-                current: 50d,
-                maximum: 100d);
+        var registry =
+            ResourceRegistryCompiler.Compile(
+            [
+                new ResourceDefinition(
+                ResourceKey.Parse(
+                    "resource.life"),
+                ResourceRole.DamageTarget)
+            ]);
+
+        var lifeId =
+            registry.GetId(
+                ResourceKey.Parse(
+                    "resource.life"));
+
+        var entity =
+            new EntityRuntimeState(
+                new EntityId(1UL),
+                registry,
+                [
+                    new ResourceState(
+                    lifeId,
+                    current: 50d,
+                    maximum: 100d)
+                ]);
+
+        var target =
+            new ResourceStateTarget(
+                entity,
+                lifeId);
 
         var preview =
             ResourceLossOperations.Preview(
-                state,
+                target.State,
                 new ResourceLossRequest(
-                    state.Id,
-                    amount: 0d, new ResourceOperationProvenance(
-        ResourceOperationCause.Direct)));
+                    lifeId,
+                    amount: 0d,
+                    new ResourceOperationProvenance(
+                        ResourceOperationCause.Direct)));
 
         var entry =
             ResourceLossOperations.Commit(
-                new EntityId(1UL),
-                state,
+                target,
                 preview);
 
         Assert.Equal(
             50d,
-            state.Current);
+            target.State.Current);
 
         Assert.Equal(
             1UL,
-            state.Revision);
+            target.State.Revision);
 
         Assert.Equal(
             0d,

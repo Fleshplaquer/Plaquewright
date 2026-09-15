@@ -6,87 +6,170 @@ namespace Plaquewright.Core.Tests.Resources;
 public sealed class ResourceOperationOwnerInvariantTests
 {
     [Fact]
-    public void LossCommit_WithInvalidTargetEntityId_DoesNotMutateState()
+    public void LossCommit_WithTargetForDifferentState_DoesNotMutateEitherState()
     {
-        var lifeId =
-            new ResourceId(1);
+        var registry =
+            ResourceRegistryCompiler.Compile(
+            [
+                new ResourceDefinition(
+                ResourceKey.Parse(
+                    "resource.life"),
+                ResourceRole.DamageTarget)
+            ]);
 
-        var state =
-            new ResourceState(
-                lifeId,
-                current: 100d,
-                maximum: 100d);
+        var lifeId =
+            registry.GetId(
+                ResourceKey.Parse(
+                    "resource.life"));
+
+        var firstEntity =
+            new EntityRuntimeState(
+                new EntityId(1UL),
+                registry,
+                [
+                    new ResourceState(
+                    lifeId,
+                    current: 100d,
+                    maximum: 100d)
+                ]);
+
+        var secondEntity =
+            new EntityRuntimeState(
+                new EntityId(2UL),
+                registry,
+                [
+                    new ResourceState(
+                    lifeId,
+                    current: 100d,
+                    maximum: 100d)
+                ]);
+
+        var firstTarget =
+            new ResourceStateTarget(
+                firstEntity,
+                lifeId);
+
+        var secondTarget =
+            new ResourceStateTarget(
+                secondEntity,
+                lifeId);
 
         var preview =
             ResourceLossOperations.Preview(
-                state,
+                firstTarget.State,
                 new ResourceLossRequest(
                     lifeId,
                     25d,
                     new ResourceOperationProvenance(
                         ResourceOperationCause.Direct)));
 
-        EntityId targetEntityId =
-            default;
-
-        Assert.Throws<ArgumentException>(
+        Assert.Throws<InvalidOperationException>(
             () =>
                 ResourceLossOperations.Commit(
-                    targetEntityId,
-                    state,
+                    secondTarget,
                     preview));
 
         Assert.Equal(
             100d,
-            state.Current);
+            firstTarget.State.Current);
 
         Assert.Equal(
             0UL,
-            state.Revision);
+            firstTarget.State.Revision);
+
+        Assert.Equal(
+            100d,
+            secondTarget.State.Current);
+
+        Assert.Equal(
+            0UL,
+            secondTarget.State.Revision);
     }
 
     [Fact]
-    public void RecoveryCommit_WithInvalidTargetEntityId_DoesNotMutateState()
+    public void RecoveryCommit_WithTargetForDifferentState_DoesNotMutateEitherState()
     {
-        var lifeId =
-            new ResourceId(1);
+        var registry =
+            ResourceRegistryCompiler.Compile(
+            [
+                new ResourceDefinition(
+                ResourceKey.Parse(
+                    "resource.life"),
+                ResourceRole.DamageTarget)
+            ]);
 
-        var state =
-            new ResourceState(
-                lifeId,
-                current: 50d,
-                maximum: 100d);
+        var lifeId =
+            registry.GetId(
+                ResourceKey.Parse(
+                    "resource.life"));
+
+        var firstEntity =
+            new EntityRuntimeState(
+                new EntityId(1UL),
+                registry,
+                [
+                    new ResourceState(
+                    lifeId,
+                    current: 50d,
+                    maximum: 100d)
+                ]);
+
+        var secondEntity =
+            new EntityRuntimeState(
+                new EntityId(2UL),
+                registry,
+                [
+                    new ResourceState(
+                    lifeId,
+                    current: 50d,
+                    maximum: 100d)
+                ]);
+
+        var firstTarget =
+            new ResourceStateTarget(
+                firstEntity,
+                lifeId);
+
+        var secondTarget =
+            new ResourceStateTarget(
+                secondEntity,
+                lifeId);
 
         var preview =
             ResourceRecoveryOperations.Preview(
-                state,
+                firstTarget.State,
                 new ResourceRecoveryRequest(
                     lifeId,
                     25d,
                     new ResourceOperationProvenance(
                         ResourceOperationCause.Recovery)));
 
-        EntityId targetEntityId =
-            default;
-
-        Assert.Throws<ArgumentException>(
+        Assert.Throws<InvalidOperationException>(
             () =>
                 ResourceRecoveryOperations.Commit(
-                    targetEntityId,
-                    state,
+                    secondTarget,
                     preview));
 
         Assert.Equal(
             50d,
-            state.Current);
+            firstTarget.State.Current);
 
         Assert.Equal(
             0UL,
-            state.Revision);
+            firstTarget.State.Revision);
+
+        Assert.Equal(
+            50d,
+            secondTarget.State.Current);
+
+        Assert.Equal(
+            0UL,
+            secondTarget.State.Revision);
     }
 
+
     [Fact]
-    public void CostCommit_WithInvalidTargetEntityId_DoesNotMutateState()
+    public void CostCommit_WithTargetForDifferentState_DoesNotMutateEitherState()
     {
         var registry =
             CreateRegistry();
@@ -95,43 +178,73 @@ public sealed class ResourceOperationOwnerInvariantTests
             GetManaId(
                 registry);
 
-        var state =
-            new ResourceState(
-                manaId,
-                current: 50d,
-                maximum: 50d);
+        var firstEntity =
+            new EntityRuntimeState(
+                new EntityId(1UL),
+                registry,
+                [
+                    new ResourceState(
+                    manaId,
+                    current: 50d,
+                    maximum: 50d)
+                ]);
+
+        var secondEntity =
+            new EntityRuntimeState(
+                new EntityId(2UL),
+                registry,
+                [
+                    new ResourceState(
+                    manaId,
+                    current: 50d,
+                    maximum: 50d)
+                ]);
+
+        var firstTarget =
+            new ResourceStateTarget(
+                firstEntity,
+                manaId);
+
+        var secondTarget =
+            new ResourceStateTarget(
+                secondEntity,
+                manaId);
 
         var preview =
             ResourceCostOperations.Preview(
                 registry,
-                state,
+                firstTarget.State,
                 new ResourceCostRequest(
                     manaId,
                     20d,
                     new ResourceOperationProvenance(
                         ResourceOperationCause.SkillCost)));
 
-        EntityId targetEntityId =
-            default;
-
-        Assert.Throws<ArgumentException>(
+        Assert.Throws<InvalidOperationException>(
             () =>
                 ResourceCostOperations.Commit(
-                    targetEntityId,
-                    state,
+                    secondTarget,
                     preview));
 
         Assert.Equal(
             50d,
-            state.Current);
+            firstTarget.State.Current);
 
         Assert.Equal(
             0UL,
-            state.Revision);
+            firstTarget.State.Revision);
+
+        Assert.Equal(
+            50d,
+            secondTarget.State.Current);
+
+        Assert.Equal(
+            0UL,
+            secondTarget.State.Revision);
     }
 
     [Fact]
-    public void SuccessfulLowLevelCommits_PreserveProvidedTargetEntityId()
+    public void SuccessfulLowLevelCommits_PreserveTargetEntityId()
     {
         var registry =
             CreateRegistry();
@@ -147,15 +260,25 @@ public sealed class ResourceOperationOwnerInvariantTests
         var targetEntityId =
             new EntityId(42UL);
 
-        var lossState =
-            new ResourceState(
-                lifeId,
-                current: 100d,
-                maximum: 100d);
+        var lossEntity =
+            new EntityRuntimeState(
+                targetEntityId,
+                registry,
+                [
+                    new ResourceState(
+                    lifeId,
+                    current: 100d,
+                    maximum: 100d)
+                ]);
+
+        var lossTarget =
+            new ResourceStateTarget(
+                lossEntity,
+                lifeId);
 
         var lossPreview =
             ResourceLossOperations.Preview(
-                lossState,
+                lossTarget.State,
                 new ResourceLossRequest(
                     lifeId,
                     10d,
@@ -164,19 +287,28 @@ public sealed class ResourceOperationOwnerInvariantTests
 
         var lossEntry =
             ResourceLossOperations.Commit(
-                targetEntityId,
-                lossState,
+                lossTarget,
                 lossPreview);
 
-        var recoveryState =
-            new ResourceState(
-                lifeId,
-                current: 50d,
-                maximum: 100d);
+        var recoveryEntity =
+            new EntityRuntimeState(
+                targetEntityId,
+                registry,
+                [
+                    new ResourceState(
+                    lifeId,
+                    current: 50d,
+                    maximum: 100d)
+                ]);
+
+        var recoveryTarget =
+            new ResourceStateTarget(
+                recoveryEntity,
+                lifeId);
 
         var recoveryPreview =
             ResourceRecoveryOperations.Preview(
-                recoveryState,
+                recoveryTarget.State,
                 new ResourceRecoveryRequest(
                     lifeId,
                     10d,
@@ -185,20 +317,29 @@ public sealed class ResourceOperationOwnerInvariantTests
 
         var recoveryEntry =
             ResourceRecoveryOperations.Commit(
-                targetEntityId,
-                recoveryState,
+                recoveryTarget,
                 recoveryPreview);
 
-        var costState =
-            new ResourceState(
-                manaId,
-                current: 50d,
-                maximum: 50d);
+        var costEntity =
+            new EntityRuntimeState(
+                targetEntityId,
+                registry,
+                [
+                    new ResourceState(
+                    manaId,
+                    current: 50d,
+                    maximum: 50d)
+                ]);
+
+        var costTarget =
+            new ResourceStateTarget(
+                costEntity,
+                manaId);
 
         var costPreview =
             ResourceCostOperations.Preview(
                 registry,
-                costState,
+                costTarget.State,
                 new ResourceCostRequest(
                     manaId,
                     10d,
@@ -207,8 +348,7 @@ public sealed class ResourceOperationOwnerInvariantTests
 
         var costEntry =
             ResourceCostOperations.Commit(
-                targetEntityId,
-                costState,
+                costTarget,
                 costPreview);
 
         Assert.Equal(
@@ -223,6 +363,7 @@ public sealed class ResourceOperationOwnerInvariantTests
             targetEntityId,
             costEntry.TargetEntityId);
     }
+
 
     private static ResourceId GetLifeId(
         CompiledResourceRegistry registry)

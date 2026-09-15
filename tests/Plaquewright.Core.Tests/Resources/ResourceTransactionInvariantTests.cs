@@ -103,26 +103,35 @@ public sealed class ResourceTransactionInvariantTests
             GetManaId(
                 registry);
 
-        // Existing low-level entry remains independent
+        // Existing entry remains independent
         // from the owner-aware transaction being tested.
-        var existingState =
-            new ResourceState(
-                lifeId,
-                current: 100d,
-                maximum: 100d);
+        var existingEntity =
+            new EntityRuntimeState(
+                new EntityId(999UL),
+                registry,
+                [
+                    new ResourceState(
+                    lifeId,
+                    current: 100d,
+                    maximum: 100d)
+                ]);
+
+        var existingTarget =
+            new ResourceStateTarget(
+                existingEntity,
+                lifeId);
 
         var existingPreview =
             ResourceLossOperations.Preview(
-                existingState,
+                existingTarget.State,
                 CreateLossRequest(
                     lifeId,
                     5d));
 
         var existingEntry =
-    ResourceLossOperations.Commit(
-        new EntityId(999UL),
-        existingState,
-        existingPreview);
+            ResourceLossOperations.Commit(
+                existingTarget,
+                existingPreview);
 
         var ledger =
             new ResourceOperationLedger();

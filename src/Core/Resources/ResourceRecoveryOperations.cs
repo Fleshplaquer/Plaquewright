@@ -39,20 +39,18 @@ public static class ResourceRecoveryOperations
     }
 
     public static ResourceRecoveryLedgerEntry Commit(
-        EntityId targetEntityId,
-        ResourceState state,
-        ResourceRecoveryPreview preview)
+    ResourceStateTarget target,
+    ResourceRecoveryPreview preview)
     {
-        ValidateTargetEntityId(
-            targetEntityId);
+        ArgumentNullException.ThrowIfNull(
+            target);
 
         ValidateCommit(
-            state,
+            target.State,
             preview);
 
         return ApplyValidatedCommit(
-            targetEntityId,
-            state,
+            target,
             preview);
     }
 
@@ -77,32 +75,20 @@ public static class ResourceRecoveryOperations
     }
 
     internal static ResourceRecoveryLedgerEntry ApplyValidatedCommit(
-        EntityId targetEntityId,
-        ResourceState state,
-        ResourceRecoveryPreview preview)
+    ResourceStateTarget target,
+    ResourceRecoveryPreview preview)
     {
-        ValidateTargetEntityId(
-            targetEntityId);
+        ArgumentNullException.ThrowIfNull(
+            target);
 
-        state.SetValues(
+        target.State.SetValues(
             preview.CurrentAfter,
             preview.Maximum);
 
         return new ResourceRecoveryLedgerEntry(
-            targetEntityId,
+            target.EntityId,
             preview.Request,
             preview.Result);
-    }
-
-    private static void ValidateTargetEntityId(
-        EntityId targetEntityId)
-    {
-        if (!targetEntityId.IsValid)
-        {
-            throw new ArgumentException(
-                "Target entity ID must be valid.",
-                nameof(targetEntityId));
-        }
     }
 
     private static void ValidateRequestTargetsState(

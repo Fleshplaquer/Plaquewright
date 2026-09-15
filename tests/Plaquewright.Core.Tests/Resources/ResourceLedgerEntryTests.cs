@@ -8,28 +8,51 @@ public sealed class ResourceLedgerEntryTests
     [Fact]
     public void LossCommit_ProducesCommittedEntryWithRequestAndResult()
     {
-        var state =
-            new ResourceState(
-                new ResourceId(1),
-                current: 100d,
-                maximum: 100d);
+        var registry =
+            ResourceRegistryCompiler.Compile(
+            [
+                new ResourceDefinition(
+                ResourceKey.Parse(
+                    "resource.life"),
+                ResourceRole.DamageTarget)
+            ]);
+
+        var lifeId =
+            registry.GetId(
+                ResourceKey.Parse(
+                    "resource.life"));
+
+        var entity =
+            new EntityRuntimeState(
+                new EntityId(1UL),
+                registry,
+                [
+                    new ResourceState(
+                    lifeId,
+                    current: 100d,
+                    maximum: 100d)
+                ]);
+
+        var target =
+            new ResourceStateTarget(
+                entity,
+                lifeId);
 
         var request =
             new ResourceLossRequest(
-                state.Id,
+                lifeId,
                 amount: 40d,
                 new ResourceOperationProvenance(
                     ResourceOperationCause.DamageDerived));
 
         var preview =
             ResourceLossOperations.Preview(
-                state,
+                target.State,
                 request);
 
         var entry =
             ResourceLossOperations.Commit(
-                new EntityId(1UL),
-                state,
+                target,
                 preview);
 
         Assert.Equal(
@@ -50,7 +73,73 @@ public sealed class ResourceLedgerEntryTests
 
         Assert.Equal(
             60d,
-            state.Current);
+            target.State.Current);
+    }
+
+    [Fact]
+    public void UnaffordableCost_ProducesNoLedgerEntryBecauseCommitFails()
+    {
+        var key =
+            ResourceKey.Parse(
+                "resource.mana");
+
+        var registry =
+            ResourceRegistryCompiler.Compile(
+            [
+                new ResourceDefinition(
+                key,
+                ResourceRole.CostSource)
+            ]);
+
+        var manaId =
+            registry.GetId(
+                key);
+
+        var entity =
+            new EntityRuntimeState(
+                new EntityId(1UL),
+                registry,
+                [
+                    new ResourceState(
+                    manaId,
+                    current: 20d,
+                    maximum: 100d)
+                ]);
+
+        var target =
+            new ResourceStateTarget(
+                entity,
+                manaId);
+
+        var request =
+            new ResourceCostRequest(
+                manaId,
+                amount: 50d,
+                new ResourceOperationProvenance(
+                    ResourceOperationCause.SkillCost));
+
+        var preview =
+            ResourceCostOperations.Preview(
+                registry,
+                target.State,
+                request);
+
+        Assert.False(
+            preview.IsAffordable);
+
+        Assert.Throws<InvalidOperationException>(
+            () =>
+                ResourceCostOperations.Commit(
+                    target,
+                    preview));
+
+        Assert.Equal(
+            20d,
+            target.State.Current);
+
+        Assert.Equal(
+            0UL,
+            target.State.Revision);
     }
 
     [Fact]
@@ -64,19 +153,33 @@ public sealed class ResourceLedgerEntryTests
             ResourceRegistryCompiler.Compile(
             [
                 new ResourceDefinition(
-                    key,
-                    ResourceRole.CostSource)
+                key,
+                ResourceRole.CostSource)
             ]);
 
-        var state =
-            new ResourceState(
-                registry.GetId(key),
-                current: 100d,
-                maximum: 100d);
+        var manaId =
+            registry.GetId(
+                key);
+
+        var entity =
+            new EntityRuntimeState(
+                new EntityId(1UL),
+                registry,
+                [
+                    new ResourceState(
+                    manaId,
+                    current: 100d,
+                    maximum: 100d)
+                ]);
+
+        var target =
+            new ResourceStateTarget(
+                entity,
+                manaId);
 
         var request =
             new ResourceCostRequest(
-                state.Id,
+                manaId,
                 amount: 30d,
                 new ResourceOperationProvenance(
                     ResourceOperationCause.SkillCost));
@@ -84,13 +187,12 @@ public sealed class ResourceLedgerEntryTests
         var preview =
             ResourceCostOperations.Preview(
                 registry,
-                state,
+                target.State,
                 request);
 
         var entry =
             ResourceCostOperations.Commit(
-                new EntityId(1UL),
-                state,
+                target,
                 preview);
 
         Assert.Equal(
@@ -107,34 +209,57 @@ public sealed class ResourceLedgerEntryTests
 
         Assert.Equal(
             70d,
-            state.Current);
+            target.State.Current);
     }
 
     [Fact]
     public void RecoveryCommit_ProducesCommittedEntryWithRequestAndResult()
     {
-        var state =
-            new ResourceState(
-                new ResourceId(1),
-                current: 50d,
-                maximum: 100d);
+        var registry =
+            ResourceRegistryCompiler.Compile(
+            [
+                new ResourceDefinition(
+                ResourceKey.Parse(
+                    "resource.life"),
+                ResourceRole.DamageTarget)
+            ]);
+
+        var lifeId =
+            registry.GetId(
+                ResourceKey.Parse(
+                    "resource.life"));
+
+        var entity =
+            new EntityRuntimeState(
+                new EntityId(1UL),
+                registry,
+                [
+                    new ResourceState(
+                    lifeId,
+                    current: 50d,
+                    maximum: 100d)
+                ]);
+
+        var target =
+            new ResourceStateTarget(
+                entity,
+                lifeId);
 
         var request =
             new ResourceRecoveryRequest(
-                state.Id,
+                lifeId,
                 amount: 40d,
                 new ResourceOperationProvenance(
                     ResourceOperationCause.Leech));
 
         var preview =
             ResourceRecoveryOperations.Preview(
-                state,
+                target.State,
                 request);
 
         var entry =
             ResourceRecoveryOperations.Commit(
-                new EntityId(1UL),
-                state,
+                target,
                 preview);
 
         Assert.Equal(
@@ -155,35 +280,58 @@ public sealed class ResourceLedgerEntryTests
 
         Assert.Equal(
             90d,
-            state.Current);
+            target.State.Current);
     }
 
     [Fact]
     public void LossLedgerEntry_PreservesGrossAccounting()
     {
-        var state =
-            new ResourceState(
-                new ResourceId(1),
-                current: 40d,
-                maximum: 100d);
+        var registry =
+            ResourceRegistryCompiler.Compile(
+            [
+                new ResourceDefinition(
+                ResourceKey.Parse(
+                    "resource.life"),
+                ResourceRole.DamageTarget)
+            ]);
+
+        var lifeId =
+            registry.GetId(
+                ResourceKey.Parse(
+                    "resource.life"));
+
+        var entity =
+            new EntityRuntimeState(
+                new EntityId(1UL),
+                registry,
+                [
+                    new ResourceState(
+                    lifeId,
+                    current: 40d,
+                    maximum: 100d)
+                ]);
+
+        var target =
+            new ResourceStateTarget(
+                entity,
+                lifeId);
 
         var request =
             new ResourceLossRequest(
-                state.Id,
+                lifeId,
                 amount: 100d,
                 new ResourceOperationProvenance(
                     ResourceOperationCause.DamageDerived));
 
         var preview =
             ResourceLossOperations.Preview(
-                state,
+                target.State,
                 request,
                 preventedLoss: 20d);
 
         var entry =
             ResourceLossOperations.Commit(
-                new EntityId(1UL),
-                state,
+                target,
                 preview);
 
         Assert.Equal(
@@ -209,56 +357,5 @@ public sealed class ResourceLedgerEntryTests
             entry.Result.Shortfall);
     }
 
-    [Fact]
-    public void UnaffordableCost_ProducesNoLedgerEntryBecauseCommitFails()
-    {
-        var key =
-            ResourceKey.Parse(
-                "resource.mana");
 
-        var registry =
-            ResourceRegistryCompiler.Compile(
-            [
-                new ResourceDefinition(
-                    key,
-                    ResourceRole.CostSource)
-            ]);
-
-        var state =
-            new ResourceState(
-                registry.GetId(key),
-                current: 20d,
-                maximum: 100d);
-
-        var request =
-            new ResourceCostRequest(
-                state.Id,
-                amount: 50d,
-                new ResourceOperationProvenance(
-                    ResourceOperationCause.SkillCost));
-
-        var preview =
-            ResourceCostOperations.Preview(
-                registry,
-                state,
-                request);
-
-        Assert.False(
-            preview.IsAffordable);
-
-        Assert.Throws<InvalidOperationException>(
-            () =>
-                ResourceCostOperations.Commit(
-                    new EntityId(1UL),
-                    state,
-                    preview));
-
-        Assert.Equal(
-            20d,
-            state.Current);
-
-        Assert.Equal(
-            0UL,
-            state.Revision);
-    }
 }

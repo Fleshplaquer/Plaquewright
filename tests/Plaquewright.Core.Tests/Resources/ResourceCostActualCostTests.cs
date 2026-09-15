@@ -27,8 +27,7 @@ public sealed class ResourceCostActualCostTests
 
         var entry =
             ResourceCostOperations.Commit(
-                setup.Entity.Id,
-                setup.Target.State,
+                setup.Target,
                 preview);
 
         var visibleDelta =
@@ -51,7 +50,6 @@ public sealed class ResourceCostActualCostTests
             preview.CurrentAfter,
             setup.Target.State.Current);
     }
-
     [Fact]
     public void TransactionCommit_ActualCostMatchesVisibleStateDelta()
     {

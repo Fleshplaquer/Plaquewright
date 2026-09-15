@@ -132,28 +132,51 @@ public sealed class ResourceOperationProvenanceFlowTests
     [Fact]
     public void LossCommit_DoesNotLoseAccessToOriginalProvenance()
     {
-        var state =
-            new ResourceState(
-                new ResourceId(1),
-                current: 100d,
-                maximum: 100d);
+        var registry =
+            ResourceRegistryCompiler.Compile(
+            [
+                new ResourceDefinition(
+                ResourceKey.Parse(
+                    "resource.life"),
+                ResourceRole.DamageTarget)
+            ]);
+
+        var lifeId =
+            registry.GetId(
+                ResourceKey.Parse(
+                    "resource.life"));
+
+        var entity =
+            new EntityRuntimeState(
+                new EntityId(1UL),
+                registry,
+                [
+                    new ResourceState(
+                    lifeId,
+                    current: 100d,
+                    maximum: 100d)
+                ]);
+
+        var target =
+            new ResourceStateTarget(
+                entity,
+                lifeId);
 
         var request =
             new ResourceLossRequest(
-                state.Id,
+                lifeId,
                 amount: 30d,
                 new ResourceOperationProvenance(
                     ResourceOperationCause.Sacrifice));
 
         var preview =
             ResourceLossOperations.Preview(
-                state,
+                target.State,
                 request);
 
         var entry =
             ResourceLossOperations.Commit(
-                new EntityId(1UL),
-                state,
+                target,
                 preview);
 
         Assert.Equal(
@@ -166,7 +189,7 @@ public sealed class ResourceOperationProvenanceFlowTests
 
         Assert.Equal(
             70d,
-            state.Current);
+            target.State.Current);
     }
 
     [Fact]
@@ -180,19 +203,33 @@ public sealed class ResourceOperationProvenanceFlowTests
             ResourceRegistryCompiler.Compile(
             [
                 new ResourceDefinition(
-                    key,
-                    ResourceRole.CostSource)
+                key,
+                ResourceRole.CostSource)
             ]);
 
-        var state =
-            new ResourceState(
-                registry.GetId(key),
-                current: 100d,
-                maximum: 100d);
+        var manaId =
+            registry.GetId(
+                key);
+
+        var entity =
+            new EntityRuntimeState(
+                new EntityId(1UL),
+                registry,
+                [
+                    new ResourceState(
+                    manaId,
+                    current: 100d,
+                    maximum: 100d)
+                ]);
+
+        var target =
+            new ResourceStateTarget(
+                entity,
+                manaId);
 
         var request =
             new ResourceCostRequest(
-                state.Id,
+                manaId,
                 amount: 25d,
                 new ResourceOperationProvenance(
                     ResourceOperationCause.SkillCost));
@@ -200,13 +237,12 @@ public sealed class ResourceOperationProvenanceFlowTests
         var preview =
             ResourceCostOperations.Preview(
                 registry,
-                state,
+                target.State,
                 request);
 
         var entry =
             ResourceCostOperations.Commit(
-                new EntityId(1UL),
-                state,
+                target,
                 preview);
 
         Assert.Equal(
@@ -219,48 +255,10 @@ public sealed class ResourceOperationProvenanceFlowTests
 
         Assert.Equal(
             75d,
-            state.Current);
+            target.State.Current);
     }
 
-    [Fact]
-    public void RecoveryCommit_DoesNotLoseAccessToOriginalProvenance()
-    {
-        var state =
-            new ResourceState(
-                new ResourceId(1),
-                current: 50d,
-                maximum: 100d);
 
-        var request =
-            new ResourceRecoveryRequest(
-                state.Id,
-                amount: 20d,
-                new ResourceOperationProvenance(
-                    ResourceOperationCause.Regeneration));
-
-        var preview =
-            ResourceRecoveryOperations.Preview(
-                state,
-                request);
-
-        var entry =
-            ResourceRecoveryOperations.Commit(
-                new EntityId(1UL),
-                state,
-                preview);
-
-        Assert.Equal(
-            ResourceOperationCause.Regeneration,
-            preview.Request.Provenance.Cause);
-
-        Assert.Equal(
-            20d,
-            entry.Result.ActualRecovery);
-
-        Assert.Equal(
-            70d,
-            state.Current);
-    }
 
     [Fact]
     public void SameQuantityWithDifferentProvenance_RemainsSemanticallyDistinct()
@@ -297,5 +295,67 @@ public sealed class ResourceOperationProvenanceFlowTests
         Assert.NotEqual(
             damage.Provenance,
             sacrifice.Provenance);
+    }
+    [Fact]
+    public void RecoveryCommit_DoesNotLoseAccessToOriginalProvenance()
+    {
+        var registry =
+            ResourceRegistryCompiler.Compile(
+            [
+                new ResourceDefinition(
+                ResourceKey.Parse(
+                    "resource.life"),
+                ResourceRole.DamageTarget)
+            ]);
+
+        var lifeId =
+            registry.GetId(
+                ResourceKey.Parse(
+                    "resource.life"));
+
+        var entity =
+            new EntityRuntimeState(
+                new EntityId(1UL),
+                registry,
+                [
+                    new ResourceState(
+                    lifeId,
+                    current: 50d,
+                    maximum: 100d)
+                ]);
+
+        var target =
+            new ResourceStateTarget(
+                entity,
+                lifeId);
+
+        var request =
+            new ResourceRecoveryRequest(
+                lifeId,
+                amount: 20d,
+                new ResourceOperationProvenance(
+                    ResourceOperationCause.Regeneration));
+
+        var preview =
+            ResourceRecoveryOperations.Preview(
+                target.State,
+                request);
+
+        var entry =
+            ResourceRecoveryOperations.Commit(
+                target,
+                preview);
+
+        Assert.Equal(
+            ResourceOperationCause.Regeneration,
+            preview.Request.Provenance.Cause);
+
+        Assert.Equal(
+            20d,
+            entry.Result.ActualRecovery);
+
+        Assert.Equal(
+            70d,
+            target.State.Current);
     }
 }

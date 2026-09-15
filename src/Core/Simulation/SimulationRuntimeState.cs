@@ -12,6 +12,10 @@ public sealed class SimulationRuntimeState
     private readonly ExecutionIdAllocator _executionIdAllocator =
         new();
 
+    private readonly SimulationRuntimeIdentity
+_runtimeIdentity =
+    new();
+
     private readonly HitExecutionIdAllocator
         _hitExecutionIdAllocator =
             new();
@@ -34,8 +38,8 @@ public sealed class SimulationRuntimeState
     EntityId targetEntityId,
     SimulationTime startedAt)
     {
-        ArgumentNullException.ThrowIfNull(
-            gameplayExecution);
+        ValidateRuntimeOwnership(
+    gameplayExecution);
 
         if (!targetEntityId.IsValid)
         {
@@ -58,19 +62,20 @@ public sealed class SimulationRuntimeState
             AllocateHitExecutionId();
 
         return new HitExecutionContext(
-            id,
-            gameplayExecution.Id,
-            gameplayExecution.SourceEntityId,
-            targetEntityId,
-            startedAt);
+    id,
+    gameplayExecution.Id,
+    gameplayExecution.SourceEntityId,
+    targetEntityId,
+    startedAt,
+    _runtimeIdentity);
     }
 
     internal DamageExecutionContext CreateDamageExecutionContext(
     GameplayExecutionContext gameplayExecution,
     SimulationTime startedAt)
     {
-        ArgumentNullException.ThrowIfNull(
-            gameplayExecution);
+        ValidateRuntimeOwnership(
+    gameplayExecution);
 
         // The source must still belong to the runtime.
         Entities.Get(
@@ -81,18 +86,64 @@ public sealed class SimulationRuntimeState
             AllocateDamageExecutionId();
 
         return new DamageExecutionContext(
-            id,
-            gameplayExecution.Id,
-            gameplayExecution.SourceEntityId,
-            startedAt);
+    id,
+    gameplayExecution.Id,
+    gameplayExecution.SourceEntityId,
+    startedAt,
+    _runtimeIdentity);
+    }
+
+    private void ValidateRuntimeOwnership(
+    HitExecutionContext hitExecution)
+    {
+        ArgumentNullException.ThrowIfNull(
+            hitExecution);
+
+        if (!ReferenceEquals(
+                hitExecution.RuntimeIdentity,
+                _runtimeIdentity))
+        {
+            throw new InvalidOperationException(
+                "Hit execution context belongs to a different simulation runtime or is not runtime-bound.");
+        }
+    }
+
+    private void ValidateRuntimeOwnership(
+    DamageTargetContext damageTarget)
+    {
+        ArgumentNullException.ThrowIfNull(
+            damageTarget);
+
+        if (!ReferenceEquals(
+                damageTarget.RuntimeIdentity,
+                _runtimeIdentity))
+        {
+            throw new InvalidOperationException(
+                "Damage target context belongs to a different simulation runtime or is not runtime-bound.");
+        }
+    }
+
+    private void ValidateRuntimeOwnership(
+        DamageExecutionContext damageExecution)
+    {
+        ArgumentNullException.ThrowIfNull(
+            damageExecution);
+
+        if (!ReferenceEquals(
+                damageExecution.RuntimeIdentity,
+                _runtimeIdentity))
+        {
+            throw new InvalidOperationException(
+                "Damage execution context belongs to a different simulation runtime or is not runtime-bound.");
+        }
     }
 
     internal DamageTargetContext CreateDamageTargetContext(
     DamageExecutionContext damageExecution,
     EntityId targetEntityId)
     {
-        ArgumentNullException.ThrowIfNull(
-            damageExecution);
+        ValidateRuntimeOwnership(
+    damageExecution);
 
         if (!targetEntityId.IsValid)
         {
@@ -110,17 +161,18 @@ public sealed class SimulationRuntimeState
         return new DamageTargetContext(
             damageExecution.Id,
             targetEntityId,
-            relatedHitExecutionId: null);
+            relatedHitExecutionId: null,
+            _runtimeIdentity);
     }
 
     internal DamageTargetContext CreateDamageTargetContext(
     DamageExecutionContext damageExecution,
     HitExecutionContext hitExecution)
     {
-        ArgumentNullException.ThrowIfNull(
-            damageExecution);
+        ValidateRuntimeOwnership(
+    damageExecution);
 
-        ArgumentNullException.ThrowIfNull(
+        ValidateRuntimeOwnership(
             hitExecution);
 
         Entities.Get(
@@ -146,7 +198,8 @@ public sealed class SimulationRuntimeState
         return new DamageTargetContext(
             damageExecution.Id,
             hitExecution.TargetEntityId,
-            hitExecution.Id);
+            hitExecution.Id,
+            _runtimeIdentity);
     }
 
     internal DamageResolutionContext CreateDamageResolutionContext(
@@ -154,11 +207,11 @@ public sealed class SimulationRuntimeState
     DamageTargetContext damageTarget,
     DamageResolutionQuantities quantities)
     {
-        ArgumentNullException.ThrowIfNull(
-            damageExecution);
+        ValidateRuntimeOwnership(
+    damageExecution);
 
-        ArgumentNullException.ThrowIfNull(
-            damageTarget);
+        ValidateRuntimeOwnership(
+    damageTarget);
 
         ArgumentNullException.ThrowIfNull(
             quantities);
@@ -240,9 +293,24 @@ public sealed class SimulationRuntimeState
             sourceEntityId);
 
         return new GameplayExecutionContext(
-            _executionIdAllocator.Allocate(),
-            sourceEntityId,
-            startedAt,
-            RootSeed);
+    _executionIdAllocator.Allocate(),
+    sourceEntityId,
+    startedAt,
+    RootSeed,
+    _runtimeIdentity);
+    }
+    private void ValidateRuntimeOwnership(
+    GameplayExecutionContext gameplayExecution)
+    {
+        ArgumentNullException.ThrowIfNull(
+            gameplayExecution);
+
+        if (!ReferenceEquals(
+                gameplayExecution.RuntimeIdentity,
+                _runtimeIdentity))
+        {
+            throw new InvalidOperationException(
+                "Gameplay execution context belongs to a different simulation runtime or is not runtime-bound.");
+        }
     }
 }

@@ -42,27 +42,50 @@ public sealed class ResourceOperationLedgerInvariantTests
     private static ResourceLossLedgerEntry CreateLossEntry(
         int amount)
     {
-        var state =
-            new ResourceState(
-                new ResourceId(1),
-                current: 100d,
-                maximum: 100d);
+        var registry =
+            ResourceRegistryCompiler.Compile(
+            [
+                new ResourceDefinition(
+                ResourceKey.Parse(
+                    "resource.life"),
+                ResourceRole.DamageTarget)
+            ]);
+
+        var lifeId =
+            registry.GetId(
+                ResourceKey.Parse(
+                    "resource.life"));
+
+        var entity =
+            new EntityRuntimeState(
+                new EntityId(1UL),
+                registry,
+                [
+                    new ResourceState(
+                    lifeId,
+                    current: 100d,
+                    maximum: 100d)
+                ]);
+
+        var target =
+            new ResourceStateTarget(
+                entity,
+                lifeId);
 
         var request =
             new ResourceLossRequest(
-                state.Id,
+                lifeId,
                 amount,
                 new ResourceOperationProvenance(
                     ResourceOperationCause.Direct));
 
         var preview =
             ResourceLossOperations.Preview(
-                state,
+                target.State,
                 request);
 
         return ResourceLossOperations.Commit(
-            new EntityId(1UL),
-            state,
+            target,
             preview);
     }
 }

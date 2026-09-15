@@ -160,99 +160,149 @@ public sealed class ResourceCommitPreflightTests
     [Fact]
     public void ValidateCommit_StalePreviewThrowsWithoutFurtherMutation()
     {
-        var state =
-            new ResourceState(
-                new ResourceId(1),
-                current: 100d,
-                maximum: 100d);
+        var registry =
+            ResourceRegistryCompiler.Compile(
+            [
+                new ResourceDefinition(
+                ResourceKey.Parse(
+                    "resource.life"),
+                ResourceRole.DamageTarget)
+            ]);
+
+        var lifeId =
+            registry.GetId(
+                ResourceKey.Parse(
+                    "resource.life"));
+
+        var entity =
+            new EntityRuntimeState(
+                new EntityId(1UL),
+                registry,
+                [
+                    new ResourceState(
+                    lifeId,
+                    current: 100d,
+                    maximum: 100d)
+                ]);
+
+        var target =
+            new ResourceStateTarget(
+                entity,
+                lifeId);
 
         var firstPreview =
             ResourceLossOperations.Preview(
-                state,
+                target.State,
                 new ResourceLossRequest(
-                    state.Id,
+                    lifeId,
                     10d,
                     new ResourceOperationProvenance(
                         ResourceOperationCause.Direct)));
 
         var stalePreview =
             ResourceLossOperations.Preview(
-                state,
+                target.State,
                 new ResourceLossRequest(
-                    state.Id,
+                    lifeId,
                     20d,
                     new ResourceOperationProvenance(
                         ResourceOperationCause.Direct)));
 
         _ =
             ResourceLossOperations.Commit(
-                new EntityId(1UL),
-                state,
+                target,
                 firstPreview);
 
         Assert.Equal(
             90d,
-            state.Current);
+            target.State.Current);
 
         Assert.Equal(
             1UL,
-            state.Revision);
+            target.State.Revision);
 
         Assert.Throws<InvalidOperationException>(
             () =>
                 ResourceLossOperations.ValidateCommit(
-                    state,
+                    target.State,
                     stalePreview));
 
         Assert.Equal(
             90d,
-            state.Current);
+            target.State.Current);
 
         Assert.Equal(
             1UL,
-            state.Revision);
+            target.State.Revision);
     }
 
     [Fact]
     public void ApplyValidatedCommit_PerformsExactlyOneMutation()
     {
-        var state =
-            new ResourceState(
-                new ResourceId(1),
-                current: 100d,
-                maximum: 100d);
+        var registry =
+            ResourceRegistryCompiler.Compile(
+            [
+                new ResourceDefinition(
+                ResourceKey.Parse(
+                    "resource.life"),
+                ResourceRole.DamageTarget)
+            ]);
+
+        var lifeId =
+            registry.GetId(
+                ResourceKey.Parse(
+                    "resource.life"));
+
+        var entity =
+            new EntityRuntimeState(
+                new EntityId(1UL),
+                registry,
+                [
+                    new ResourceState(
+                    lifeId,
+                    current: 100d,
+                    maximum: 100d)
+                ]);
+
+        var target =
+            new ResourceStateTarget(
+                entity,
+                lifeId);
 
         var preview =
             ResourceLossOperations.Preview(
-                state,
+                target.State,
                 new ResourceLossRequest(
-                    state.Id,
+                    lifeId,
                     25d,
                     new ResourceOperationProvenance(
                         ResourceOperationCause.Direct)));
 
         ResourceLossOperations.ValidateCommit(
-            state,
+            target.State,
             preview);
 
         var entry =
             ResourceLossOperations.ApplyValidatedCommit(
-                new EntityId(1UL),
-                state,
+                target,
                 preview);
 
         Assert.Equal(
             75d,
-            state.Current);
+            target.State.Current);
 
         Assert.Equal(
             1UL,
-            state.Revision);
+            target.State.Revision);
 
         Assert.Equal(
             25d,
             entry.Result.ActualLoss);
     }
+
+
+
+
 
     private static CompiledResourceRegistry
         CreateRegistry()

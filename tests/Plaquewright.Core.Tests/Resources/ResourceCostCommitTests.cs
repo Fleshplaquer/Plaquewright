@@ -12,29 +12,41 @@ public sealed class ResourceCostCommitTests
             CreateSetup(
                 current: 100d);
 
+        var entity =
+            new EntityRuntimeState(
+                new EntityId(1UL),
+                setup.Registry,
+                [
+                    setup.State
+                ]);
+
+        var target =
+            new ResourceStateTarget(
+                entity,
+                setup.State.Id);
+
         var preview =
             ResourceCostOperations.Preview(
                 setup.Registry,
-                setup.State,
+                target.State,
                 new ResourceCostRequest(
-    setup.State.Id,
-    amount: 40d,
-    new ResourceOperationProvenance(
-        ResourceOperationCause.SkillCost)));
+                    target.State.Id,
+                    amount: 40d,
+                    new ResourceOperationProvenance(
+                        ResourceOperationCause.SkillCost)));
 
         var entry =
             ResourceCostOperations.Commit(
-                new EntityId(1UL),
-                setup.State,
+                target,
                 preview);
 
         Assert.Equal(
             60d,
-            setup.State.Current);
+            target.State.Current);
 
         Assert.Equal(
             1UL,
-            setup.State.Revision);
+            target.State.Revision);
 
         Assert.Equal(
             40d,
@@ -52,29 +64,42 @@ public sealed class ResourceCostCommitTests
             CreateSetup(
                 current: 50d);
 
+        var entity =
+            new EntityRuntimeState(
+                new EntityId(1UL),
+                setup.Registry,
+                [
+                    setup.State
+                ]);
+
+        var target =
+            new ResourceStateTarget(
+                entity,
+                setup.State.Id);
+
         var preview =
             ResourceCostOperations.Preview(
                 setup.Registry,
-                setup.State,
+                target.State,
                 new ResourceCostRequest(
-                    setup.State.Id,
-                    amount: 100d, new ResourceOperationProvenance(
-        ResourceOperationCause.SkillCost)));
+                    target.State.Id,
+                    amount: 100d,
+                    new ResourceOperationProvenance(
+                        ResourceOperationCause.SkillCost)));
 
         Assert.Throws<InvalidOperationException>(
             () =>
                 ResourceCostOperations.Commit(
-                    new EntityId(1UL),
-                    setup.State,
+                    target,
                     preview));
 
         Assert.Equal(
             50d,
-            setup.State.Current);
+            target.State.Current);
 
         Assert.Equal(
             0UL,
-            setup.State.Revision);
+            target.State.Revision);
     }
 
     [Fact]
@@ -84,39 +109,52 @@ public sealed class ResourceCostCommitTests
             CreateSetup(
                 current: 100d);
 
+        var entity =
+            new EntityRuntimeState(
+                new EntityId(1UL),
+                setup.Registry,
+                [
+                    setup.State
+                ]);
+
+        var target =
+            new ResourceStateTarget(
+                entity,
+                setup.State.Id);
+
         var stale =
             ResourceCostOperations.Preview(
                 setup.Registry,
-                setup.State,
+                target.State,
                 new ResourceCostRequest(
-                    setup.State.Id,
-                    amount: 20d, new ResourceOperationProvenance(
-        ResourceOperationCause.SkillCost)));
+                    target.State.Id,
+                    amount: 20d,
+                    new ResourceOperationProvenance(
+                        ResourceOperationCause.SkillCost)));
 
         var newer =
             ResourceCostOperations.Preview(
                 setup.Registry,
-                setup.State,
+                target.State,
                 new ResourceCostRequest(
-                    setup.State.Id,
-                    amount: 10d, new ResourceOperationProvenance(
-        ResourceOperationCause.SkillCost)));
+                    target.State.Id,
+                    amount: 10d,
+                    new ResourceOperationProvenance(
+                        ResourceOperationCause.SkillCost)));
 
         ResourceCostOperations.Commit(
-            new EntityId(1UL),
-            setup.State,
+            target,
             newer);
 
         Assert.Throws<InvalidOperationException>(
             () =>
                 ResourceCostOperations.Commit(
-                    new EntityId(1UL),
-                    setup.State,
+                    target,
                     stale));
 
         Assert.Equal(
             90d,
-            setup.State.Current);
+            target.State.Current);
     }
 
     [Fact]
@@ -126,31 +164,61 @@ public sealed class ResourceCostCommitTests
             CreateSetup(
                 current: 100d);
 
+        var firstEntity =
+            new EntityRuntimeState(
+                new EntityId(1UL),
+                setup.Registry,
+                [
+                    setup.State
+                ]);
+
+        var firstTarget =
+            new ResourceStateTarget(
+                firstEntity,
+                setup.State.Id);
+
         var otherState =
             new ResourceState(
                 setup.State.Id,
                 current: 100d,
                 maximum: 100d);
 
+        var secondEntity =
+            new EntityRuntimeState(
+                new EntityId(2UL),
+                setup.Registry,
+                [
+                    otherState
+                ]);
+
+        var secondTarget =
+            new ResourceStateTarget(
+                secondEntity,
+                otherState.Id);
+
         var preview =
             ResourceCostOperations.Preview(
                 setup.Registry,
-                setup.State,
+                firstTarget.State,
                 new ResourceCostRequest(
-                    setup.State.Id,
-                    amount: 20d, new ResourceOperationProvenance(
-        ResourceOperationCause.SkillCost)));
+                    firstTarget.State.Id,
+                    amount: 20d,
+                    new ResourceOperationProvenance(
+                        ResourceOperationCause.SkillCost)));
 
         Assert.Throws<InvalidOperationException>(
             () =>
                 ResourceCostOperations.Commit(
-                    new EntityId(1UL),
-                    otherState,
+                    secondTarget,
                     preview));
 
         Assert.Equal(
             100d,
-            otherState.Current);
+            secondTarget.State.Current);
+
+        Assert.Equal(
+            0UL,
+            secondTarget.State.Revision);
     }
 
     [Fact]
@@ -160,28 +228,41 @@ public sealed class ResourceCostCommitTests
             CreateSetup(
                 current: 100d);
 
+        var entity =
+            new EntityRuntimeState(
+                new EntityId(1UL),
+                setup.Registry,
+                [
+                    setup.State
+                ]);
+
+        var target =
+            new ResourceStateTarget(
+                entity,
+                setup.State.Id);
+
         var preview =
             ResourceCostOperations.Preview(
                 setup.Registry,
-                setup.State,
+                target.State,
                 new ResourceCostRequest(
-                    setup.State.Id,
-                    amount: 0d, new ResourceOperationProvenance(
-        ResourceOperationCause.SkillCost)));
+                    target.State.Id,
+                    amount: 0d,
+                    new ResourceOperationProvenance(
+                        ResourceOperationCause.SkillCost)));
 
         var entry =
             ResourceCostOperations.Commit(
-                new EntityId(1UL),
-                setup.State,
+                target,
                 preview);
 
         Assert.Equal(
             100d,
-            setup.State.Current);
+            target.State.Current);
 
         Assert.Equal(
             1UL,
-            setup.State.Revision);
+            target.State.Revision);
 
         Assert.Equal(
             0d,

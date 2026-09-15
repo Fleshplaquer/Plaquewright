@@ -238,39 +238,64 @@ public sealed class ResourceRecoveryPreviewTests
     [Fact]
     public void CommitRecovery_AppliesPreviewedState()
     {
-        var state =
-            CreateState(
-                current: 25d,
-                maximum: 100d);
+        var registry =
+            ResourceRegistryCompiler.Compile(
+            [
+                new ResourceDefinition(
+                ResourceKey.Parse(
+                    "resource.life"),
+                ResourceRole.DamageTarget)
+            ]);
+
+        var lifeId =
+            registry.GetId(
+                ResourceKey.Parse(
+                    "resource.life"));
+
+        var entity =
+            new EntityRuntimeState(
+                new EntityId(1UL),
+                registry,
+                [
+                    new ResourceState(
+                    lifeId,
+                    current: 25d,
+                    maximum: 100d)
+                ]);
+
+        var target =
+            new ResourceStateTarget(
+                entity,
+                lifeId);
 
         var request =
             new ResourceRecoveryRequest(
-                state.Id,
-                amount: 50d, new ResourceOperationProvenance(
-        ResourceOperationCause.Recovery));
+                lifeId,
+                amount: 50d,
+                new ResourceOperationProvenance(
+                    ResourceOperationCause.Recovery));
 
         var preview =
             ResourceRecoveryOperations.Preview(
-                state,
+                target.State,
                 request);
 
         var entry =
             ResourceRecoveryOperations.Commit(
-                new EntityId(1UL),
-                state,
+                target,
                 preview);
 
         Assert.Equal(
             75d,
-            state.Current);
+            target.State.Current);
 
         Assert.Equal(
             100d,
-            state.Maximum);
+            target.State.Maximum);
 
         Assert.Equal(
             1UL,
-            state.Revision);
+            target.State.Revision);
 
         Assert.Equal(
             50d,
@@ -284,117 +309,203 @@ public sealed class ResourceRecoveryPreviewTests
     [Fact]
     public void CommitRecovery_RejectsStalePreview()
     {
-        var state =
-            CreateState(
-                current: 25d,
-                maximum: 100d);
+        var registry =
+            ResourceRegistryCompiler.Compile(
+            [
+                new ResourceDefinition(
+                ResourceKey.Parse(
+                    "resource.life"),
+                ResourceRole.DamageTarget)
+            ]);
+
+        var lifeId =
+            registry.GetId(
+                ResourceKey.Parse(
+                    "resource.life"));
+
+        var entity =
+            new EntityRuntimeState(
+                new EntityId(1UL),
+                registry,
+                [
+                    new ResourceState(
+                    lifeId,
+                    current: 25d,
+                    maximum: 100d)
+                ]);
+
+        var target =
+            new ResourceStateTarget(
+                entity,
+                lifeId);
 
         var stalePreview =
             ResourceRecoveryOperations.Preview(
-                state,
+                target.State,
                 new ResourceRecoveryRequest(
-                    state.Id,
-                    amount: 50d, new ResourceOperationProvenance(
-        ResourceOperationCause.Recovery)));
+                    lifeId,
+                    amount: 50d,
+                    new ResourceOperationProvenance(
+                        ResourceOperationCause.Recovery)));
 
         var otherPreview =
             ResourceRecoveryOperations.Preview(
-                state,
+                target.State,
                 new ResourceRecoveryRequest(
-                    state.Id,
-                    amount: 10d, new ResourceOperationProvenance(
-        ResourceOperationCause.Recovery)));
+                    lifeId,
+                    amount: 10d,
+                    new ResourceOperationProvenance(
+                        ResourceOperationCause.Recovery)));
 
         ResourceRecoveryOperations.Commit(
-            new EntityId(1UL),
-            state,
+            target,
             otherPreview);
 
         Assert.Throws<InvalidOperationException>(
             () =>
                 ResourceRecoveryOperations.Commit(
-                    new EntityId(1UL),
-                    state,
+                    target,
                     stalePreview));
 
         Assert.Equal(
             35d,
-            state.Current);
+            target.State.Current);
 
         Assert.Equal(
             1UL,
-            state.Revision);
+            target.State.Revision);
     }
 
     [Fact]
     public void CommitRecovery_RejectsDifferentStateWithSameResourceId()
     {
-        var first =
-            CreateState(
-                current: 25d,
-                maximum: 100d);
+        var registry =
+            ResourceRegistryCompiler.Compile(
+            [
+                new ResourceDefinition(
+                ResourceKey.Parse(
+                    "resource.life"),
+                ResourceRole.DamageTarget)
+            ]);
 
-        var second =
-            CreateState(
-                current: 25d,
-                maximum: 100d);
+        var lifeId =
+            registry.GetId(
+                ResourceKey.Parse(
+                    "resource.life"));
+
+        var firstEntity =
+            new EntityRuntimeState(
+                new EntityId(1UL),
+                registry,
+                [
+                    new ResourceState(
+                    lifeId,
+                    current: 25d,
+                    maximum: 100d)
+                ]);
+
+        var secondEntity =
+            new EntityRuntimeState(
+                new EntityId(2UL),
+                registry,
+                [
+                    new ResourceState(
+                    lifeId,
+                    current: 25d,
+                    maximum: 100d)
+                ]);
+
+        var firstTarget =
+            new ResourceStateTarget(
+                firstEntity,
+                lifeId);
+
+        var secondTarget =
+            new ResourceStateTarget(
+                secondEntity,
+                lifeId);
 
         var preview =
             ResourceRecoveryOperations.Preview(
-                first,
+                firstTarget.State,
                 new ResourceRecoveryRequest(
-                    first.Id,
-                    amount: 50d, new ResourceOperationProvenance(
-        ResourceOperationCause.Recovery)));
+                    lifeId,
+                    amount: 50d,
+                    new ResourceOperationProvenance(
+                        ResourceOperationCause.Recovery)));
 
         Assert.Throws<InvalidOperationException>(
             () =>
                 ResourceRecoveryOperations.Commit(
-                    new EntityId(1UL),
-                    second,
+                    secondTarget,
                     preview));
 
         Assert.Equal(
             25d,
-            second.Current);
+            secondTarget.State.Current);
 
         Assert.Equal(
             0UL,
-            second.Revision);
+            secondTarget.State.Revision);
     }
 
     [Fact]
     public void ZeroRecoveryCommit_IsStillExplicitCommit()
     {
-        var state =
-            CreateState(
-                current: 25d,
-                maximum: 100d);
+        var registry =
+            ResourceRegistryCompiler.Compile(
+            [
+                new ResourceDefinition(
+                ResourceKey.Parse(
+                    "resource.life"),
+                ResourceRole.DamageTarget)
+            ]);
+
+        var lifeId =
+            registry.GetId(
+                ResourceKey.Parse(
+                    "resource.life"));
+
+        var entity =
+            new EntityRuntimeState(
+                new EntityId(1UL),
+                registry,
+                [
+                    new ResourceState(
+                    lifeId,
+                    current: 25d,
+                    maximum: 100d)
+                ]);
+
+        var target =
+            new ResourceStateTarget(
+                entity,
+                lifeId);
 
         var request =
             new ResourceRecoveryRequest(
-                state.Id,
-                amount: 0d, new ResourceOperationProvenance(
-        ResourceOperationCause.Recovery));
+                lifeId,
+                amount: 0d,
+                new ResourceOperationProvenance(
+                    ResourceOperationCause.Recovery));
 
         var preview =
             ResourceRecoveryOperations.Preview(
-                state,
+                target.State,
                 request);
 
         var entry =
             ResourceRecoveryOperations.Commit(
-                new EntityId(1UL),
-                state,
+                target,
                 preview);
 
         Assert.Equal(
             25d,
-            state.Current);
+            target.State.Current);
 
         Assert.Equal(
             1UL,
-            state.Revision);
+            target.State.Revision);
 
         Assert.Equal(
             0d,

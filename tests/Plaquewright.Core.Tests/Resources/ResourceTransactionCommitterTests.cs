@@ -452,26 +452,33 @@ public sealed class ResourceTransactionCommitterTests
             GetLifeId(
                 registry);
 
-        // Low-level operation test:
-        // naked ResourceState remains valid here.
-        var existingState =
-            new ResourceState(
-                lifeId,
-                current: 100d,
-                maximum: 100d);
+        var existingEntity =
+            new EntityRuntimeState(
+                new EntityId(999UL),
+                registry,
+                [
+                    new ResourceState(
+                    lifeId,
+                    current: 100d,
+                    maximum: 100d)
+                ]);
+
+        var existingTarget =
+            new ResourceStateTarget(
+                existingEntity,
+                lifeId);
 
         var existingPreview =
             ResourceLossOperations.Preview(
-                existingState,
+                existingTarget.State,
                 CreateLossRequest(
                     lifeId,
                     5d));
 
         var existingEntry =
-    ResourceLossOperations.Commit(
-        new EntityId(999UL),
-        existingState,
-        existingPreview);
+            ResourceLossOperations.Commit(
+                existingTarget,
+                existingPreview);
 
         var ledger =
             new ResourceOperationLedger();

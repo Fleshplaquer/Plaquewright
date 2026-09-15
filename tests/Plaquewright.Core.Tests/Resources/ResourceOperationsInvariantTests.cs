@@ -5,27 +5,45 @@ namespace Plaquewright.Core.Tests.Resources;
 
 public sealed class ResourceOperationsInvariantTests
 {
+
+
+
+
     [Fact]
     public void RepresentativeLossOperations_PreserveAllInvariants()
     {
+        var registry =
+            ResourceRegistryCompiler.Compile(
+            [
+                new ResourceDefinition(
+                ResourceKey.Parse(
+                    "resource.life"),
+                ResourceRole.DamageTarget)
+            ]);
+
+        var lifeId =
+            registry.GetId(
+                ResourceKey.Parse(
+                    "resource.life"));
+
         var currentValues = new[]
         {
-            0d,
-            1d,
-            25d,
-            50d,
-            100d
-        };
+        0d,
+        1d,
+        25d,
+        50d,
+        100d
+    };
 
         var requestedValues = new[]
         {
-            0d,
-            1d,
-            10d,
-            50d,
-            100d,
-            200d
-        };
+        0d,
+        1d,
+        10d,
+        50d,
+        100d,
+        200d
+    };
 
         foreach (var current in currentValues)
         {
@@ -33,39 +51,50 @@ public sealed class ResourceOperationsInvariantTests
             {
                 var preventedValues = new[]
                 {
-                    0d,
-                    requested / 2d,
-                    requested
-                };
+                0d,
+                requested / 2d,
+                requested
+            };
 
                 foreach (var prevented in preventedValues)
                 {
-                    var state =
-                        new ResourceState(
-                            new ResourceId(1),
-                            current,
-                            maximum: 100d);
+                    var entity =
+                        new EntityRuntimeState(
+                            new EntityId(1UL),
+                            registry,
+                            [
+                                new ResourceState(
+                                lifeId,
+                                current,
+                                maximum: 100d)
+                            ]);
+
+                    var target =
+                        new ResourceStateTarget(
+                            entity,
+                            lifeId);
 
                     var request =
                         new ResourceLossRequest(
-                            state.Id,
-                            requested, new ResourceOperationProvenance(
-        ResourceOperationCause.DamageDerived));
+                            lifeId,
+                            requested,
+                            new ResourceOperationProvenance(
+                                ResourceOperationCause.DamageDerived));
 
                     var preview =
                         ResourceLossOperations.Preview(
-                            state,
+                            target.State,
                             request,
                             prevented);
 
                     // Preview must not mutate state.
                     Assert.Equal(
                         current,
-                        state.Current);
+                        target.State.Current);
 
                     Assert.Equal(
                         0UL,
-                        state.Revision);
+                        target.State.Revision);
 
                     // Original request is preserved.
                     Assert.Equal(
@@ -103,22 +132,21 @@ public sealed class ResourceOperationsInvariantTests
                         preview.Maximum);
 
                     var entry =
-    ResourceLossOperations.Commit(
-        new EntityId(1UL),
-        state,
-        preview);
+                        ResourceLossOperations.Commit(
+                            target,
+                            preview);
 
                     Assert.Equal(
                         preview.CurrentAfter,
-                        state.Current);
+                        target.State.Current);
 
                     Assert.Equal(
                         preview.Maximum,
-                        state.Maximum);
+                        target.State.Maximum);
 
                     Assert.Equal(
                         1UL,
-                        state.Revision);
+                        target.State.Revision);
 
                     Assert.Equal(
                         preview.Result,
@@ -131,54 +159,79 @@ public sealed class ResourceOperationsInvariantTests
     [Fact]
     public void RepresentativeRecoveryOperations_PreserveAllInvariants()
     {
+        var registry =
+            ResourceRegistryCompiler.Compile(
+            [
+                new ResourceDefinition(
+                ResourceKey.Parse(
+                    "resource.life"),
+                ResourceRole.DamageTarget)
+            ]);
+
+        var lifeId =
+            registry.GetId(
+                ResourceKey.Parse(
+                    "resource.life"));
+
         var currentValues = new[]
         {
-            0d,
-            1d,
-            25d,
-            50d,
-            100d
-        };
+        0d,
+        1d,
+        25d,
+        50d,
+        100d
+    };
 
         var requestedValues = new[]
         {
-            0d,
-            1d,
-            10d,
-            50d,
-            100d,
-            200d
-        };
+        0d,
+        1d,
+        10d,
+        50d,
+        100d,
+        200d
+    };
 
         foreach (var current in currentValues)
         {
             foreach (var requested in requestedValues)
             {
-                var state =
-                    new ResourceState(
-                        new ResourceId(1),
-                        current,
-                        maximum: 100d);
+                var entity =
+                    new EntityRuntimeState(
+                        new EntityId(1UL),
+                        registry,
+                        [
+                            new ResourceState(
+                            lifeId,
+                            current,
+                            maximum: 100d)
+                        ]);
+
+                var target =
+                    new ResourceStateTarget(
+                        entity,
+                        lifeId);
 
                 var request =
                     new ResourceRecoveryRequest(
-                        state.Id,
-                        requested, new ResourceOperationProvenance(
-        ResourceOperationCause.DamageDerived));
+                        lifeId,
+                        requested,
+                        new ResourceOperationProvenance(
+                            ResourceOperationCause.DamageDerived));
 
                 var preview =
                     ResourceRecoveryOperations.Preview(
-                        state,
+                        target.State,
                         request);
 
                 // Preview must not mutate state.
                 Assert.Equal(
                     current,
-                    state.Current);
+                    target.State.Current);
 
                 Assert.Equal(
                     0UL,
-                    state.Revision);
+                    target.State.Revision);
 
                 // Original request is preserved.
                 Assert.Equal(
@@ -215,21 +268,20 @@ public sealed class ResourceOperationsInvariantTests
 
                 var entry =
                     ResourceRecoveryOperations.Commit(
-                        new EntityId(1UL),
-                        state,
+                        target,
                         preview);
 
                 Assert.Equal(
                     preview.CurrentAfter,
-                    state.Current);
+                    target.State.Current);
 
                 Assert.Equal(
                     preview.Maximum,
-                    state.Maximum);
+                    target.State.Maximum);
 
                 Assert.Equal(
                     1UL,
-                    state.Revision);
+                    target.State.Revision);
 
                 Assert.Equal(
                     preview.Result,
@@ -241,129 +293,202 @@ public sealed class ResourceOperationsInvariantTests
     [Fact]
     public void CommitMakesEveryOlderPreviewStaleRegardlessOfOperationType()
     {
-        var state =
-            new ResourceState(
-                new ResourceId(1),
-                current: 50d,
-                maximum: 100d);
+        var registry =
+            ResourceRegistryCompiler.Compile(
+            [
+                new ResourceDefinition(
+                ResourceKey.Parse(
+                    "resource.life"),
+                ResourceRole.DamageTarget)
+            ]);
+
+        var lifeId =
+            registry.GetId(
+                ResourceKey.Parse(
+                    "resource.life"));
+
+        var entity =
+            new EntityRuntimeState(
+                new EntityId(1UL),
+                registry,
+                [
+                    new ResourceState(
+                    lifeId,
+                    current: 50d,
+                    maximum: 100d)
+                ]);
+
+        var target =
+            new ResourceStateTarget(
+                entity,
+                lifeId);
 
         var lossPreview =
             ResourceLossOperations.Preview(
-                state,
+                target.State,
                 new ResourceLossRequest(
-                    state.Id,
-                    amount: 20d, new ResourceOperationProvenance(
-        ResourceOperationCause.DamageDerived)));
+                    lifeId,
+                    amount: 20d,
+                    new ResourceOperationProvenance(
+                        ResourceOperationCause.DamageDerived)));
 
         var recoveryPreview =
             ResourceRecoveryOperations.Preview(
-                state,
+                target.State,
                 new ResourceRecoveryRequest(
-                    state.Id,
-                    amount: 20d, new ResourceOperationProvenance(
-        ResourceOperationCause.DamageDerived)));
+                    lifeId,
+                    amount: 20d,
+                    new ResourceOperationProvenance(
+                        ResourceOperationCause.DamageDerived)));
 
         ResourceRecoveryOperations.Commit(
-            new EntityId(1UL),
-            state,
+            target,
             recoveryPreview);
 
         Assert.Equal(
             70d,
-            state.Current);
+            target.State.Current);
 
         Assert.Equal(
             1UL,
-            state.Revision);
+            target.State.Revision);
 
         Assert.Throws<InvalidOperationException>(
             () =>
                 ResourceLossOperations.Commit(
-                    new EntityId(1UL),
-                    state,
+                    target,
                     lossPreview));
 
         Assert.Equal(
             70d,
-            state.Current);
+            target.State.Current);
 
         Assert.Equal(
             1UL,
-            state.Revision);
+            target.State.Revision);
     }
 
     [Fact]
     public void SequentialOperations_RequireFreshPreview()
     {
-        var state =
-            new ResourceState(
-                new ResourceId(1),
-                current: 100d,
-                maximum: 100d);
+        var registry =
+            ResourceRegistryCompiler.Compile(
+            [
+                new ResourceDefinition(
+                ResourceKey.Parse(
+                    "resource.life"),
+                ResourceRole.DamageTarget)
+            ]);
+
+        var lifeId =
+            registry.GetId(
+                ResourceKey.Parse(
+                    "resource.life"));
+
+        var entity =
+            new EntityRuntimeState(
+                new EntityId(1UL),
+                registry,
+                [
+                    new ResourceState(
+                    lifeId,
+                    current: 100d,
+                    maximum: 100d)
+                ]);
+
+        var target =
+            new ResourceStateTarget(
+                entity,
+                lifeId);
 
         var first =
             ResourceLossOperations.Preview(
-                state,
+                target.State,
                 new ResourceLossRequest(
-                    state.Id,
-                    amount: 30d, new ResourceOperationProvenance(
-        ResourceOperationCause.DamageDerived)));
+                    lifeId,
+                    amount: 30d,
+                    new ResourceOperationProvenance(
+                        ResourceOperationCause.DamageDerived)));
 
         ResourceLossOperations.Commit(
-            new EntityId(1UL),
-            state,
+            target,
             first);
 
         var second =
             ResourceLossOperations.Preview(
-                state,
+                target.State,
                 new ResourceLossRequest(
-                    state.Id,
-                    amount: 20d, new ResourceOperationProvenance(
-        ResourceOperationCause.DamageDerived)));
+                    lifeId,
+                    amount: 20d,
+                    new ResourceOperationProvenance(
+                        ResourceOperationCause.DamageDerived)));
 
         ResourceLossOperations.Commit(
-            new EntityId(1UL),
-            state,
+            target,
             second);
 
         Assert.Equal(
             50d,
-            state.Current);
+            target.State.Current);
 
         Assert.Equal(
             2UL,
-            state.Revision);
+            target.State.Revision);
     }
 
     [Fact]
     public void ZeroAmountCommit_IsStillAnExplicitStateCommit()
     {
-        var state =
-            new ResourceState(
-                new ResourceId(1),
-                current: 50d,
-                maximum: 100d);
+        var registry =
+            ResourceRegistryCompiler.Compile(
+            [
+                new ResourceDefinition(
+                ResourceKey.Parse(
+                    "resource.life"),
+                ResourceRole.DamageTarget)
+            ]);
+
+        var lifeId =
+            registry.GetId(
+                ResourceKey.Parse(
+                    "resource.life"));
+
+        var entity =
+            new EntityRuntimeState(
+                new EntityId(1UL),
+                registry,
+                [
+                    new ResourceState(
+                    lifeId,
+                    current: 50d,
+                    maximum: 100d)
+                ]);
+
+        var target =
+            new ResourceStateTarget(
+                entity,
+                lifeId);
 
         var preview =
             ResourceLossOperations.Preview(
-                state,
+                target.State,
                 new ResourceLossRequest(
-                    state.Id,
-                    amount: 0d, new ResourceOperationProvenance(
-        ResourceOperationCause.DamageDerived)));
+                    lifeId,
+                    amount: 0d,
+                    new ResourceOperationProvenance(
+                        ResourceOperationCause.DamageDerived)));
 
         ResourceLossOperations.Commit(
-            new EntityId(1UL),
-            state,
+            target,
             preview);
 
         Assert.Equal(
             50d,
-            state.Current);
+            target.State.Current);
 
         Assert.Equal(
             1UL,
-            state.Revision);
+            target.State.Revision);
     }
+
 }
