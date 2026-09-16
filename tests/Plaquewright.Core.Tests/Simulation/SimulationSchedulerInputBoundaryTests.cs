@@ -29,7 +29,7 @@ public sealed class SimulationSchedulerInputBoundaryTests
     }
 
     [Fact]
-    public void ExternalInput_IsAdmittedThroughRunnerWithFixedSchedulerPlacement()
+    public void ExternalInput_IsAdmittedThroughRunnerWithoutCallerPhaseSelection()
     {
         var scheduler =
             CreateScheduler();
@@ -44,12 +44,12 @@ public sealed class SimulationSchedulerInputBoundaryTests
                 "input");
 
         Assert.Equal(
-            SchedulerWave.Initial,
-            key.Wave);
+    new SimulationTime(100L),
+    key.Time);
 
         Assert.Equal(
-            SchedulerPhase.Execution,
-            key.Phase);
+            SchedulerWave.Initial,
+            key.Wave);
 
         string? executedPayload = null;
 

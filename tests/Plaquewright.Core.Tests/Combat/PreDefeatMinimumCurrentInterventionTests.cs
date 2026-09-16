@@ -523,7 +523,7 @@ public sealed class PreDefeatMinimumCurrentInterventionTests
     }
 
     [Fact]
-    public void MinimumCurrentIntervention_CommitsRemainAtOneThroughDefeatAwareLifecycle()
+    public void MinimumCurrentIntervention_CommitsRecoveryBasedMinimumThroughDefeatAwareLifecycle()
     {
         var setup =
             CreateSetup();
