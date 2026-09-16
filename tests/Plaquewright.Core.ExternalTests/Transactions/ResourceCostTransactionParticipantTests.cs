@@ -92,6 +92,64 @@ public sealed class ResourceCostTransactionParticipantTests
             setup.Ledger.Count);
     }
 
+    [Fact]
+    public void TryPrepare_DoesNotPublishAndReturnsNoPublicPublicationCapability()
+    {
+        var setup =
+            CreateSetup(
+                currentGold: 150d);
+
+        var participant =
+            new ResourceCostTransactionParticipant(
+                setup.GoldTarget,
+                new ResourceCostRequest(
+                    setup.GoldId,
+                    100d,
+                    new ResourceOperationProvenance(
+                        ResourceOperationCause.Direct)),
+                setup.Ledger);
+
+        var accepted =
+            participant.TryPrepare(
+                out var preparedChange);
+
+        Assert.True(
+            accepted);
+
+        Assert.NotNull(
+            preparedChange);
+
+        // Preparation itself must not make gameplay state visible.
+        Assert.Equal(
+            150d,
+            setup.GoldTarget.State.Current);
+
+        Assert.Equal(
+            0UL,
+            setup.GoldTarget.State.Revision);
+
+        Assert.Equal(
+            0,
+            setup.Ledger.Count);
+
+        var publicPublicationMethods =
+            preparedChange
+                .GetType()
+                .GetMethods(
+                    System.Reflection.BindingFlags.Instance |
+                    System.Reflection.BindingFlags.Public)
+                .Where(
+                    method =>
+                        method.Name is
+                            "Apply" or
+                            "Commit" or
+                            "Publish")
+                .ToArray();
+
+        Assert.Empty(
+            publicPublicationMethods);
+    }
+
     private static TestSetup CreateSetup(
         double currentGold)
     {
