@@ -29,13 +29,6 @@ public readonly record struct PostTakenScalingDamage
                 amount);
     }
 
-    internal DamageTaken AdvanceToDamageTaken(
-        double resolvedAmount)
-    {
-        return new DamageTaken(
-            resolvedAmount);
-    }
-
     public override string ToString()
     {
         return Amount.ToString();

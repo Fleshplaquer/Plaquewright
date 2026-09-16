@@ -146,7 +146,7 @@ public sealed class DamageResourceTargetContextTests
                 relatedHitExecutionId: null);
 
         var quantities =
-            DamageResolutionQuantities.Create(
+            DamageResolutionTestFactory.Create(
                 new IncomingDamage(100d),
                 postMitigationAmount: 90d,
                 postTakenScalingAmount: 80d,

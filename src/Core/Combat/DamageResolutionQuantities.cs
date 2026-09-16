@@ -57,29 +57,4 @@ public sealed class DamageResolutionQuantities
             postTakenScaling,
             taken);
     }
-
-    internal static DamageResolutionQuantities Create(
-        IncomingDamage incoming,
-        double postMitigationAmount,
-        double postTakenScalingAmount,
-        double damageTakenAmount)
-    {
-        var postMitigation =
-            incoming.AdvanceToPostMitigation(
-                postMitigationAmount);
-
-        var postTakenScaling =
-            postMitigation.AdvanceToPostTakenScaling(
-                postTakenScalingAmount);
-
-        var taken =
-            postTakenScaling.AdvanceToDamageTaken(
-                damageTakenAmount);
-
-        return new DamageResolutionQuantities(
-            incoming,
-            postMitigation,
-            postTakenScaling,
-            taken);
-    }
 }

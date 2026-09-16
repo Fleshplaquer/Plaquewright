@@ -1,4 +1,5 @@
 using Plaquewright.Core.Combat;
+using Plaquewright.Core.Tests.Combat;
 using Plaquewright.Core.Entities;
 using Plaquewright.Core.Simulation;
 
@@ -158,8 +159,9 @@ public sealed class DamageResolutionContextTests
                 new EntityId(40UL),
                 relatedHitExecutionId: null);
 
+
         var quantities =
-            DamageResolutionQuantities.Create(
+            DamageResolutionTestFactory.Create(
                 new IncomingDamage(100d),
                 postMitigationAmount: 80d,
                 postTakenScalingAmount: 70d,

@@ -406,10 +406,10 @@ public sealed class DamageResourceRoutingInvariantTests
                 relatedHitExecutionId: null);
 
         var quantities =
-            DamageResolutionQuantities.Create(
+            DamageResolutionTestFactory.Create(
                 new IncomingDamage(100d),
                 postMitigationAmount: 90d,
-                postTakenScalingAmount: 80d,
+                postTakenScalingAmount: damageTakenAmount,
                 damageTakenAmount: damageTakenAmount);
 
         return new DamageResolutionContext(

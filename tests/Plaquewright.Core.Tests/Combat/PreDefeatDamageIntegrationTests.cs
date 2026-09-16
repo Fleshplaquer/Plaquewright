@@ -551,7 +551,7 @@ public sealed class PreDefeatDamageIntegrationTests
                 relatedHitExecutionId: null);
 
         var quantities =
-            DamageResolutionQuantities.Create(
+            DamageResolutionTestFactory.Create(
                 new IncomingDamage(
                     damageTakenAmount),
                 postMitigationAmount:

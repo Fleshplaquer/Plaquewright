@@ -1,4 +1,5 @@
 using Plaquewright.Core.Combat;
+using Plaquewright.Core.Tests.Combat;
 using Plaquewright.Core.Entities;
 using Plaquewright.Core.Resources;
 using Plaquewright.Core.Simulation;
@@ -283,7 +284,7 @@ public sealed class SimulationRuntimeOwnershipTests
             localTarget.TargetEntityId);
 
         var quantities =
-            DamageResolutionQuantities.Create(
+            DamageResolutionTestFactory.Create(
                 new IncomingDamage(10d),
                 postMitigationAmount: 10d,
                 postTakenScalingAmount: 10d,
@@ -342,7 +343,7 @@ public sealed class SimulationRuntimeOwnershipTests
                 relatedHitExecutionId: null);
 
         var quantities =
-            DamageResolutionQuantities.Create(
+            DamageResolutionTestFactory.Create(
                 new IncomingDamage(10d),
                 postMitigationAmount: 10d,
                 postTakenScalingAmount: 10d,

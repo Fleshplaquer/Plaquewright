@@ -1,4 +1,5 @@
 using Plaquewright.Core.Combat;
+using Plaquewright.Core.Tests.Combat;
 using Plaquewright.Core.Entities;
 using Plaquewright.Core.Resources;
 using Plaquewright.Core.Simulation;
@@ -43,7 +44,7 @@ public sealed class SimulationRuntimeDamageResolutionTests
                 hit);
 
         var quantities =
-            DamageResolutionQuantities.Create(
+            DamageResolutionTestFactory.Create(
                 new IncomingDamage(100d),
                 postMitigationAmount: 80d,
                 postTakenScalingAmount: 70d,
@@ -122,14 +123,14 @@ public sealed class SimulationRuntimeDamageResolutionTests
                 secondTarget.Id);
 
         var firstQuantities =
-            DamageResolutionQuantities.Create(
+            DamageResolutionTestFactory.Create(
                 new IncomingDamage(100d),
                 postMitigationAmount: 80d,
                 postTakenScalingAmount: 70d,
                 damageTakenAmount: 60d);
 
         var secondQuantities =
-            DamageResolutionQuantities.Create(
+            DamageResolutionTestFactory.Create(
                 new IncomingDamage(100d),
                 postMitigationAmount: 50d,
                 postTakenScalingAmount: 40d,
@@ -199,7 +200,7 @@ public sealed class SimulationRuntimeDamageResolutionTests
                 target.Id);
 
         var quantities =
-            DamageResolutionQuantities.Create(
+            DamageResolutionTestFactory.Create(
                 new IncomingDamage(100d),
                 postMitigationAmount: 80d,
                 postTakenScalingAmount: 70d,
