@@ -70,6 +70,13 @@ public sealed class DamageResourceTransactionStagerTests
             ResourceOperationCause.DamageDerived,
             operation.Provenance.Cause);
 
+        Assert.True(
+operation.Provenance.HasGameplayExecution);
+
+        Assert.Equal(
+            setup.Context.Resolution.GameplayExecutionId,
+            operation.Provenance.GameplayExecutionId.GetValueOrDefault());
+
         // Staging remains projected only.
         Assert.Equal(
             100d,
@@ -314,6 +321,13 @@ public sealed class DamageResourceTransactionStagerTests
         Assert.Equal(
             ResourceOperationCause.DamageDerived,
             entry.Provenance.Cause);
+
+        Assert.True(
+entry.Provenance.HasGameplayExecution);
+
+        Assert.Equal(
+            setup.Context.Resolution.GameplayExecutionId,
+            entry.Provenance.GameplayExecutionId.GetValueOrDefault());
     }
 
     [Fact]

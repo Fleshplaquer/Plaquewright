@@ -50,6 +50,12 @@ public sealed class DamageResourceLossPlanTests
         Assert.Equal(
             ResourceOperationCause.DamageDerived,
             plan.Request.Provenance.Cause);
+        Assert.True(
+plan.Request.Provenance.HasGameplayExecution);
+
+        Assert.Equal(
+            context.Resolution.GameplayExecutionId,
+            plan.Request.Provenance.GameplayExecutionId.GetValueOrDefault());
     }
 
     [Fact]

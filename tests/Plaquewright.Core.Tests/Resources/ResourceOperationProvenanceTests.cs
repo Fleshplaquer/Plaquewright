@@ -1,4 +1,5 @@
 using Plaquewright.Core.Resources;
+using Plaquewright.Core.Simulation;
 
 namespace Plaquewright.Core.Tests.Resources;
 
@@ -15,7 +16,7 @@ public sealed class ResourceOperationProvenanceTests
     [InlineData(ResourceOperationCause.Transfer)]
     [InlineData(ResourceOperationCause.ProtectionFinancing)]
     public void Constructor_WithKnownCause_IsValid(
-        ResourceOperationCause cause)
+    ResourceOperationCause cause)
     {
         var provenance =
             new ResourceOperationProvenance(
@@ -27,6 +28,62 @@ public sealed class ResourceOperationProvenanceTests
         Assert.Equal(
             cause,
             provenance.Cause);
+
+        Assert.False(
+            provenance.HasGameplayExecution);
+
+        Assert.Null(
+            provenance.GameplayExecutionId);
+    }
+
+    [Fact]
+    public void Constructor_WithGameplayExecutionId_PreservesCausalExecution()
+    {
+        var gameplayExecutionId =
+            new ExecutionId(42UL);
+
+        var provenance =
+            new ResourceOperationProvenance(
+                ResourceOperationCause.DamageDerived,
+                gameplayExecutionId);
+
+        Assert.True(
+            provenance.IsValid);
+
+        Assert.True(
+            provenance.HasGameplayExecution);
+
+        Assert.Equal(
+            gameplayExecutionId,
+            provenance.GameplayExecutionId.GetValueOrDefault());
+    }
+
+    [Fact]
+    public void Constructor_WithInvalidGameplayExecutionId_Throws()
+    {
+        Assert.Throws<ArgumentException>(
+            () =>
+                new ResourceOperationProvenance(
+                    ResourceOperationCause.DamageDerived,
+                    default));
+    }
+
+    [Fact]
+    public void SameCause_WithDifferentGameplayExecutions_ProducesDifferentProvenance()
+    {
+        var first =
+            new ResourceOperationProvenance(
+                ResourceOperationCause.DamageDerived,
+                new ExecutionId(1UL));
+
+        var second =
+            new ResourceOperationProvenance(
+                ResourceOperationCause.DamageDerived,
+                new ExecutionId(2UL));
+
+        Assert.NotEqual(
+            first,
+            second);
     }
 
     [Fact]

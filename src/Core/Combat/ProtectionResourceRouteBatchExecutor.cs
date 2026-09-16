@@ -112,7 +112,8 @@ internal static class ProtectionResourceRouteBatchExecutor
 
             var financingPlan =
                 binding.CreateFinancingPlan(
-                    lane);
+                    lane,
+                    state.GameplayExecutionId);
 
             financingPlans[index] =
                 financingPlan;

@@ -26,4 +26,23 @@ internal static class ProtectionAssignmentRoutingStarter
             assignmentResolution,
             damageTarget);
     }
+    public static ProtectionAssignmentRoutingState Start(
+    ProtectionAssignmentResolution assignmentResolution,
+    DamageExecutionContext damageExecution,
+    DamageTargetContext damageTarget)
+    {
+        ArgumentNullException.ThrowIfNull(
+            assignmentResolution);
+
+        ArgumentNullException.ThrowIfNull(
+            damageExecution);
+
+        ArgumentNullException.ThrowIfNull(
+            damageTarget);
+
+        return ProtectionAssignmentRoutingState.Start(
+            assignmentResolution,
+            damageExecution,
+            damageTarget);
+    }
 }

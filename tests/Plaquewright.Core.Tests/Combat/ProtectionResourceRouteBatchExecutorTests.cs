@@ -1,6 +1,7 @@
 using Plaquewright.Core.Combat;
 using Plaquewright.Core.Entities;
 using Plaquewright.Core.Resources;
+using Plaquewright.Core.Simulation;
 
 namespace Plaquewright.Core.Tests.Combat;
 
@@ -479,9 +480,27 @@ public sealed class ProtectionResourceRouteBatchExecutorTests
                     requestedFraction: 0.2d)
                 ]);
 
+        var gameplayExecutionId =
+    new ExecutionId(17UL);
+
+        var damageExecution =
+            new DamageExecutionContext(
+                new DamageExecutionId(23UL),
+                gameplayExecutionId,
+                new EntityId(2UL),
+                new SimulationTime(100L));
+
+        var damageTarget =
+            new DamageTargetContext(
+                damageExecution.Id,
+                entity.Id,
+                relatedHitExecutionId: null);
+
         var state =
             ProtectionAssignmentRoutingStarter.Start(
-                resolution);
+                resolution,
+                damageExecution,
+                damageTarget);
 
         var draft =
             new ResourceTransactionDraft(
@@ -612,6 +631,26 @@ public sealed class ProtectionResourceRouteBatchExecutorTests
             4,
             draft.OperationCount);
 
+        Assert.True(
+state.HasGameplayExecution);
+
+        Assert.Equal(
+            gameplayExecutionId,
+            state.GameplayExecutionId.GetValueOrDefault());
+
+        Assert.All(
+            draft.Operations,
+            operation =>
+            {
+                Assert.True(
+                    operation.Provenance.HasGameplayExecution);
+
+                Assert.Equal(
+                    gameplayExecutionId,
+                    operation.Provenance.GameplayExecutionId
+                        .GetValueOrDefault());
+            });
+
         Assert.Equal(
             0d,
             draft.GetProjectedValues(
@@ -652,9 +691,27 @@ public sealed class ProtectionResourceRouteBatchExecutorTests
                     requestedFraction: 0.2d)
                 ]);
 
+        var gameplayExecutionId =
+    new ExecutionId(41UL);
+
+        var damageExecution =
+            new DamageExecutionContext(
+                new DamageExecutionId(47UL),
+                gameplayExecutionId,
+                new EntityId(2UL),
+                new SimulationTime(100L));
+
+        var damageTarget =
+            new DamageTargetContext(
+                damageExecution.Id,
+                setup.ManaTarget.EntityId,
+                relatedHitExecutionId: null);
+
         var state =
             ProtectionAssignmentRoutingStarter.Start(
-                resolution);
+                resolution,
+                damageExecution,
+                damageTarget);
 
         var draft =
             new ResourceTransactionDraft(
@@ -722,6 +779,22 @@ public sealed class ProtectionResourceRouteBatchExecutorTests
         Assert.Equal(
             ResourceOperationCause.ProtectionFinancing,
             secondEntry.Provenance.Cause);
+
+        Assert.True(
+            firstEntry.Provenance.HasGameplayExecution);
+
+        Assert.True(
+            secondEntry.Provenance.HasGameplayExecution);
+
+        Assert.Equal(
+            gameplayExecutionId,
+            firstEntry.Provenance.GameplayExecutionId
+                .GetValueOrDefault());
+
+        Assert.Equal(
+            gameplayExecutionId,
+            secondEntry.Provenance.GameplayExecutionId
+                .GetValueOrDefault());
 
         Assert.Equal(
             21d,

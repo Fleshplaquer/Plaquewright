@@ -49,7 +49,8 @@ internal static class ProtectionResourceRouteExecutor
 
         var financingPlan =
             binding.CreateFinancingPlan(
-                lane);
+                lane,
+                state.GameplayExecutionId);
 
         var financingResult =
             ProtectionResourceTransactionStager.Stage(

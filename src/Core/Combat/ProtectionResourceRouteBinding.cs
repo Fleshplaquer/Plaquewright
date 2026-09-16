@@ -1,5 +1,6 @@
 using Plaquewright.Core.Entities;
 using Plaquewright.Core.Resources;
+using Plaquewright.Core.Simulation;
 
 namespace Plaquewright.Core.Combat;
 
@@ -62,7 +63,8 @@ public sealed class ProtectionResourceRouteBinding
     }
 
     internal ResourceBackedProtectionFinancingPlan CreateFinancingPlan(
-        ProtectionAssignmentLaneState lane)
+    ProtectionAssignmentLaneState lane,
+    ExecutionId? gameplayExecutionId = null)
     {
         ArgumentNullException.ThrowIfNull(
             lane);
@@ -90,8 +92,9 @@ public sealed class ProtectionResourceRouteBinding
                 ShortfallPolicy);
 
         return new ResourceBackedProtectionFinancingPlan(
-            financing,
-            ResourceTarget);
+    financing,
+    ResourceTarget,
+    gameplayExecutionId);
     }
 
     private static void ValidateResourceUnitsPerDamage(

@@ -1,5 +1,7 @@
 namespace Plaquewright.Core.Combat;
 
+using Plaquewright.Core.Simulation;
+
 using Plaquewright.Core.Resources;
 
 public sealed class ProtectionAssignmentRoutingState
@@ -9,6 +11,10 @@ public sealed class ProtectionAssignmentRoutingState
     _lifetime;
 
     public ProtectionAssignmentResolution AssignmentResolution { get; }
+    public ExecutionId? GameplayExecutionId { get; }
+
+    public bool HasGameplayExecution =>
+        GameplayExecutionId.HasValue;
 
     public HitExecutionId? RelatedHitExecutionId { get; }
 
@@ -99,10 +105,11 @@ public sealed class ProtectionAssignmentRoutingState
     }
 
     private ProtectionAssignmentRoutingState(
-     ProtectionAssignmentResolution assignmentResolution,
-     ProtectionAssignmentLaneState[] lanes,
-     HitExecutionId? relatedHitExecutionId,
-     ProtectionAssignmentRoutingLifetime lifetime)
+    ProtectionAssignmentResolution assignmentResolution,
+    ProtectionAssignmentLaneState[] lanes,
+    ExecutionId? gameplayExecutionId,
+    HitExecutionId? relatedHitExecutionId,
+    ProtectionAssignmentRoutingLifetime lifetime)
     {
         ArgumentNullException.ThrowIfNull(
             assignmentResolution);
@@ -112,6 +119,13 @@ public sealed class ProtectionAssignmentRoutingState
 
         ArgumentNullException.ThrowIfNull(
 lifetime);
+        if (gameplayExecutionId.HasValue &&
+            !gameplayExecutionId.Value.IsValid)
+        {
+            throw new ArgumentException(
+                "Gameplay execution ID must be valid when provided.",
+                nameof(gameplayExecutionId));
+        }
 
         if (relatedHitExecutionId.HasValue &&
             relatedHitExecutionId.Value == default)
@@ -123,7 +137,8 @@ lifetime);
 
         AssignmentResolution =
             assignmentResolution;
-
+        GameplayExecutionId =
+            gameplayExecutionId;
         RelatedHitExecutionId =
             relatedHitExecutionId;
 
@@ -145,6 +160,7 @@ lifetime;
 
         return StartCore(
             assignmentResolution,
+            gameplayExecutionId: null,
             relatedHitExecutionId: null);
     }
 
@@ -176,7 +192,43 @@ lifetime;
 
         return StartCore(
             assignmentResolution,
+            gameplayExecutionId: null,
             hitExecutionId);
+    }
+
+    internal static ProtectionAssignmentRoutingState Start(
+    ProtectionAssignmentResolution assignmentResolution,
+    DamageExecutionContext damageExecution,
+    DamageTargetContext damageTarget)
+    {
+        ArgumentNullException.ThrowIfNull(
+            assignmentResolution);
+
+        ArgumentNullException.ThrowIfNull(
+            damageExecution);
+
+        ArgumentNullException.ThrowIfNull(
+            damageTarget);
+
+        if (damageExecution.Id !=
+            damageTarget.DamageExecutionId)
+        {
+            throw new InvalidOperationException(
+                "Damage execution and damage target belong to different damage executions.");
+        }
+
+        if (!ReferenceEquals(
+                damageExecution.RuntimeIdentity,
+                damageTarget.RuntimeIdentity))
+        {
+            throw new InvalidOperationException(
+                "Damage execution and damage target belong to different simulation runtimes.");
+        }
+
+        return StartCore(
+            assignmentResolution,
+            damageExecution.GameplayExecutionId,
+            damageTarget.RelatedHitExecutionId);
     }
 
     internal ProtectionAssignmentRoutingState Apply(
@@ -211,11 +263,12 @@ lifetime;
                 routing);
 
         var updatedState =
-            new ProtectionAssignmentRoutingState(
-                AssignmentResolution,
-                lanes,
-                RelatedHitExecutionId,
-                _lifetime);
+        new ProtectionAssignmentRoutingState(
+            AssignmentResolution,
+            lanes,
+            GameplayExecutionId,
+            RelatedHitExecutionId,
+            _lifetime);
 
         _lifetime.Advance(
             this,
@@ -251,6 +304,7 @@ lifetime;
             new ProtectionAssignmentRoutingState(
                 AssignmentResolution,
                 lanes,
+                GameplayExecutionId,
                 RelatedHitExecutionId,
                 _lifetime);
 
@@ -263,6 +317,7 @@ lifetime;
 
     private static ProtectionAssignmentRoutingState StartCore(
         ProtectionAssignmentResolution assignmentResolution,
+        ExecutionId? gameplayExecutionId,
         HitExecutionId? relatedHitExecutionId)
     {
         var lanes =
@@ -285,6 +340,7 @@ lifetime;
             new ProtectionAssignmentRoutingState(
                 assignmentResolution,
                 lanes,
+                gameplayExecutionId,
                 relatedHitExecutionId,
                 lifetime);
 

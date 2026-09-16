@@ -35,11 +35,12 @@ public sealed class DamageResourceLossPlan
             targetContext;
 
         Request =
-            new ResourceLossRequest(
-                targetContext.ResourceTarget.ResourceId,
-                requestedResourceLoss,
-                new ResourceOperationProvenance(
-                    ResourceOperationCause.DamageDerived));
+    new ResourceLossRequest(
+        targetContext.ResourceTarget.ResourceId,
+        requestedResourceLoss,
+        new ResourceOperationProvenance(
+            ResourceOperationCause.DamageDerived,
+            targetContext.Resolution.GameplayExecutionId));
     }
 
     private static void ValidateRequestedResourceLoss(
