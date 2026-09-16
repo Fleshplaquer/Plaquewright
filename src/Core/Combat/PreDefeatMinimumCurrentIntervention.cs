@@ -63,12 +63,19 @@ internal static class PreDefeatMinimumCurrentIntervention
 
         if (requestedRecovery > 0d)
         {
+            var provenance =
+                context.GameplayExecutionId.HasValue
+                    ? new ResourceOperationProvenance(
+                        ResourceOperationCause.Recovery,
+                        context.GameplayExecutionId.Value)
+                    : new ResourceOperationProvenance(
+                        ResourceOperationCause.Recovery);
+
             var request =
                 new ResourceRecoveryRequest(
                     resourceTarget.ResourceId,
                     requestedRecovery,
-                    new ResourceOperationProvenance(
-                        ResourceOperationCause.Recovery));
+                    provenance);
 
             context.Draft.StageRecovery(
                 resourceTarget,

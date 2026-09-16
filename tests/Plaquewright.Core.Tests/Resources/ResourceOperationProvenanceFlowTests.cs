@@ -1,4 +1,5 @@
 using Plaquewright.Core.Entities;
+using Plaquewright.Core.Simulation;
 using Plaquewright.Core.Resources;
 
 namespace Plaquewright.Core.Tests.Resources;
@@ -40,6 +41,154 @@ public sealed class ResourceOperationProvenanceFlowTests
         Assert.Equal(
             ResourceOperationCause.DamageDerived,
             preview.Request.Provenance.Cause);
+    }
+
+    [Fact]
+    public void TransactionDraftAndLedger_PreservePerOperationGameplayExecutions()
+    {
+        var registry =
+            ResourceRegistryCompiler.Compile(
+            [
+                new ResourceDefinition(
+                ResourceKey.Parse(
+                    "resource.life"),
+                ResourceRole.DamageTarget),
+
+            new ResourceDefinition(
+                ResourceKey.Parse(
+                    "resource.mana"),
+                ResourceRole.CostSource)
+            ]);
+
+        var lifeId =
+            registry.GetId(
+                ResourceKey.Parse(
+                    "resource.life"));
+
+        var manaId =
+            registry.GetId(
+                ResourceKey.Parse(
+                    "resource.mana"));
+
+        var entity =
+            new EntityRuntimeState(
+                new EntityId(1UL),
+                registry,
+                [
+                    new ResourceState(
+                    lifeId,
+                    current: 100d,
+                    maximum: 100d),
+
+                new ResourceState(
+                    manaId,
+                    current: 100d,
+                    maximum: 100d)
+                ]);
+
+        var lifeTarget =
+            new ResourceStateTarget(
+                entity,
+                lifeId);
+
+        var manaTarget =
+            new ResourceStateTarget(
+                entity,
+                manaId);
+
+        var lossExecutionId =
+            new ExecutionId(11UL);
+
+        var costExecutionId =
+            new ExecutionId(12UL);
+
+        var recoveryExecutionId =
+            new ExecutionId(13UL);
+
+        var draft =
+            new ResourceTransactionDraft(
+                registry);
+
+        draft.StageLoss(
+            lifeTarget,
+            new ResourceLossRequest(
+                lifeId,
+                amount: 30d,
+                new ResourceOperationProvenance(
+                    ResourceOperationCause.DamageDerived,
+                    lossExecutionId)));
+
+        draft.StageCost(
+            manaTarget,
+            new ResourceCostRequest(
+                manaId,
+                amount: 20d,
+                new ResourceOperationProvenance(
+                    ResourceOperationCause.SkillCost,
+                    costExecutionId)));
+
+        draft.StageRecovery(
+            lifeTarget,
+            new ResourceRecoveryRequest(
+                lifeId,
+                amount: 10d,
+                new ResourceOperationProvenance(
+                    ResourceOperationCause.Recovery,
+                    recoveryExecutionId)));
+
+        Assert.Equal(
+            3,
+            draft.OperationCount);
+
+        Assert.Equal(
+            lossExecutionId,
+            draft.Operations[0].Provenance.GameplayExecutionId
+                .GetValueOrDefault());
+
+        Assert.Equal(
+            costExecutionId,
+            draft.Operations[1].Provenance.GameplayExecutionId
+                .GetValueOrDefault());
+
+        Assert.Equal(
+            recoveryExecutionId,
+            draft.Operations[2].Provenance.GameplayExecutionId
+                .GetValueOrDefault());
+
+        var ledger =
+            new ResourceOperationLedger();
+
+        ResourceTransactionCommitter.Commit(
+            draft,
+            ledger);
+
+        Assert.Equal(
+            3,
+            ledger.Count);
+
+        Assert.IsType<ResourceLossLedgerEntry>(
+            ledger.Entries[0]);
+
+        Assert.IsType<ResourceCostLedgerEntry>(
+            ledger.Entries[1]);
+
+        Assert.IsType<ResourceRecoveryLedgerEntry>(
+            ledger.Entries[2]);
+
+        Assert.Equal(
+            lossExecutionId,
+            ledger.Entries[0].Provenance.GameplayExecutionId
+                .GetValueOrDefault());
+
+        Assert.Equal(
+            costExecutionId,
+            ledger.Entries[1].Provenance.GameplayExecutionId
+                .GetValueOrDefault());
+
+        Assert.Equal(
+            recoveryExecutionId,
+            ledger.Entries[2].Provenance.GameplayExecutionId
+                .GetValueOrDefault());
     }
 
     [Fact]

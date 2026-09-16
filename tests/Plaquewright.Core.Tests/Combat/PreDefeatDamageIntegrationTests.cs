@@ -533,6 +533,211 @@ public sealed class PreDefeatDamageIntegrationTests
             setup.LifeTarget.State.Current);
     }
 
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public void LethalDamage_WithExplicitInterventionExecution_PreservesBothLedgerLinks(
+        bool useMinimumCurrent,
+        bool useSeparateExecution)
+    {
+        var setup =
+            CreateSetup();
+
+        var resolution =
+            CreateDamageResolution(
+                setup.Entity.Id,
+                damageTakenAmount: 100d);
+
+        var lossPlan =
+            new DamageResourceLossPlan(
+                new DamageResourceTargetContext(
+                    resolution,
+                    setup.LifeTarget),
+                requestedResourceLoss: 100d);
+
+        var draft =
+            new ResourceTransactionDraft(
+                setup.Registry);
+
+        DamageResourceTransactionStager.Stage(
+            draft,
+            lossPlan);
+
+        // Attribution is chosen by the caller, not inferred from the draft.
+        var interventionExecutionId =
+            useSeparateExecution
+                ? new ExecutionId(2UL)
+                : resolution.GameplayExecutionId;
+
+        var versionBeforeContext =
+            draft.Version;
+
+        var context =
+            PreDefeatInterventionContextFactory.TryCreate(
+                draft,
+                setup.Entity,
+                DefeatRelevantResourcePolicy.AnyDepleted,
+                interventionExecutionId);
+
+        Assert.NotNull(
+            context);
+
+        Assert.True(
+            context.HasGameplayExecution);
+
+        Assert.Equal(
+            interventionExecutionId,
+            context.GameplayExecutionId);
+
+        Assert.Equal(
+            versionBeforeContext,
+            draft.Version);
+
+        var expectedRecovery =
+            useMinimumCurrent
+                ? 1d
+                : 25d;
+
+        if (useMinimumCurrent)
+        {
+            var intervention =
+                PreDefeatMinimumCurrentIntervention.Apply(
+                    context,
+                    setup.LifeId,
+                    minimumCurrent: expectedRecovery);
+
+            Assert.True(
+                intervention.WasDefeatResolved);
+        }
+        else
+        {
+            var intervention =
+                PreDefeatRecoveryIntervention.Apply(
+                    context,
+                    setup.LifeId,
+                    recoveryAmount: expectedRecovery);
+
+            Assert.True(
+                intervention.WasDefeatResolved);
+        }
+
+        var expectedDamageProvenance =
+            new ResourceOperationProvenance(
+                ResourceOperationCause.DamageDerived,
+                resolution.GameplayExecutionId);
+
+        var expectedRecoveryProvenance =
+            new ResourceOperationProvenance(
+                ResourceOperationCause.Recovery,
+                interventionExecutionId);
+
+        Assert.Equal(
+            2,
+            draft.OperationCount);
+
+        Assert.Equal(
+            expectedDamageProvenance,
+            draft.Operations[0].Provenance);
+
+        var stagedRecovery =
+            Assert.IsType<StagedResourceRecoveryOperation>(
+                draft.Operations[1]);
+
+        Assert.Equal(
+            expectedRecoveryProvenance,
+            stagedRecovery.Provenance);
+
+        // Neither the damage nor the intervention is visible before publication.
+        Assert.Equal(
+            100d,
+            setup.LifeTarget.State.Current);
+
+        Assert.Equal(
+            0UL,
+            setup.LifeTarget.State.Revision);
+
+        var phaseResult =
+            PreDefeatInterventionPhaseFinalizer.Finalize(
+                context);
+
+        Assert.Equal(
+            PreDefeatInterventionPhaseOutcome.Resolved,
+            phaseResult.Outcome);
+
+        var ledger =
+            new ResourceOperationLedger();
+
+        var commitResult =
+            DefeatAwareResourceTransactionCommitter.Commit(
+                draft,
+                ledger,
+                setup.Entity,
+                DefeatRelevantResourcePolicy.AnyDepleted,
+                phaseResult);
+
+        Assert.Equal(
+            DefeatAwareResourceTransactionCommitOutcome.DefeatPrevented,
+            commitResult.Outcome);
+
+        Assert.Equal(
+            expectedRecovery,
+            setup.LifeTarget.State.Current);
+
+        Assert.Equal(
+            1UL,
+            setup.LifeTarget.State.Revision);
+
+        Assert.Equal(
+            2,
+            ledger.Count);
+
+        var damageEntry =
+            Assert.IsType<ResourceLossLedgerEntry>(
+                ledger.Entries[0]);
+
+        Assert.Equal(
+            expectedDamageProvenance,
+            damageEntry.Provenance);
+
+        Assert.Equal(
+            setup.Entity.Id,
+            damageEntry.TargetEntityId);
+
+        Assert.Equal(
+            setup.LifeId,
+            damageEntry.ResourceId);
+
+        Assert.Equal(
+            100d,
+            damageEntry.Result.ActualLoss);
+
+        var recoveryEntry =
+            Assert.IsType<ResourceRecoveryLedgerEntry>(
+                ledger.Entries[1]);
+
+        Assert.Equal(
+            expectedRecoveryProvenance,
+            recoveryEntry.Provenance);
+
+        Assert.Equal(
+            setup.Entity.Id,
+            recoveryEntry.TargetEntityId);
+
+        Assert.Equal(
+            setup.LifeId,
+            recoveryEntry.ResourceId);
+
+        Assert.Equal(
+            expectedRecovery,
+            recoveryEntry.Result.RequestedRecovery);
+
+        Assert.Equal(
+            expectedRecovery,
+            recoveryEntry.Result.ActualRecovery);
+    }
+
     private static DamageResolutionContext CreateDamageResolution(
         EntityId targetEntityId,
         double damageTakenAmount)

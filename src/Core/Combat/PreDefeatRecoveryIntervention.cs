@@ -28,12 +28,19 @@ internal static class PreDefeatRecoveryIntervention
                 $"Resource '{definition.Key}' is not defeat-relevant and cannot be used by this pre-defeat recovery intervention.");
         }
 
+        var provenance =
+            context.GameplayExecutionId.HasValue
+                ? new ResourceOperationProvenance(
+                    ResourceOperationCause.Recovery,
+                    context.GameplayExecutionId.Value)
+                : new ResourceOperationProvenance(
+                    ResourceOperationCause.Recovery);
+
         var request =
             new ResourceRecoveryRequest(
                 resourceTarget.ResourceId,
                 recoveryAmount,
-                new ResourceOperationProvenance(
-                    ResourceOperationCause.Recovery));
+                provenance);
 
         var evaluationBefore =
             EvaluateCurrent(
