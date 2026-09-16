@@ -23,7 +23,7 @@ public sealed class DamageResolutionContextTests
                 new HitExecutionId(50UL));
 
         var quantities =
-            DamageResolutionQuantities.Create(
+            DamageResolutionTestFactory.Create(
                 new IncomingDamage(100d),
                 postMitigationAmount: 80d,
                 postTakenScalingAmount: 70d,
@@ -92,7 +92,7 @@ public sealed class DamageResolutionContextTests
                 relatedHitExecutionId: null);
 
         var quantities =
-            DamageResolutionQuantities.Create(
+            DamageResolutionTestFactory.Create(
                 new IncomingDamage(100d),
                 postMitigationAmount: 100d,
                 postTakenScalingAmount: 100d,
@@ -128,7 +128,7 @@ public sealed class DamageResolutionContextTests
                 relatedHitExecutionId: null);
 
         var quantities =
-            DamageResolutionQuantities.Create(
+            DamageResolutionTestFactory.Create(
                 new IncomingDamage(100d),
                 postMitigationAmount: 80d,
                 postTakenScalingAmount: 70d,
