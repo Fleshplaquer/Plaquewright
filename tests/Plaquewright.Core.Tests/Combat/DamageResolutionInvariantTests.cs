@@ -48,7 +48,7 @@ public sealed class DamageResolutionInvariantTests
             runtime.CreateDamageResolutionContext(
                 damageExecution,
                 firstDamageTarget,
-                DamageResolutionQuantities.Create(
+                DamageResolutionTestFactory.Create(
                     new IncomingDamage(100d),
                     postMitigationAmount: 80d,
                     postTakenScalingAmount: 70d,
@@ -58,7 +58,7 @@ public sealed class DamageResolutionInvariantTests
             runtime.CreateDamageResolutionContext(
                 damageExecution,
                 secondDamageTarget,
-                DamageResolutionQuantities.Create(
+                DamageResolutionTestFactory.Create(
                     new IncomingDamage(100d),
                     postMitigationAmount: 50d,
                     postTakenScalingAmount: 40d,
@@ -120,7 +120,7 @@ public sealed class DamageResolutionInvariantTests
             runtime.CreateDamageResolutionContext(
                 damageExecution,
                 damageTarget,
-                DamageResolutionQuantities.Create(
+                DamageResolutionTestFactory.Create(
                     new IncomingDamage(100d),
                     postMitigationAmount: 90d,
                     postTakenScalingAmount: 80d,
@@ -175,7 +175,7 @@ public sealed class DamageResolutionInvariantTests
             runtime.CreateDamageResolutionContext(
                 damageExecution,
                 damageTarget,
-                DamageResolutionQuantities.Create(
+                DamageResolutionTestFactory.Create(
                     new IncomingDamage(100d),
                     postMitigationAmount: 100d,
                     postTakenScalingAmount: 100d,
@@ -240,7 +240,7 @@ public sealed class DamageResolutionInvariantTests
             runtime.CreateDamageResolutionContext(
                 damageExecution,
                 damageTarget,
-                DamageResolutionQuantities.Create(
+                DamageResolutionTestFactory.Create(
                     new IncomingDamage(80d),
                     postMitigationAmount: 70d,
                     postTakenScalingAmount: 60d,
@@ -267,7 +267,7 @@ public sealed class DamageResolutionInvariantTests
     public void DamageTakenAndActualResourceLoss_RemainSeparateQuantities()
     {
         var quantities =
-            DamageResolutionQuantities.Create(
+            DamageResolutionTestFactory.Create(
                 new IncomingDamage(100d),
                 postMitigationAmount: 90d,
                 postTakenScalingAmount: 80d,
