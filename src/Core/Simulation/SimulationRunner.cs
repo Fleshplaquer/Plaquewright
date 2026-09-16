@@ -24,6 +24,33 @@ public sealed class SimulationRunner<TPayload>
         _limits = limits;
     }
 
+    public ScheduledEventKey ScheduleExternalInput(
+        SimulationTime time,
+        TPayload payload)
+    {
+        if (_isFaulted)
+        {
+            throw new InvalidOperationException(
+                "Simulation runner is faulted and cannot accept external input.");
+        }
+
+        if (_terminalBudgetKind is not null)
+        {
+            throw new InvalidOperationException(
+                "Simulation runner reached a terminal budget and cannot accept external input.");
+        }
+
+        if (time < CurrentTime)
+        {
+            throw new InvalidOperationException(
+                $"Cannot schedule external input at {time} before current simulation time {CurrentTime}.");
+        }
+
+        return _scheduler.Schedule(
+            time,
+            SchedulerPhase.Execution,
+            payload);
+    }
     public SimulationRunResult RunNext(
         Action<SimulationEventContext<TPayload>> execute)
     {
@@ -133,6 +160,7 @@ public sealed class SimulationRunner<TPayload>
 
         return CreateInProgressResult();
     }
+
 
     public SimulationRunResult RunToCompletion(
         Action<SimulationEventContext<TPayload>> execute)

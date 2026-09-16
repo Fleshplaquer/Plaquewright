@@ -46,7 +46,7 @@ public sealed class SimulationScheduler<TPayload>
         }
     }
 
-    public ScheduledEventKey Schedule(
+    internal ScheduledEventKey Schedule(
         SimulationTime time,
         SchedulerPhase phase,
         TPayload payload)
