@@ -2,7 +2,8 @@
 
 **Version:** 2.0 · **Datum:** 17. September 2026  
 **Dokumentstatus:** Architektur 2.0 angenommen; neue Funktions-/Release-Freigaben bleiben an konkrete Code- und Testnachweise gebunden  
-**Technischer Referenzpunkt:** `d39cb54`, vom Nutzer als grün, committed und clean bestätigt
+**Historische Audit-Baseline:** `d39cb54`, vom Nutzer als grün, committed und clean bestätigt  
+**PW-S02-Nachweisstand:** `b04fcbe`, vom Nutzer als grün, committed und clean bestätigt
 
 ## 1. Was tatsächlich bestätigt ist
 
@@ -24,18 +25,19 @@ Dazu: Branch `main`, mit `origin/main` synchron, Working Tree clean; `gcc` wurde
 | B08 | Scheduler input boundary abgeschlossen | Kein automatischer Nachweis eines vollständigen neuen Zeitordnungsprofils |
 | B09 | Test-Invariant-Audit im vereinbarten Umfang abgeschlossen | Testnamenlisten sind kein erschöpfender Beweis aller Kombinationen |
 | B10 | Prepared publication rights / API boundary abgeschlossen | Keine Sandbox- oder universelle Rollback-Garantie |
+| PW-S02 | Abgenommen | Commit → Domain Event → deterministische Reaction einschließlich Queue-Reservation, Input-Grenze, Reaction-Ordering, Fail-stop und RunNext/RunToCompletion-Äquivalenz |
 | Build / Tests | Laut finaler Nutzerbestätigung grün | In diesem Dokumentationsdurchgang nicht neu ausgeführt |
 | Repository | Laut gezeigtem Git-Status clean und synchron | Kein eigener Live-Abruf des Remotes für diese Dokumentation |
 
-Eine vollständig gezeigte frühere Testausgabe enthält **1176 bestandene Tests** nach dem Pre-Defeat-Teil. Spätere Ergänzungen wurden mit `g` bestätigt; 1189 war die zuletzt erwartete Zahl, aber es liegt keine vollständig gezeigte finale Summary mit dieser Zahl vor. Deshalb wird 1189 hier nicht als neu ausgezählter Baselinewert ausgegeben.
+Eine vollständig gezeigte frühere Testausgabe enthält **1176 bestandene Tests** nach dem Pre-Defeat-Teil. Im PW-S02-Durchgang wurde zwischenzeitlich eine vollständige Summary mit 1196 Tests gezeigt, davon zunächst ein erwartungsbedingt fehlschlagender neuer Reservation-Test; nach Korrektur der Runner-Erwartung sowie den weiteren Ordering-/Fault-/Äquivalenztests bestätigte der Nutzer die jeweiligen vollständigen Läufe mit `g` und den abschließenden Repository-Stand mit `gcc`. Eine exakte finale Testanzahl für `b04fcbe` wird hier nicht nachträglich erfunden.
 
 Die Architekturübergabe mit 1023 Tests beschreibt einen älteren technischen Stand. Sie ist die aktuelle Quelle der Produktvision, nicht der jüngere technische Nachweis. [E1, E2]
 
-## 2. Was dieser Durchgang ausgeführt hat
+## 2. Was diese Dokumentation selbst ausgeführt hat
 
-Die bereitgestellte Architekturübergabe und die drei alten Markdown-Dokumente wurden gelesen. Das Archiv `zip.7z` wurde für Source-/Dokumentinspektion entpackt; ausgewählte Infrastruktur-, Domain- und Testquellen wurden statisch geprüft. Daraus wurden neue Markdown-Entwürfe erstellt.
+Der ursprüngliche v2-Dokumentationsdurchgang las die bereitgestellten Quellen und erzeugte die Architekturdateien ohne Produktionsänderung. **Seitdem** wurde PW-S02 im Nutzerrepository implementiert und getestet. Der Nutzer bestätigte die Codeänderungen, den separaten PW-QA-12-Nachtrag sowie den Stand `b04fcbe` mit `gcc`.
 
-Es wurden **keine Produktionsdateien verändert, keine C#-Tests ausgeführt, keine Benchmarks gemessen und kein neuer Codecommit erstellt**. Der verfügbare Archiv-Snapshot ist nicht der vollständige nach allen Chatänderungen aktualisierte Stand `d39cb54`. Einzelheiten stehen im [Quellenregister](SOURCE_EVIDENCE_v2_0.md).
+Diese aktuelle Dokumentaktualisierung führt selbst **keinen neuen .NET-Testlauf, Godot-Start oder Benchmark** aus und verändert das Nutzerrepository nicht. Sie übernimmt den bestätigten PW-S02-Stand als neuen Funktionsnachweis, während `d39cb54` die historische A/B-Audit-Baseline bleibt. Einzelheiten stehen im [Quellenregister](SOURCE_EVIDENCE_v2_0.md).
 
 ## 3. Statussprache für künftige Nachweise
 
@@ -86,6 +88,24 @@ Die folgenden `PW-QA`-IDs sind **künftige Abnahmen der freigegebenen Architektu
 
 Nicht jede ID erfordert eine neue Datei. Bestehende Tests werden zuerst zugeordnet. Ein neuer Test benötigt Assertionen über die relevante Zustandsgrenze, nicht nur den erwarteten Exception-Typ.
 
+### 4.1 Abgenommene PW-S02-Nachweise
+
+Für PW-S02 sind folgende Abnahmen auf dem bestätigten Stand `b04fcbe` erfüllt:
+
+| ID | Status | Wesentliche Testquelle |
+|---|---|---|
+| PW-QA-03 | Abgenommen für den Door-/Resource-Fall | `RejectedDoorTransaction_ProducesNoDomainEventOrReaction` |
+| PW-QA-08 | Abgenommen | `CommittedDoorTransaction_ProducesDeterministicFollowUpReaction` |
+| PW-QA-09 | Abgenommen | `DoorOpened` erzeugt über eine Reaction neue Scheduler-Arbeit statt rekursiver Mutation im Commit |
+| PW-QA-10 | Abgenommen | `DomainEventReservationFailure_PreventsTransactionCommit` sowie `PreparedScheduledFollowUpTests` |
+| PW-QA-11 | Abgenommen für das aktuelle Scheduler-Profil | `ExternalInput_AtStartedTimestamp_IsRejectedWithoutFaultingRunner` und Same-Time-Wave-Nachweise |
+| PW-QA-12 | Abgenommen für das Door-/Alarm-Referenzprofil | `DoorEventPipeline_RunNextAndRunToCompletionProduceSameAuthoritativeResult` |
+| PW-QA-13 | Abgenommen | `ReactionFailure_FaultsRunnerWithoutRollingBackCommittedTransaction` |
+
+`PW-QA-21` bleibt als späterer, schrittübergreifender Tracing-Nachweis offen. PW-S02 führt noch kein vollständiges konfigurierbares Gameplay-Tracing ein.
+
+Der Nutzer bestätigte nach den PW-S02-Änderungen sowie nach dem separaten QA-12-Nachtrag grüne Tests/Builds und anschließend `gcc`. Eine exakte finale Testanzahl wird hier nicht nachträglich erfunden.
+
 ## 5. Mindestinhalt eines Test-/Release-Belegs
 
 Ein Beleg nennt Commit, betroffene Module und Regelversionen, Buildkonfiguration, Runtime und Plattform, tatsächlich ausgeführte Befehle, Ergebnis sowie bewusst nicht geprüfte Aspekte.
@@ -96,12 +116,15 @@ Authoring-/Replay-Versionen und Migrationsverhalten werden erst als unterstützt
 
 ## 6. Freigabe der Dokumentversion
 
-D-01 und D-02 wurden am 17. September 2026 ausdrücklich angenommen. Detailgates D-03 bis D-07 können bis unmittelbar vor ihrem jeweiligen Implementierungsschritt offen bleiben.
+D-01 und D-02 wurden am 17. September 2026 ausdrücklich angenommen. D-04 und D-05 wurden anschließend im PW-S02-Durchgang entschieden und nachgewiesen. D-03, D-06 und D-07 bleiben offene technische Detailgates.
 
 **Architekturfreigabe 2.0:** erteilt am 17. September 2026.  
 **D-01 Determinismus/Replay:** beschlossen.  
 **D-02 Combat-Referenzpaket:** beschlossen.  
-**Neue Funktionsfreigabe auf Basis dieser Dokumente:** nicht automatisch erteilt.  
-**Historischer A/B-Abschluss `d39cb54`:** bleibt dokumentiert.
+**D-04 Same-Timestamp-Input-Grenze:** beschlossen und in PW-S02 nachgewiesen.  
+**D-05 Event-Publikation und Reaction-Fault-Politik:** beschlossen und in PW-S02 nachgewiesen.  
+**PW-S02:** abgenommen auf `b04fcbe`.  
+**Offene Detailgates:** D-03, D-06 und D-07.  
+**Historischer A/B-Abschluss `d39cb54`:** bleibt unverändert dokumentiert.
 
-Eine Dokumentationsannahme ersetzt keinen Code-Nachweis; ein späterer Codefehler ersetzt umgekehrt nicht rückwirkend die festgehaltene damalige Testausgabe.
+Eine Dokumentationsannahme ersetzt keinen Code-Nachweis; der hier genannte PW-S02-Status beruht auf den vom Nutzer bestätigten Code-/Testläufen. Snapshot/Replay, Cross-Host-Äquivalenz und Performance bleiben eigene spätere Freigaben.

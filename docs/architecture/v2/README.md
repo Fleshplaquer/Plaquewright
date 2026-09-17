@@ -1,8 +1,9 @@
 # Plaquewright – Architektur 2.0
 
 **Stand:** 17. September 2026  
-**Technischer Anschluss:** `d39cb54` laut Nutzer, grün / committed / clean  
-**Dokumentstatus:** Architektur 2.0 angenommen; D-01 und D-02 beschlossen
+**Historische Audit-Baseline:** `d39cb54`  
+**Aktueller Funktionsnachweis:** PW-S02 auf `b04fcbe`, vom Nutzer als grün / committed / clean bestätigt  
+**Dokumentstatus:** Architektur 2.0 angenommen; D-01, D-02, D-04 und D-05 beschlossen; PW-S02 abgenommen
 
 ## Was diese Fassung festlegt
 
@@ -15,6 +16,10 @@ Die bestehende Implementierung und der A/B-Auditabschluss werden weiterverwendet
 **D-01 – Determinismus und Replay:** Plaquewright garantiert deterministische autoritative Gameplay-Simulation innerhalb eines kompatiblen Ruleset-/Modul-/Ausführungsprofils. Gameplayrelevante Ergebnisse externer Systeme wie Engine-Physics werden über definierte Provider oder geordnete Host Facts eingebracht und für vollständiges Replay soweit nötig aufgezeichnet. Cross-Version-, Cross-Plattform- und Cross-Engine-Bitgleichheit sind keine v2.0-Grundgarantie.
 
 **D-02 – Combat:** Die bestehenden Combat-Regeln bleiben ein erstklassiges, austauschbares Referenz-Regelpaket und Belastungstest für komplexe Komposition. Combat ist keine Kernel-Abhängigkeit. Combat-spezifische Abstraktionen werden erst dann generalisiert, wenn mindestens ein weiterer unabhängiger Anwendungsfall denselben Vertrag benötigt.
+
+**D-04 – Inputordnung:** Sobald die Verarbeitung eines Timestamps begonnen hat, werden keine neuen externen Inputs mehr für diesen oder einen früheren Timestamp angenommen. Bereits zugelassene Inputs sowie kausale Follow-ups bleiben deterministisch geordnet.
+
+**D-05 – Commit/Event/Fault:** Autoritative Event-Kapazität wird vor dem zugehörigen Commit gesichert. Ein unerwarteter Reaction-Fehler rollt den bereits gültigen Commit nicht zurück, sondern beendet die weitere autoritative Ausführung dieser Runtime als Fault.
 
 Snapshots sind für Replay an **quiescent boundaries** vorgesehen: kein aktiver Apply, kein halb veröffentlichter Commit, kein laufender interner Callback-Stack als Persistenzanforderung.
 
@@ -37,20 +42,14 @@ Zuerst Manifest PW-01 bis PW-10 und die Architecture Map. Danach die Baufolge PW
 
 ## Nächster Entwicklungsstrang
 
-Die nächste funktionale Richtung ist nicht ein weiterer großer Genre-Baustein, sondern der vollständige modulübergreifende Ablauf:
+PW-S02 ist abgeschlossen. Der nächste Schritt ist **PW-S03 – Modulkomposition und zwei Host-Betriebsarten**.
 
-```text
-Transaction
-  -> committed Ergebnis
-  -> Domain Event
-  -> deterministisch eingeplante Reaction
-  -> neue Action / Transaction
-```
+Die bislang im Referenztest manuell verbundenen Bausteine werden in eine kleine explizite Simulation-Komposition überführt. Zuerst muss Door/Alarm headless ohne Combat-Pflichtzustand funktionieren. Danach wird dieselbe Autorität über einen minimalen Godot-Host angesprochen.
 
-Zuerst wird dieser Pfad an einem kleinen Nicht-Combat-Referenzfall (Door/Alarm) bewiesen, danach mit dem bestehenden Combat-Referenzpaket. Anschließend folgt früh ein Snapshot-/Replay-Beweis innerhalb des D-01-Vertrags.
+Noch nicht Ziel dieses Schritts sind automatisches Plugin-Discovery, Runtime-Hotloading, ein universeller Service-Locator oder ein Umbau des Combat-Systems.
 
 ## Ablage und Übernahme
 
 Die Dateien sind für eine gemeinsame Ablage unter `docs/architecture/v2/` gedacht. Alte Idler-Dokumente bleiben historische Entscheidungsgrundlage und werden nicht per Suchen/Ersetzen umgedeutet. Ein Repository-Commit dieser Dokumente ist ein Dokumentationscommit und keine Behauptung neuer Framework-Funktionalität.
 
-D-03 bis D-07 bleiben technische Detailgates und werden vor den jeweils betroffenen Implementierungsschritten festgelegt.
+D-03, D-06 und D-07 bleiben offene technische Detailgates.

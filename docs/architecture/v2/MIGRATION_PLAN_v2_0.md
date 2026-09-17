@@ -1,7 +1,8 @@
 # Plaquewright – Migrationsplan 2.0
 
 **Datum:** 17. September 2026 · **Status:** Angenommener Migrationsleitplan 2.0  
-**Ausgangspunkt:** Audit-Baseline `d39cb54`  
+**Historische Audit-Baseline:** `d39cb54`  
+**Aktueller Funktionsnachweis:** PW-S02 auf `b04fcbe`  
 **Prinzip:** Verhalten erhalten, Grenzen testen, dann den kleinsten notwendigen Eingriff vornehmen.
 
 Die frühere `MIGRATION_PLAN.md` wird in der Architekturübergabe genannt, ist im bereitgestellten Archiv aber nicht vorhanden. Dieses Dokument ersetzt deshalb keine ungelesene Detailentscheidung stillschweigend.
@@ -16,15 +17,15 @@ Alte Gameplay-Regeln werden nicht gelöscht. Gemäß D-02 bleiben die bestehende
 
 ## 2. Baseline nicht umdeuten
 
-`d39cb54` bleibt der technische Auditpunkt. Ein Commit, der diese Dokumente hinzufügt, erhält einen anderen Hash und wird als Dokumentationsänderung benannt.
+`d39cb54` bleibt der historische A/B-Auditpunkt. Der spätere Stand `b04fcbe` belegt PW-S02; beide Referenzen werden nicht miteinander vermischt. Dokumentationscommits erhalten wiederum eigene Hashes und ändern diese Nachweisrollen nicht.
 
 A/B-Findings werden nicht neu nummeriert, und fehlende ausführliche Finding-Texte werden nicht rekonstruiert, als wären sie vorhanden. Die ursprüngliche Framework-Übergabe mit 1023 Tests und „Transaction Boundary als nächster Schritt“ wird als älterer Technikstand gekennzeichnet.
 
-## 3. Vor dem nächsten Code keine Komplettreorganisation
+## 3. Nach PW-S02 weiterhin keine Komplettreorganisation
 
-Zuerst die aktuellen betroffenen Source-/Testkörper für den nächsten Referenzfall abgleichen. Nur wenn die neue Grenze einen bestehenden Typ tatsächlich blockiert, wird refaktoriert.
+PW-S02 hat gezeigt, dass bestehender Transaction-Coordinator und Scheduler mit wenigen schmalen Verträgen die benötigte Commit→Event→Reaction-Semantik tragen. Diese neuen Verträge werden nicht zum Anlass genommen, die komplette Runtime, alle Domains oder sämtliche Scheduler-Aufrufer umzubauen.
 
-Der erste funktionale Ausbau ist die sichere Verbindung von Commit-Ergebnis, Event und Folgearbeit. Dazu kann ein kleiner gemeinsamer Vertrag nötig werden. Daraus folgt keine Freigabe aller Resource-Interna und keine neue universelle State-Schnittstelle.
+Der nächste Codeblock ist PW-S03: eine kleine explizite Modulkomposition für Door/Alarm im Headless-Betrieb und anschließend ein minimaler Godot-Host. Nur wenn dieser zweite Betriebsmodus eine konkrete vorhandene Kopplung blockiert, wird genau diese Grenze refaktoriert.
 
 ## 4. Generische Runtime von Gameplay-Komposition trennen
 
@@ -38,7 +39,7 @@ Erst diese Dienste erhalten eine schmale Kompositionsgrenze. Der bestehende Typ 
 
 Resource-Draft, Projektionen, Operationen, Ledger und Prepared-Mechanik bleiben die Implementierungsgrundlage. Ein neuer allgemeiner Workflow darf nicht parallel eine zweite unverbundene Ressourcenbuchhaltung eröffnen.
 
-Die erste neue Kombination prüft gemeinsame State-/Ledger-Ziele und Prepared-Lebensdauern. Reicht ein bestehender Participant nicht, wird ein passender Domain-Adapter ergänzt oder die Kombination kontrolliert begrenzt.
+Der PW-S02-Fall verwendet die vorhandene Gold-/Door-Transaction weiter und ergänzt die sichere Event-Publikation. Weitere gemeinsame State-/Ledger-Ziele und Prepared-Lebensdauern werden weiterhin nur dann erweitert, wenn ein konkreter nächster Referenzfall sie benötigt.
 
 Nachträgliche Events sind kein Ersatz für atomare State-Änderung. Alarm nach einer Türöffnung darf Folgearbeit sein; eine zwingend gemeinsame Zahlung/Öffnung darf nicht in zwei lose Events zerfallen.
 
@@ -64,10 +65,10 @@ Eine neue öffentliche Grenze bekommt zusätzlich einen Test aus `Core.ExternalT
 
 Bei API-Änderungen werden vorhandene Aufrufer migriert oder bewusst kompatible Adapter erhalten. Eine externe API wird nicht allein aus internem Implementierungskomfort erweitert.
 
-## 9. Was in diesem Durchgang nicht geschieht
+## 9. Nächster Repository-Schritt nach dieser Dokumentaktualisierung
 
-Keine Quellcodeverschiebung, keine Dateilöschung im Nutzerrepository, keine neue Bibliotheksversion, kein Git-Commit oder Push. Erstellt wird ein neuer Dokumentationsentwurf. Seine Einordnung wird nicht als bereits ausgeführte Migration ausgegeben.
+Diese Dokumentaktualisierung verändert selbst keinen Produktionscode und führt keinen zusätzlichen Testlauf aus. Sie synchronisiert den Architekturstand mit dem bereits vom Nutzer bestätigten PW-S02-Commit `b04fcbe`.
 
-Als nächster Repository-Schritt kann ein reiner Dokumentationscommit entstehen. Produktionsänderungen folgen anschließend in getrennten, getesteten Commits entlang der [Baufolge](Plaquewright_Implementation_Sequence_v2_0.md).
+Nach dem Dokumentationscommit folgt PW-S03 in einem getrennten, getesteten Codeblock. Keine Quellcodeverschiebung, Assembly-Neuordnung oder Combat-Migration wird allein wegen der Dokumentpflege vorgezogen.
 
-**Quellen:** [E1–E5](SOURCE_EVIDENCE_v2_0.md).
+**Quellen:** [E1–E5, E7](SOURCE_EVIDENCE_v2_0.md).

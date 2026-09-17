@@ -5,9 +5,9 @@
 
 ## 1. Quellenhierarchie nach Aussageart
 
-Für das **Produktziel** gilt die neu eingebrachte Architekturübergabe E1: Framework statt einzelnes Idle-Spiel. Für den **jüngsten technischen Anschluss** gilt der Nutzerbeleg E2 mit `d39cb54`. Für **direkt gelesenen Quellcode** gilt der bereitgestellte Archiv-Snapshot E3. Eine ältere Zusammenfassung wird nicht allein durch ihren späteren Upload zum neuesten Code.
+Für das **Produktziel** gilt die neu eingebrachte Architekturübergabe E1: Framework statt einzelnes Idle-Spiel. Für die **historische A/B-Audit-Baseline** gilt E2 mit `d39cb54`; für den **aktuellen PW-S02-Funktionsnachweis** gilt E7 mit `b04fcbe`. Für den vollständig direkt gelesenen älteren Quellcode gilt der bereitgestellte Archiv-Snapshot E3. Eine ältere Zusammenfassung wird nicht allein durch ihren späteren Upload zum neuesten Code.
 
-Technische Entscheidungen werden nur dort als beschlossen ausgegeben, wo sie aus E1, bestätigten Änderungen oder E6 hervorgehen. D-03 bis D-07 bleiben Detailgates und werden nicht rückwirkend als entschieden dargestellt.
+Technische Entscheidungen werden nur dort als beschlossen ausgegeben, wo sie aus E1, bestätigten Änderungen, E6 oder E7 hervorgehen. D-03, D-06 und D-07 bleiben offene Detailgates. D-04 und D-05 wurden im PW-S02-Durchgang beschlossen und technisch nachgewiesen.
 
 ## 2. Projektquellen
 
@@ -64,6 +64,16 @@ Die externen Quellen bestimmen nicht das Projektziel und führen keine neue Engi
 
 **E6 – Projektgespräch, 17. September 2026: Annahme D-01 und D-02.**
 Der Nutzer stimmte dem vorgeschlagenen Determinismus-/Replay-Vertrag und der Einordnung des bestehenden Combat als austauschbares Referenz-Regelpaket ausdrücklich zu. Daraus stammen die finalen Formulierungen in PW-10, PW-13, PW-15 und PW-20. Diese Zustimmung ist keine Behauptung, dass Snapshot/Replay oder Cross-Engine-Adapter bereits implementiert sind.
+
+### E7 – PW-S02 Implementierung und Abnahme, 17. September 2026
+
+Quelle: Projektgespräch, gezeigte Testausgaben, bereitgestellter aktueller `CrossModuleTransactionTests.cs`-Ausschnitt und Nutzerbestätigung des Repository-Stands `b04fcbe`.
+
+Im PW-S02-Durchgang wurden die typisierte Domain-Event-/Reaction-Grenze, sichere Follow-up-Reservation vor Commit, explizit geordneter Reaction-Dispatch, Same-Timestamp-Input-Schluss sowie Fail-stop bei unerwarteten Reaction-Exceptions umgesetzt und durch positive und negative Tests geprüft. Der separate PW-QA-12-Nachtrag weist für das Door-/Alarm-Referenzszenario die Äquivalenz zwischen wiederholtem `RunNext` und `RunToCompletion` nach.
+
+Der Nutzer bestätigte die relevanten Test-/Build-Durchgänge mit `g` und die abgeschlossenen Repository-Stände einschließlich des QA-12-Nachtrags mit `gcc`. Der zuletzt genannte HEAD nach diesem Nachtrag ist `b04fcbe`. Eine exakte finale Testanzahl wird nicht nachträglich erfunden.
+
+E7 belegt PW-S02 und die Entscheidungen D-04/D-05. Es belegt noch keinen Snapshot-/Replay-Support, keine Headless-/Godot-Äquivalenz aus PW-S03, keine Combat-Migration aus PW-S04 und keine Performance-Freigabe.
 
 **W1 – Godot, Physics introduction.** Gelesen am 17. September 2026. Die offizielle Dokumentation warnt, dass Physics nicht deterministisch garantiert ist. Verwendet nur zur Abgrenzung von Engine-Unabhängigkeit und autoritativem räumlichem Replay.
 
@@ -123,10 +133,8 @@ E2 ist eine sichtbare Gesprächsangabe und wird nicht als künstliche herunterge
 
 ## 6. Grenzen dieser Bearbeitung
 
-Ausgeführt: Quelleninspektion, Entwurfsarbeit, Markdown-Dateierstellung und strukturelle Dokumentprüfung.
+Ausgeführt in der ursprünglichen Dokumenterstellung: Quelleninspektion, Entwurfsarbeit, Markdown-Dateierstellung und strukturelle Dokumentprüfung. Im anschließenden Projektverlauf wurde PW-S02 durch den Nutzer im Repository umgesetzt und getestet; E7 dokumentiert diese bestätigte Entwicklung.
 
-Nicht ausgeführt: neuer .NET-Testlauf, neuer Godot-Start, Replay-/Cross-Platform-Test, Benchmark, vollständiger Dependency-Graph-Audit des finalen Codes oder Änderung des Nutzerrepositories.
+Diese aktuelle Dokumentaktualisierung führt selbst keinen neuen .NET-Testlauf, Godot-Start, Replay-/Cross-Platform-Test, Benchmark oder vollständigen Dependency-Graph-Audit aus. Sie rekonstruiert auch keinen vollständigen Source-Snapshot von `b04fcbe`; Aussagen über PW-S02 beschränken sich auf die im Gespräch aufgebauten/benannten Verträge, gezeigten Testteile und die Nutzerbestätigung.
 
-Aussagen über die neue Baufolge und künftige Fähigkeiten sind Vorschläge. Der Test-/Freigabekatalog bezeichnet geplante Nachweise ausdrücklich als geplant.
-
-**Zu den Dokumenten:** [Einstieg](README.md), [Manifest](Plaquewright_Manifest_v2_0.md).
+PW-S03 und spätere Fähigkeiten bleiben geplante Schritte. Snapshot/Replay, Host-Äquivalenz, Combat-Migration und Performance werden nicht durch den PW-S02-Nachweis vorweggenommen.

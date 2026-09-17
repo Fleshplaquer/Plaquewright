@@ -2,7 +2,7 @@
 
 **Version:** 2.0 · **Datum:** 17. September 2026  
 **Ausgangspunkt:** Nutzerbestätigte Audit-Baseline `d39cb54`, nicht der alte Idler-P00-Start  
-**Status:** Freigegebene Architektur-Baufolge; einzelne Implementierungsschritte werden weiterhin separat durchgeführt und abgenommen
+**Status:** Freigegebene Architektur-Baufolge; PW-S02 abgenommen auf `b04fcbe`, weitere Schritte werden separat durchgeführt und abgenommen
 
 ## 1. Ziel der Reihenfolge
 
@@ -18,7 +18,7 @@ Die neue Reihenfolge verwendet `PW-Sxx`, um weder alte P-Meilensteine noch abges
 |---|---|---|
 | PW-S00 | Framework-Ziel und Baseline nachvollziehbar dokumentiert | Verhindert weitere Arbeit nach falscher Produktvision |
 | PW-S01 | Transaction-Komposition hat einen eindeutigen Konflikt-/Lebensdauervertrag | Ereignispublikation darf keine unklare Mutation verdecken |
-| PW-S02 | Commit-Ergebnis → Event → deterministische Reaction | Schließt die zentrale modulübergreifende Ausführungskette |
+| PW-S02 | Commit-Ergebnis → Event → deterministische Reaction **– abgenommen** | Schließt die zentrale modulübergreifende Ausführungskette |
 | PW-S03 | Kleine explizite Modulkomposition und Headless-/Godot-Referenz | Beweist Benutzbarkeit außerhalb interner Tests |
 | PW-S04 | Zweites fachliches Referenzszenario mit vorhandenen Combat-Bausteinen | Prüft, ob die Grenze mehr als den Door-Fall trägt |
 | PW-S05 | Snapshot/Restore und deterministischer Replay-Beweis | Prüft State-Ownership und ausstehende Arbeit früh |
@@ -60,25 +60,36 @@ Der vorhandene externe Coordinator ist die Grundlage. Vor einer allgemeinen Even
 
 ## 5. PW-S02 – Commit-Ergebnis und deterministische Folgearbeit
 
-Dies ist der vorgeschlagene erste neue **Funktionsblock** nach der Vertragsprüfung.
+**Status:** Abgenommen am 17. September 2026. Technischer Nachweisstand: `b04fcbe`.
 
-**Referenzfall:** Die bereits vorhandene Zahlung/Öffnung wird um `DoorOpened` und eine separate Alarm-Reaction erweitert. Das Beispielmodul bleibt außerhalb der Friend-Assembly; der Kernel kennt keine Tür.
+Der externe Door-/Alarm-Fall beweist die erste vollständige Nicht-Combat-Kette:
 
-**Lieferung in kleinen Teilstücken:**
+```text
+OpenDoorIntent
+  -> Gold + Door Transaction
+  -> Commit
+  -> DoorOpened
+  -> geordnete Reaction
+  -> RaiseAlarmAction
+  -> neuer autoritativer Alarm-Zustand
+```
 
-1. Ein kleines, typisiertes Commit-Ergebnis mit den benötigten kausalen Identitäten.
-2. Vorbereitung beziehungsweise sichere Übernahme autoritativer Ereignisdaten ohne Reactions im Apply.
-3. Geordneter Dispatch nach vollständigem Commit.
-4. Reaction erzeugt neue Work statt rekursiv eine weitere Transaction in den laufenden Apply zu drücken.
-5. Ein begrenztes, reproduzierbares Ausführungsprofil für dieses Szenario.
+Der Referenzfall beweist dabei die Follow-up-Grenze; die Alarm-Action ist in PW-S02 noch keine zweite generische Transaction.
 
-Die Namen sind konzeptionell. Bestehende passende Typen werden vor dem Anlegen neuer Typen geprüft. Es wird kein universelles Nachrichtenformat für sämtliche zukünftigen Domains erzwungen.
+**Umgesetzte Grenze:**
 
-**Abnahme:** Keine Zahlung/Öffnung/Event bei Prepare-Ablehnung; beim Erfolg beobachten Reactions beide committed Zustände. Dieselbe Folge entsteht bei wiederholtem RunNext und RunToCompletion. Eine volle autoritative Ergebnisqueue wird vor Commit erkannt oder durch eine bereits gesicherte Pending-Übergabe abgefangen.
+1. `IDomainEvent` markiert einen bereits committed fachlichen Sachverhalt.
+2. `IDomainReaction<TEvent, TWorkItem>` verarbeitet ein solches Ergebnis als neue Arbeit.
+3. `DomainReactionContext<TWorkItem>` stellt den schmalen Follow-up-Pfad bereit.
+4. `DomainReactionDispatcher<TEvent, TWorkItem>` verwendet eine beim Aufbau eingefrorene, explizite Reaction-Reihenfolge.
+5. `DomainEventTransactionCoordinator.TryCommitAndPublish(...)` reserviert die benötigte Event-Kapazität vor dem Commit.
+6. Prepared Scheduler-Follow-ups bleiben interne Publikationsmechanik.
+7. Ein begonnener Timestamp wird für nachträglich eingebrachte externe Inputs geschlossen.
+8. Unerwartete Reaction-Fehler führen zu Fail-stop; bereits committed State wird nicht zurückgerollt.
 
-Gleicher Timestamp, nächste Wave, spätere externe Eingabe und Handler-Fehler sind eigene Tests. Kein pauschales „nach Commit ist alles unfehlbar“ und kein stilles Weglassen von Gameplay.
+**Abgenommen:** Prepare-Ablehnung erzeugt weder Mutation noch Event; erfolgreiche Reactions beobachten vollständig committed State; fehlende Queue-Kapazität verhindert den Commit vor sichtbarer Mutation; Same-Time-Folgearbeit bleibt kausal geordnet; mehrere Reactions behalten ihre Kompositionsreihenfolge; ein Reaction-Fault lässt den vorherigen Commit bestehen und faultet die Runtime; wiederholtes `RunNext` und `RunToCompletion` liefern für das Referenzszenario denselben autoritativen Trace und State.
 
-**Nicht enthalten:** Vollständiges Status-/Skill-System, globales Reflection-Routing, Netzwerkbus, persistenter Event Store.
+**Bewusst nicht eingeführt:** globaler EventBus, Reflection-Routing, dynamische Reaction-Prioritäten, Runtime-Hotregistration, universelles `CommitResult`, vollständiges Status-/Skill-System oder persistenter Event Store.
 
 ## 6. PW-S03 – Modulkomposition und zwei Host-Betriebsarten
 

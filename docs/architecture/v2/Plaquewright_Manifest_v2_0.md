@@ -2,8 +2,9 @@
 
 **Dokumentversion:** 2.0  
 **Datum:** 17. September 2026  
-**Status:** Architekturfreigabe 2.0; D-01 und D-02 beschlossen am 17. September 2026  
-**Technische Anschlussbaseline:** `d39cb54` laut Nutzerbeleg  
+**Status:** Architekturfreigabe 2.0; D-01, D-02, D-04 und D-05 beschlossen am 17. September 2026  
+**Historische Audit-Baseline:** `d39cb54`  
+**Aktueller PW-S02-Nachweis:** `b04fcbe`, vom Nutzer als grün / committed / clean bestätigt  
 **Gegenstand:** Engine-unabhängiges, deterministisches, modulares Gameplay-/Simulations-Framework für C#
 
 ## PW-00 – Geltung, Quellen und Änderungsstatus
@@ -12,7 +13,7 @@ Dieses Manifest richtet Plaquewright am Framework-Ziel aus. Ein einzelnes Idle-S
 
 Die Fassung ersetzt nach ausdrücklicher Annahme die alte **Produkt- und Baufolgevorgabe** des Idler-Manifests. Sie verwirft nicht automatisch bestehende Combat-Regeln, Tests oder fachliche Erkenntnisse. Ein allgemeiner Kernel-Vertrag und die Regel „dieses Spiel berechnet Armor auf diese Weise“ sind unterschiedliche Arten von Entscheidungen.
 
-Die Wörter „muss“, „darf nicht“ und „soll“ beschreiben den freigegebenen Architekturvertrag, nicht einen Beweis, dass der aktuelle Code ihn vollständig umsetzt. Die Framework-Ausrichtung sowie D-01 und D-02 sind beschlossen. Die technischen Detailgates D-03 bis D-07 werden vor den jeweils betroffenen Implementierungsschritten konkretisiert.
+Die Wörter „muss“, „darf nicht“ und „soll“ beschreiben den freigegebenen Architekturvertrag, nicht einen Beweis, dass der aktuelle Code ihn vollständig umsetzt. Die Framework-Ausrichtung sowie D-01, D-02, D-04 und D-05 sind beschlossen. Die technischen Detailgates D-03, D-06 und D-07 werden vor den jeweils betroffenen Implementierungsschritten konkretisiert.
 
 Quellencode belegt den Iststand; Architekturentscheidungen definieren den Sollstand; Testausführungen belegen konkrete Szenarien auf konkreten Ständen. Keines ersetzt das andere. Der vom Nutzer bestätigte A/B-Auditabschluss bleibt auf `d39cb54` dokumentiert und wird nicht durch neue Dokumentnummern neu eröffnet. [E2–E5]
 
@@ -125,15 +126,19 @@ Eine unerwartete Exception mitten in Apply ist ein Infrastruktur-/Vertragsfehler
 
 ## PW-07 – Commit-Ergebnis, Ereignisse und Folgearbeit
 
-**Vorgeschlagener nächster Integrationsvertrag:** State, notwendige Ledger-Buchungen und das verlustfrei übernehmbare Commit-Ergebnis werden gemeinsam vorbereitet. Benötigte Kapazität für autoritative Ereignisse/Folgearbeit wird vor der irreversiblen Veröffentlichung gesichert.
+**PW-S02 ist umgesetzt und abgenommen.** Ein erfolgreich committed Sachverhalt kann als typisiertes `IDomainEvent` in deterministische Folgearbeit übergehen. Dafür existieren `IDomainReaction<TEvent, TWorkItem>`, `DomainReactionContext<TWorkItem>` und eine explizit komponierte `DomainReactionDispatcher<TEvent, TWorkItem>`.
 
-Das bedeutet nicht, dass Reaction-Handler in Apply laufen. Erst nach vollständigem Commit darf der Dispatcher Ereignisse sichtbar machen und Reactions ausführen beziehungsweise einplanen.
+`DomainEventTransactionCoordinator.TryCommitAndPublish(...)` sichert die benötigte Follow-up-Kapazität vor dem Transaction-Commit. Kann die autoritative Event-Publikation nicht garantiert werden, beginnt der Commit nicht. Bei fachlicher Prepare-Ablehnung wird die Reservation verworfen. Nach erfolgreichem Commit wird das bereits vorbereitete Event publiziert.
 
-Ein begrenzter Event-Puffer darf nicht nach erfolgreicher Zustandsmutation einen gewöhnlichen Fehler „Queue voll, Transaction abgelehnt“ melden. Entweder scheitert die Zulassung vorher, oder ein bereits gesichertes Pending-Ergebnis bleibt für die spätere Verarbeitung erhalten. Das genaue Protokoll wird am Referenzszenario festgelegt.
+Die Scheduler-Reservation bleibt intern. Fremde Module erhalten kein allgemeines Recht, Queue-Kapazität oder vorbereitete Scheduler-Einträge selbst zu publizieren.
 
-Eine neue Reaction ist ein neuer Ausführungsschritt. Ihr Scheitern macht das auslösende Event nicht ungeschehen. Die Fehlerpolitik für autoritatives Gameplay ist von einer fehlgeschlagenen Debug-Anzeige getrennt.
+PW-S02 führt bewusst kein universelles `CommitResult`-Objekt ein. Der Coordinator liefert weiterhin den Commit-Erfolg; der konkrete typisierte Sachverhalt wird durch das jeweilige Domain Event beschrieben. Eine allgemeinere Ergebnisabstraktion entsteht erst, wenn ein zweiter unabhängiger Fall sie tatsächlich benötigt.
 
-Die Unterscheidung zwischen dem Sammeln und dem späteren Dispatch von Events ist auch in der ergänzend geprüften Fachquelle beschrieben. Plaquewrights Wahl „Reactions nach Commit“ stammt jedoch aus der Projektübergabe, nicht aus einer übernommenen Microservice-Architektur. [E1, W2]
+Mehrere Reactions werden in expliziter, beim Aufbau eingefrorener Kompositionsreihenfolge ausgeführt. Daraus geplante gleichzeitige Follow-ups behalten über Scheduler-Wave und Sequence eine reproduzierbare Reihenfolge. Es gibt keine Reflection-Discovery, dynamische Prioritätsregistrierung oder Mutation der Reaction-Liste während des Runs.
+
+Eine unerwartete Reaction-Exception macht einen bereits erfolgreichen Commit nicht rückgängig. Die autoritative Runtime geht in den Faulted-Zustand und verarbeitet danach keine weitere Gameplay-Arbeit. Technische Diagnosefehler dürfen später separat behandelt werden, ändern diesen Gameplay-Vertrag aber nicht.
+
+Die Unterscheidung zwischen dem Sammeln und dem späteren Dispatch von Events ist auch in der ergänzend geprüften Fachquelle beschrieben. Plaquewrights Wahl „Reactions nach Commit“ stammt jedoch aus der Projektübergabe und der bestätigten PW-S02-Umsetzung, nicht aus einer übernommenen Microservice-Architektur. [E1, E7, W2]
 
 ## PW-08 – Pre-Commit-Regeln sind keine Post-Commit-Reactions
 
@@ -156,6 +161,8 @@ Neue Arbeit darf nicht vor ihre Ursache springen. Das gilt auch bei gleichem Tim
 Gleiche Eingaben brauchen neben der Zeit eine reproduzierbare Reihenfolge. „Gleiche Menge von Inputs“ genügt nicht, wenn ihr Ablauf fachlich verschieden ist.
 
 Budgets für Queue, Arbeit und kausale Ketten sind explizit. Ein unterbrochener oder begrenzter Lauf ist nicht dasselbe wie eine abgeschlossene Simulation. Ein Renderframe-Zeitbudget darf lediglich die weitere Ausführung verschieben, nicht autoritative Ereignisse still verwerfen.
+
+**D-04 ist beschlossen:** Externe Inputs für Simulationszeit `T` dürfen nur aufgenommen werden, solange die autoritative Verarbeitung von `T` noch nicht begonnen hat. Sobald das erste Event bei `T` aus der Queue übernommen wurde, ist die externe Aufnahme für `T` und frühere Zeiten geschlossen. Bereits vorher eingeplante Inputs für `T` bleiben gültig; neue externe Inputs müssen eine spätere Simulationszeit besitzen. Kausale Same-Time-Folgearbeit wird über spätere Scheduler-Waves eingeordnet und darf nicht vor ihre Ursache springen.
 
 ## PW-10 – Determinismus und RNG
 
@@ -259,15 +266,16 @@ Optional notwendige Adapterverträge können entstehen, bevor ihre vollständige
 
 ## PW-19 – Entwicklungsweg und Prüfprinzip
 
-Die nächste Arbeit schließt einen konkreten Zusammenspielpfad, nicht die nächste Position einer alten Combat-Featureliste:
+Die Baufolge schließt konkrete Zusammenspielpfade, nicht Positionen einer alten Combat-Featureliste. Der erste neue Funktionsblock ist inzwischen abgeschlossen:
 
 ```text
 vorhandene Transaction-Grenze
-  -> klarer Commit-/Ereignisvertrag
-  -> deterministische Reaction
-  -> kleine externe Modulkomposition
-  -> Snapshot-/Replay-Beweis
-  -> weitere Domain-Regeln und reale Lastmessung
+  -> Commit-/Ereignisvertrag                 [PW-S02 abgenommen]
+  -> deterministische Reaction               [PW-S02 abgenommen]
+  -> kleine explizite Modulkomposition       [PW-S03 als Nächstes]
+  -> Combat als zweiter Referenzfall          [PW-S04]
+  -> Snapshot-/Replay-Beweis                  [PW-S05]
+  -> weitere Domain-Regeln und Lastmessung
 ```
 
 Jeder Schritt bringt den kleinsten nützlichen Referenzfall, negative Grenzfälle und eine dokumentierte Änderung mit. Fehlende Verträge werden dort präzisiert, wo sie das Szenario benötigt. Es gibt weder einen Komplettumbau noch einen jahrelangen „erst generischen Kernel fertigbauen“-Vorlauf.
@@ -281,11 +289,11 @@ Testnamen sind ein Inhaltsverzeichnis, kein Nachweis der Assertion-Qualität. AP
 | D-01 | Reichweite des Determinismus-/Replay-Versprechens | **Beschlossen:** deterministische autoritative Gameplay-Simulation im kompatiblen Ruleset-/Modul-/Ausführungsprofil; externe autoritative Ergebnisse als Provider/Host Facts; keine allgemeine Cross-Engine-Bitgleichheitsgarantie. |
 | D-02 | Rolle der vorhandenen Combat-Regeln | **Beschlossen:** austauschbares erstklassiges Referenz-Regelpaket; Combat bleibt außerhalb des Kernels; Generalisierung erst bei zweitem unabhängigem Bedarf. |
 | D-03 | Erster Ausführungs-/Konfliktvertrag | Ein Writer, nicht-reentrant; Überlappungen zusammen vorbereiten oder vor Apply ablehnen. Vorschlag, vor neuer Transaction-Komposition festzulegen. |
-| D-04 | Gleichzeitige externe Eingaben und Folgearbeit | Zulassungsfenster und vollständiger Ordnungsschlüssel am ersten Reaction-Szenario bestimmen. Nicht mit B08 bereits entschieden. |
-| D-05 | Ereignispuffer und technische Fehlerpolitik | Verlustfreie autoritative Übergabe vor Commit absichern; Handler erst danach. Konkretes Protokoll noch zu implementieren. |
+| D-04 | Gleichzeitige externe Eingaben und Folgearbeit | **Beschlossen:** Sobald die Verarbeitung von `T` begonnen hat, ist die externe Aufnahme für `T` geschlossen. Bereits zugelassene Inputs bleiben geordnet; kausale Same-Time-Folgearbeit läuft über spätere Waves. |
+| D-05 | Ereignispuffer und technische Fehlerpolitik | **Beschlossen:** Benötigte autoritative Event-Kapazität wird vor Commit gesichert. Scheitert die Sicherung, findet kein Commit statt. Eine unerwartete Reaction-Exception rollt einen vorherigen Commit nicht zurück, sondern faultet die autoritative Runtime. |
 | D-06 | Performance-/Retention-Profil | Hardware, Last, Grenzen und längste nötige History erst durch Szenarien und Messungen festlegen. |
 | D-07 | Adapter-/Distributionsumfang der ersten Freigabe | Zunächst Headless und Godot als Referenz; weitere Engines sind Folgevorhaben. Kein Binärkompatibilitätsversprechen. |
 
-D-03 bis D-07 bleiben technische Detailgates. Sie werden vor der jeweils betroffenen Implementierung entschieden und verändern D-01/D-02 nicht stillschweigend.
+D-03, D-06 und D-07 bleiben technische Detailgates. D-04 und D-05 wurden im Rahmen von PW-S02 entschieden und durch die zugehörigen Tests konkretisiert.
 
-**Annahmeprotokoll:** Architektur 2.0 am 17. September 2026 im Projektgespräch angenommen; D-01 und D-02 ausdrücklich bestätigt. Diese Annahme ist eine Architekturfreigabe, keine rückwirkende Code-, Replay-, Cross-Platform- oder Performance-Freigabe.
+**Annahmeprotokoll:** Architektur 2.0 am 17. September 2026 im Projektgespräch angenommen; D-01 und D-02 ausdrücklich bestätigt. D-04 und D-05 wurden anschließend im PW-S02-Durchgang beschlossen und auf `b04fcbe` als Teil des abgenommenen Referenzprofils dokumentiert. Dies ist keine Replay-, Cross-Platform- oder Performance-Freigabe.

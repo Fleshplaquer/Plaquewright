@@ -1,6 +1,6 @@
 # Plaquewright – Architecture Map 2.0
 
-**Stand:** 17. September 2026 · **Status:** Architektur 2.0 freigegeben · **Anschluss:** `d39cb54` laut Nutzer  
+**Stand:** 17. September 2026 · **Status:** Architektur 2.0 freigegeben; PW-S02 abgenommen · **Historische Audit-Baseline:** `d39cb54` · **PW-S02:** `b04fcbe`  
 Die frühere `ARCHITECTURE_MAP.md` wird in der Architekturübergabe genannt, liegt im bereitgestellten Archiv aber nicht vor. Diese Fassung ist eine neue Rekonstruktion, kein behaupteter zeilenweiser Abgleich. [E1, E3]
 
 ## 1. Zielbild
@@ -40,13 +40,13 @@ Der Kernel verweist nicht zurück auf Combat oder einen Türtyp. Eine Spielregel
 | Danach | Dispatcher und Reactions | Ereignisse lesen und neue deterministische Arbeit erzeugen |
 | Darstellen | Host | Kopien/Sichten auf Ergebnisse, keine direkten Fremdmutationen |
 
-Ein vorgeschlagenes Commit-Ergebnispaket ist nicht gleichbedeutend mit einem bereits implementierten Typ. Der aktuelle Generic-Transaction-Vertrag ist in [Code Classification](CODE_CLASSIFICATION_v2_0.md) beschrieben.
+PW-S02 implementiert dafür bewusst kein universelles Commit-Ergebnispaket: Ein typisiertes Domain Event beschreibt den committed Sachverhalt, während `DomainEventTransactionCoordinator` die sichere Commit→Event-Übergabe koordiniert. Der aktuelle Stand ist in [Code Classification](CODE_CLASSIFICATION_v2_0.md) beschrieben.
 
 ## 3. Referenzszenario: bezahlte Tür mit Folgeaktion
 
 **Schon vorhandener Beweis:** Resources und ein externes Door-Modul können im Gold-/Door-Test gemeinsam vorbereitet und committed werden. [E3, E4]
 
-**Vorgeschlagener Ausbau:**
+**PW-S02-Nachweis auf `b04fcbe`:**
 
 ```text
 OpenPaidDoor
@@ -56,11 +56,11 @@ OpenPaidDoor
   -> Coordinator committed beides
   -> DoorOpened wird nach Commit sichtbar
   -> Alarm-Regel erzeugt RaiseAlarm als neue Arbeit
-  -> Alarm-Modul committed eigenen Zustand
-  -> optional: AutoClose-Arbeit zum spaeteren Simulationszeitpunkt
+  -> RaiseAlarmAction aktualisiert im Referenztest den Alarm-Zustand
+  -> spaetere Schritte koennen daraus weitere Transactions oder zeitliche Arbeit ableiten
 ```
 
-Scheitert die Öffnung beim Prepare, gibt es weder Zahlung noch `DoorOpened` noch Alarm. Scheitert später die Alarm-Action, bleibt die bereits erfolgreich geöffnete Tür geöffnet; das ist kein Rollback der ersten Transaction.
+Scheitert die Öffnung beim Prepare, gibt es weder Zahlung noch `DoorOpened` noch Alarm. Eine unerwartete Reaction-Exception rollt die bereits erfolgreich geöffnete Tür nicht zurück; die Runtime faultet und verarbeitet keine weitere autoritative Arbeit. Der aktuelle Referenztest beweist die Reaction-/Follow-up-Grenze, noch keine zweite generische Alarm-Transaction.
 
 Ein Profileffekt, der gemeinsam mit der Türöffnung zwingend atomar sein muss, wäre hingegen Teilnehmer der ersten Transaction, nicht eine spätere Reaction. Diese Unterscheidung entscheidet das Gameplay-Regelpaket.
 
@@ -91,7 +91,9 @@ Die aktuelle `SimulationRuntimeState` ist eine vorhandene Gameplay-Komposition. 
 
 ## 7. Nächster Abgleich
 
-Vor dem Ausbau werden konkrete Source- und Testkörper an der Baseline geprüft, besonders gemeinsam genutzte State-/Ledger-Ziele und gemischte Prepared-Lebensdauern. Danach folgt ein kleiner Post-Commit-/Reaction-Beweis. Ein globaler Registry-, Serialization- und Editor-Unterbau ist dafür nicht vorab erforderlich.
+PW-S02 ist abgeschlossen. Der nächste Abgleich gehört zu **PW-S03**: Die im Referenztest noch manuell verbundene Simulation soll als kleine explizite Komposition headless funktionieren und anschließend über einen minimalen Godot-Host dieselbe Core-Autorität verwenden. Nur tatsächlich blockierende Kopplungen werden dafür aus der vorhandenen Gameplay-Komposition gelöst.
 
-**Quellen:** [E1–E4 und W1](SOURCE_EVIDENCE_v2_0.md).  
+Ein globaler Registry-, Serialization-, Plugin-Discovery- oder Editor-Unterbau ist dafür weiterhin nicht vorab erforderlich.
+
+**Quellen:** [E1–E4, E7 und W1](SOURCE_EVIDENCE_v2_0.md).  
 **Verbindlichkeit:** [PW-00 und PW-20](Plaquewright_Manifest_v2_0.md).

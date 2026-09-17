@@ -28,6 +28,9 @@ Die alte gleichnamige Glossardatei ist in der Übergabe erwähnt, nicht als voll
 | Apply / Publication | Veröffentlichung bereits validierter Änderungen | Keine neuen normalen Gameplay-Entscheidungen oder beliebigen Observer-Callbacks |
 | Domain Event | Beschreibender Fakt nach erfolgreichem Commit | Nicht „bitte führe dies aus“ |
 | Reaction | Regel als Antwort auf ein committed Ereignis | Erzeugt neue Arbeit; schreibt Vergangenheit nicht um |
+| Reaction Dispatcher | Explizit komponierte, beim Aufbau eingefrorene Reihenfolge von Reactions für einen Eventtyp | Kein globaler Reflection-EventBus und keine dynamische Priority-Registry |
+| Prepared Follow-up | Intern reservierte Scheduler-Kapazität samt geordnetem Schlüssel vor der späteren Publikation | Noch nicht ausführbare Arbeit; wird publiziert oder verworfen |
+| External Input Closure | Grenze, ab der für einen begonnenen Timestamp keine neuen externen Inputs mehr zugelassen werden | Bereits vorher zugelassene Inputs und kausale Follow-ups bleiben gültig |
 | Pre-Commit-Regel | Beeinflusst die noch unveröffentlichte Resolution oder Vorbereitung | Nicht mit einer späteren Event-Reaction verwechseln |
 | Work Item | Geordnete ausführbare Simulationseinheit | Persistierbare Arbeit benötigt beschreibbaren Zustand statt beliebiger Closure |
 | Scheduler | Ordnet und begrenzt Work nach dem gewählten Ausführungsprofil | Bestimmt nicht eigenmächtig sämtliche Genre-Regeln |
@@ -49,7 +52,7 @@ Die alte gleichnamige Glossardatei ist in der Übergabe erwähnt, nicht als voll
 | Runtime Identity | Abgrenzung einer konkreten laufenden Simulation | In-process Referenzprüfung ist nicht automatisch Persistenzidentität |
 | Handle / Generation | Kontrollierter Zugriff mit optionaler Wiederverwendungsabsicherung | Generationsmodell nur dort behaupten, wo es implementiert ist |
 | Reentranz | Erneuter Eintritt in laufende Ausführung/Publikation | Für das erste Ausbauprofil nicht einfach nebenläufig zulassen |
-| Fault | Technischer Fehler mit definiertem Stopp-/Recovery-Verhalten | Kein normal abgelehnter Gameplay-Versuch |
+| Fault | Technischer Fehler mit definiertem Stopp-/Recovery-Verhalten | D-05: unerwarteter Reaction-Fault rollt vorherigen Commit nicht zurück und stoppt die weitere autoritative Ausführung der Runtime |
 | Budgetende | Explizite Arbeits-/Speichergrenze | Keine Meldung einer vollständig berechneten Simulation |
 | gcc | Nutzerkürzel: grün, committed, clean | Aussage über gemeldeten Arbeitsstand, nicht automatisch neue Testanzahl |
 

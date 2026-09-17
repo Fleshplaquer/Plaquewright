@@ -1,7 +1,7 @@
 # Plaquewright – Code Classification 2.0
 
 **Datum:** 17. September 2026 · **Status:** Freigegebene v2.0-Einordnung / statische Momentaufnahme  
-**Technische Baseline:** `d39cb54` laut Nutzer; **direkt untersuchte Source:** älterer Archiv-Snapshot `zip.7z`
+**Historische Audit-Baseline:** `d39cb54`; **aktueller PW-S02-Nachweis:** `b04fcbe` laut Nutzer; **vollständig direkt untersuchte Source-Basis:** älterer Archiv-Snapshot `zip.7z` plus im PW-S02-Durchgang gezeigte/erarbeitete betroffene Test- und Vertragsteile
 
 Die in der Architekturübergabe genannte alte `CODE_CLASSIFICATION.md` ist im bereitgestellten Archiv nicht enthalten. Diese neue Klassifikation verwendet tatsächliche Quellpfade, behauptet aber keinen vollständigen aktuellen Dependency-Audit.
 
@@ -10,7 +10,7 @@ Die in der Architekturübergabe genannte alte `CODE_CLASSIFICATION.md` ist im be
 | Vorhandener Bereich / Typ | Einordnung im Zielbild | Konsequenz für die nächste Arbeit |
 |---|---|---|
 | `SimulationTime`, `SimulationDuration` | Generische Simulationszeit | Beibehalten |
-| `SimulationScheduler<TPayload>`, `SimulationRunner<TPayload>`, Keys, Waves, Budgets | Generische Ablauf-Infrastruktur | Bestehende Mechanik nutzen; neues Reaction-/Input-Profil explizit prüfen |
+| `SimulationScheduler<TPayload>`, `SimulationRunner<TPayload>`, Keys, Waves, Budgets | Generische Ablauf-Infrastruktur | Beibehalten; PW-S02 ergänzt reservierbare Follow-ups und die geschlossene Same-Timestamp-Input-Grenze |
 | `DeterministicRng`, Factory, Domains, StableHash64 | Generische deterministische Infrastruktur | Beibehalten; unterstützte Versions-/Umgebungsmatrix getrennt dokumentieren |
 | `ExecutionId`, `ExecutionIdAllocator` | Allgemeine kausale Identität als Kernel-Kandidat | Keine neue parallele Skill-ID-Hierarchie ohne Bedarf |
 | `EntityId` | Allgemeine Identität als Kernel-Kandidat | Der Standort im Entities-Ordner beweist keine notwendige Resource-Kopplung |
@@ -18,6 +18,9 @@ Die in der Architekturübergabe genannte alte `CODE_CLASSIFICATION.md` ist im be
 | `HitExecutionIdAllocator`, `DamageExecutionIdAllocator` | Combat-spezifische Identitätsinfrastruktur | Nicht allein wegen `Simulation/` in den Kernel einordnen |
 | `SimulationRuntimeState` | Vorhandene Gameplay-Komposition aus Entities, Resources und Combat | Als konkrete Komposition erhalten; generische Module nicht davon abhängig machen |
 | `ITransactionParticipant`, `PreparedTransactionChange`, `TransactionCoordinator` | Generische Cross-Domain-Grenze | Weiterverwenden, neue gemeinsame Konflikte/Lebensdauern gezielt belegen |
+| `IDomainEvent`, `IDomainReaction<,>`, `DomainReactionContext<>`, `DomainReactionDispatcher<,>` | Kleine generische Post-Commit-Folgearbeitsgrenze | PW-S02 abgenommen; explizite Komposition statt globalem EventBus beibehalten |
+| `DomainEventTransactionCoordinator` | Komposition aus sicher reserviertem Follow-up und bestehendem Transaction-Commit | Für Commit→Event-Fälle nutzen; `TransactionCoordinator` selbst eventfrei halten |
+| `PreparedScheduledFollowUp<TPayload>` | Interne Scheduler-Publikationsreservation | Intern halten; keine allgemeine externe Queue-Reservation-API daraus machen |
 | `EntityRuntimeState`, `EntityRuntimeStateSet` | Bestehende Entity-/Resource-Komposition | Nicht sofort durch ECS ersetzen; Nutzung ohne Resources später konkret nachweisen |
 | `Resources/*` | Domain und ihre eigenen Mutations-/Buchungsmechanismen | Draft und Commit-Interna nicht pauschal veröffentlichen |
 | `ResourceCostTransactionParticipant` | Öffentlicher Resources-Adapter zur generischen Transaction | Bestehende Cost-Grenze nutzen; nicht als universellen Resource-Participant ausgeben |
@@ -41,11 +44,15 @@ B07 hat die explizite Execution-Provenienz für die besprochenen Pfade ergänzt;
 
 Der gezeigte B08-Commit legte `SimulationSchedulerInputBoundaryTests.cs` unter `Plaquewright.Core.Tests` an, obwohl der Vorschlag ursprünglich `ExternalTests` genannt hatte. Der Reflection-Test auf öffentliche Methoden kann dort weiterhin sinnvoll sein; daraus wird aber kein Nicht-Friend-Kompilierungsnachweis abgeleitet. Eine neue externe Integrationsabnahme muss die tatsächliche Test-Assembly verwenden. [E4]
 
-## 4. Kein nachgewiesener fertiger Ausbau
+PW-S02 ergänzt auf dem vom Nutzer bestätigten Stand `b04fcbe` die typisierte Domain-Event-/Reaction-Grenze, sichere Prepared-Follow-up-Reservation vor Commit, explizite Reaction-Reihenfolge, Same-Timestamp-Input-Schluss und Fail-stop bei unerwarteten Reaction-Fehlern. Der Door-/Alarm-Fall bleibt in `Core.ExternalTests` der öffentliche Nicht-Combat-Nachweis. [E7]
 
-Die neue Dokumentation behauptet kein bereits fertiges generisches Modul-Lifecycle-System, keine vollständige Domain-Event-/Reaction-Plattform, keine generische Snapshot-/Restore-Infrastruktur und keinen fertigen Replay-Scrubber. Dafür sind in dieser Prüfung keine ausreichenden aktuellen Implementierungs-/Ausführungsbelege vorhanden.
+## 4. Abgenommener kleiner Ausbau, weiterhin bewusst begrenzt
 
-Aus fehlenden Belegen wird umgekehrt nicht gefolgert, dass lokal keinerlei Vorarbeit existiert. Vor neuen Typen wird der konkrete aktuelle Stand geprüft.
+PW-S02 belegt eine **kleine typisierte Domain-Event-/Reaction-Pipeline**, aber keinen universellen EventBus oder ein fertiges Modul-Lifecycle-System. Ebenso sind generische Snapshot-/Restore-Infrastruktur und Replay-Scrubber weiterhin nicht nachgewiesen.
+
+Aus dem S02-Nachweis folgt insbesondere noch keine automatische Reaction-Discovery, keine dynamische Prioritätsregistrierung, kein Hotloading, keine zweite generische Alarm-Transaction und keine Aussage über Combat-Migration. Diese Grenzen werden erst bei PW-S03/PW-S04 aus realem Bedarf erweitert.
+
+Vor neuen Typen wird weiterhin der konkrete aktuelle Stand geprüft.
 
 ## 5. Umgang mit Tests
 
