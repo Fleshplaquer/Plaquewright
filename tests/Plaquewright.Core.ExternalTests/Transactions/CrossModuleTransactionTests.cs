@@ -756,6 +756,106 @@ public sealed class CrossModuleTransactionTests
     }
 
     [Fact]
+    public void DoorEventPipeline_RunNextAndRunToCompletionProduceSameAuthoritativeResult()
+    {
+        var stepwise =
+            RunDoorReactionScenario(
+                runToCompletion: false);
+
+        var continuous =
+            RunDoorReactionScenario(
+                runToCompletion: true);
+
+        Assert.Equal(
+            continuous.Trace,
+            stepwise.Trace);
+
+        Assert.Equal(
+            continuous.Waves,
+            stepwise.Waves);
+
+        Assert.Equal(
+            continuous.GoldCurrent,
+            stepwise.GoldCurrent);
+
+        Assert.Equal(
+            continuous.GoldRevision,
+            stepwise.GoldRevision);
+
+        Assert.Equal(
+            continuous.LedgerCount,
+            stepwise.LedgerCount);
+
+        Assert.Equal(
+            continuous.DoorIsOpen,
+            stepwise.DoorIsOpen);
+
+        Assert.Equal(
+            continuous.DoorOpenCount,
+            stepwise.DoorOpenCount);
+
+        Assert.Equal(
+            continuous.AlarmIsRaised,
+            stepwise.AlarmIsRaised);
+
+        Assert.Equal(
+            continuous.AlarmRaiseCount,
+            stepwise.AlarmRaiseCount);
+
+        Assert.Equal(
+            continuous.ProcessedEvents,
+            stepwise.ProcessedEvents);
+
+        Assert.Equal(
+            new[]
+            {
+            nameof(OpenDoorIntent),
+            nameof(DoorOpenedEvent),
+            nameof(RaiseAlarmAction)
+            },
+            continuous.Trace);
+
+        Assert.Equal(
+            new uint[]
+            {
+            0u,
+            1u,
+            2u
+            },
+            continuous.Waves);
+
+        Assert.Equal(
+            50d,
+            continuous.GoldCurrent);
+
+        Assert.Equal(
+            1UL,
+            continuous.GoldRevision);
+
+        Assert.Equal(
+            1,
+            continuous.LedgerCount);
+
+        Assert.True(
+            continuous.DoorIsOpen);
+
+        Assert.Equal(
+            1,
+            continuous.DoorOpenCount);
+
+        Assert.True(
+            continuous.AlarmIsRaised);
+
+        Assert.Equal(
+            1,
+            continuous.AlarmRaiseCount);
+
+        Assert.Equal(
+            3UL,
+            continuous.ProcessedEvents);
+    }
+
+    [Fact]
     public void PayGoldAndOpenDoor_WhenDoorPreparesBeforeGoldRejects_CommitsNeither()
     {
         var setup =
@@ -869,6 +969,17 @@ public sealed class CrossModuleTransactionTests
         ResourceStateTarget GoldTarget,
         ResourceOperationLedger Ledger);
 
+    private sealed record DoorReactionScenarioResult(
+        string[] Trace,
+        uint[] Waves,
+        double GoldCurrent,
+        ulong GoldRevision,
+        int LedgerCount,
+        bool DoorIsOpen,
+        int DoorOpenCount,
+        bool AlarmIsRaised,
+        int AlarmRaiseCount,
+        ulong ProcessedEvents);
     //
     // Synthetic external module.
     //
@@ -1026,6 +1137,155 @@ public sealed class CrossModuleTransactionTests
             throw new InvalidOperationException(
                 "Synthetic reaction failure.");
         }
+    }
+    private static DoorReactionScenarioResult
+    RunDoorReactionScenario(
+        bool runToCompletion)
+    {
+        var setup =
+            CreateResourceSetup(
+                currentGold: 150d);
+
+        var door =
+            new DoorState();
+
+        var alarm =
+            new AlarmState();
+
+        var payGold =
+            CreateGoldCostParticipant(
+                setup,
+                amount: 100d);
+
+        var openDoor =
+            new DoorTransactionParticipant(
+                door,
+                canOpen: true);
+
+        var reaction =
+            new RaiseAlarmReaction();
+
+        var scheduler =
+            new SimulationScheduler<TestWorkItem>(
+                new SimulationSchedulerLimits(
+                    maxQueueSize: 100,
+                    maxSameTimestampWave: 10));
+
+        var runner =
+            new SimulationRunner<TestWorkItem>(
+                scheduler,
+                new SimulationRunnerLimits(
+                    maxProcessedEvents: 10UL));
+
+        var trace =
+            new List<string>();
+
+        var waves =
+            new List<uint>();
+
+        runner.ScheduleExternalInput(
+            new SimulationTime(100L),
+            new OpenDoorIntent());
+
+        void Execute(
+            SimulationEventContext<TestWorkItem> context)
+        {
+            waves.Add(
+                context.Key.Wave.Value);
+
+            switch (context.Payload)
+            {
+                case OpenDoorIntent:
+                    {
+                        trace.Add(
+                            nameof(OpenDoorIntent));
+
+                        var committed =
+                            DomainEventTransactionCoordinator
+                                .TryCommitAndPublish<
+                                    TestWorkItem,
+                                    DoorOpenedEvent>(
+                                    context,
+                                    new DoorOpenedEvent(),
+                                    payGold,
+                                    openDoor);
+
+                        Assert.True(
+                            committed);
+
+                        break;
+                    }
+
+                case DoorOpenedEvent doorOpened:
+                    {
+                        trace.Add(
+                            nameof(DoorOpenedEvent));
+
+                        reaction.React(
+                            doorOpened,
+                            new DomainReactionContext<TestWorkItem>(
+                                context));
+
+                        break;
+                    }
+
+                case RaiseAlarmAction:
+                    {
+                        trace.Add(
+                            nameof(RaiseAlarmAction));
+
+                        alarm.Raise();
+
+                        break;
+                    }
+
+                default:
+                    throw new InvalidOperationException(
+                        "Unknown test work item.");
+            }
+        }
+
+        if (runToCompletion)
+        {
+            var result =
+                runner.RunToCompletion(
+                    Execute);
+
+            Assert.Equal(
+                SimulationRunStatus.Completed,
+                result.Status);
+        }
+        else
+        {
+            while (true)
+            {
+                var result =
+                    runner.RunNext(
+                        Execute);
+
+                if (result.Status ==
+                    SimulationRunStatus.Completed)
+                {
+                    break;
+                }
+
+                Assert.Equal(
+                    SimulationRunStatus.InProgress,
+                    result.Status);
+            }
+        }
+
+        return new DoorReactionScenarioResult(
+            trace.ToArray(),
+            waves.ToArray(),
+            setup.GoldTarget.State.Current,
+            setup.GoldTarget.State.Revision,
+            setup.Ledger.Count,
+            door.IsOpen,
+            door.OpenCount,
+            alarm.IsRaised,
+            alarm.RaiseCount,
+            runner.ProcessedEvents);
     }
 
 }
