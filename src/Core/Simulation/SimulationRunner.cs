@@ -6,6 +6,7 @@ public sealed class SimulationRunner<TPayload>
     private readonly SimulationRunnerLimits _limits;
 
     private SimulationBudgetKind? _terminalBudgetKind;
+    private SimulationTime? _externalInputsClosedThrough;
     private bool _isFaulted;
 
     public SimulationTime CurrentTime { get; private set; } =
@@ -38,6 +39,14 @@ public sealed class SimulationRunner<TPayload>
         {
             throw new InvalidOperationException(
                 "Simulation runner reached a terminal budget and cannot accept external input.");
+        }
+
+        if (_externalInputsClosedThrough is { } closedThrough &&
+            time <= closedThrough)
+        {
+            throw new InvalidOperationException(
+                $"Cannot schedule external input at {time} because external input " +
+                $"for simulation time {closedThrough} or earlier is already closed.");
         }
 
         if (time < CurrentTime)
@@ -102,6 +111,9 @@ public sealed class SimulationRunner<TPayload>
             throw new InvalidOperationException(
                 "Scheduler contained a peekable event that could not be dequeued.");
         }
+
+        _externalInputsClosedThrough =
+            scheduledEvent.Key.Time;
 
         CurrentTime =
             scheduledEvent.Key.Time;

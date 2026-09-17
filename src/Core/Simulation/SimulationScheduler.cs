@@ -9,6 +9,7 @@ public sealed class SimulationScheduler<TPayload>
     private readonly SimulationSchedulerLimits _limits;
 
     private ulong _nextSequence = 1UL;
+    private int _reservedQueueSlots;
 
     private ScheduledEventKey? _activeEventKey;
 
@@ -93,6 +94,107 @@ public sealed class SimulationScheduler<TPayload>
             time,
             phase,
             payload);
+    }
+
+    internal PreparedScheduledFollowUp<TPayload>
+    PrepareFollowUpFromActiveEvent(
+        ScheduledEventKey parent,
+        SimulationTime time,
+        TPayload payload)
+    {
+        if (_activeEventKey is not { } activeEventKey ||
+            activeEventKey != parent)
+        {
+            throw new InvalidOperationException(
+                "The simulation event context is no longer active.");
+        }
+
+        if (time < parent.Time)
+        {
+            throw new InvalidOperationException(
+                "Cannot schedule an event before its parent event.");
+        }
+
+        SchedulerWave wave;
+
+        if (time == parent.Time)
+        {
+            if (parent.Wave.Value >=
+                _limits.MaxSameTimestampWave)
+            {
+                throw new SimulationBudgetExceededException(
+                    SimulationBudgetKind.SameTimestampWave,
+                    $"Scheduler same-timestamp wave limit of " +
+                    $"{_limits.MaxSameTimestampWave} was exceeded.");
+            }
+
+            wave =
+                parent.Wave.Next();
+        }
+        else
+        {
+            wave =
+                SchedulerWave.Initial;
+        }
+
+        ValidateQueueBudget();
+
+        var key =
+            new ScheduledEventKey(
+                time,
+                wave,
+                SchedulerPhase.FollowUp,
+                NextSequence());
+
+        var scheduledEvent =
+            new ScheduledEvent<TPayload>(
+                key,
+                payload);
+
+        _reservedQueueSlots =
+            checked(_reservedQueueSlots + 1);
+
+        return new PreparedScheduledFollowUp<TPayload>(
+            this,
+            parent,
+            scheduledEvent);
+    }
+
+    internal ScheduledEventKey PublishPreparedFollowUp(
+        ScheduledEventKey parent,
+        ScheduledEvent<TPayload> scheduledEvent)
+    {
+        if (_activeEventKey is not { } activeEventKey ||
+            activeEventKey != parent)
+        {
+            throw new InvalidOperationException(
+                "Prepared follow-up can only be published while its parent event is active.");
+        }
+
+        if (_reservedQueueSlots <= 0)
+        {
+            throw new InvalidOperationException(
+                "No prepared follow-up queue slot is reserved.");
+        }
+
+        _queue.Enqueue(
+            scheduledEvent,
+            scheduledEvent.Key);
+
+        _reservedQueueSlots--;
+
+        return scheduledEvent.Key;
+    }
+
+    internal void CancelPreparedFollowUp()
+    {
+        if (_reservedQueueSlots <= 0)
+        {
+            throw new InvalidOperationException(
+                "No prepared follow-up queue slot is reserved.");
+        }
+
+        _reservedQueueSlots--;
     }
 
     public bool TryPeek(
@@ -242,7 +344,8 @@ public sealed class SimulationScheduler<TPayload>
 
     private void ValidateQueueBudget()
     {
-        if (_queue.Count >=
+        if ((long)_queue.Count +
+                _reservedQueueSlots >=
             _limits.MaxQueueSize)
         {
             throw new SimulationBudgetExceededException(

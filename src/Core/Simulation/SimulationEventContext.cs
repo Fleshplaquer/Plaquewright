@@ -35,4 +35,23 @@ public sealed class SimulationEventContext<TPayload>
             phase,
             payload);
     }
+    internal PreparedScheduledFollowUp<TPayload>
+    PrepareFollowUp(
+        TPayload payload)
+    {
+        return PrepareFollowUp(
+            CurrentTime,
+            payload);
+    }
+
+    internal PreparedScheduledFollowUp<TPayload>
+        PrepareFollowUp(
+            SimulationTime time,
+            TPayload payload)
+    {
+        return _scheduler.PrepareFollowUpFromActiveEvent(
+            Key,
+            time,
+            payload);
+    }
 }

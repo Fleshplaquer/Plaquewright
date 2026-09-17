@@ -69,6 +69,83 @@ public sealed class SimulationSchedulerInputBoundaryTests
     }
 
     [Fact]
+    public void ExternalInput_AtStartedTimestamp_IsRejectedWithoutFaultingRunner()
+    {
+        var scheduler =
+            CreateScheduler();
+
+        var runner =
+            CreateRunner(
+                scheduler);
+
+        //
+        // Both inputs are admitted before timestamp 100 starts.
+        //
+        runner.ScheduleExternalInput(
+            new SimulationTime(100L),
+            "first");
+
+        runner.ScheduleExternalInput(
+            new SimulationTime(100L),
+            "second");
+
+        string? firstPayload =
+            null;
+
+        var firstResult =
+            runner.RunNext(
+                context =>
+                    firstPayload =
+                        context.Payload);
+
+        Assert.Equal(
+            "first",
+            firstPayload);
+
+        Assert.Equal(
+            SimulationRunStatus.InProgress,
+            firstResult.Status);
+
+        //
+        // Timestamp 100 has started. A late host input may
+        // no longer join it.
+        //
+        Assert.Throws<InvalidOperationException>(
+            () =>
+                runner.ScheduleExternalInput(
+                    new SimulationTime(100L),
+                    "late"));
+
+        //
+        // Rejection does not fault the runner.
+        //
+        runner.ScheduleExternalInput(
+            new SimulationTime(101L),
+            "future");
+
+        var remainingTrace =
+            new List<string>();
+
+        var result =
+            runner.RunToCompletion(
+                context =>
+                    remainingTrace.Add(
+                        context.Payload));
+
+        Assert.Equal(
+            new[]
+            {
+            "second",
+            "future"
+            },
+            remainingTrace);
+
+        Assert.Equal(
+            SimulationRunStatus.Completed,
+            result.Status);
+    }
+
+    [Fact]
     public void ExternalInput_BeforeCurrentTime_IsRejectedWithoutFaultingRunner()
     {
         var scheduler =

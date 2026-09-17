@@ -1,7 +1,9 @@
 using System.Diagnostics.CodeAnalysis;
 using Plaquewright.Core.Entities;
 using Plaquewright.Core.Resources;
+using Plaquewright.Core.Simulation;
 using Plaquewright.Core.Transactions;
+using Plaquewright.Core.Events;
 
 namespace Plaquewright.Core.ExternalTests.Transactions;
 
@@ -67,6 +69,529 @@ public sealed class CrossModuleTransactionTests
         Assert.Equal(
             1,
             door.OpenCount);
+    }
+
+    [Fact]
+    public void CommittedDoorTransaction_ProducesDeterministicFollowUpReaction()
+    {
+        var setup =
+            CreateResourceSetup(
+                currentGold: 150d);
+
+        var door =
+            new DoorState();
+
+        var alarm =
+            new AlarmState();
+
+        var payGold =
+            CreateGoldCostParticipant(
+                setup,
+                amount: 100d);
+
+        var openDoor =
+            new DoorTransactionParticipant(
+                door,
+                canOpen: true);
+
+        var scheduler =
+            new SimulationScheduler<TestWorkItem>(
+                new SimulationSchedulerLimits(
+                    maxQueueSize: 100,
+                    maxSameTimestampWave: 10));
+        var raiseAlarmReaction =
+            new RaiseAlarmReaction();
+
+        var runner =
+            new SimulationRunner<TestWorkItem>(
+                scheduler,
+                new SimulationRunnerLimits(
+                    maxProcessedEvents: 10UL));
+
+        var trace =
+            new List<string>();
+
+        var waves =
+            new List<uint>();
+
+        runner.ScheduleExternalInput(
+            new SimulationTime(100L),
+            new OpenDoorIntent());
+
+        var result =
+            runner.RunToCompletion(
+                context =>
+                {
+                    waves.Add(
+                        context.Key.Wave.Value);
+
+                    switch (context.Payload)
+                    {
+                        case OpenDoorIntent:
+                            {
+                                trace.Add(
+                                nameof(OpenDoorIntent));
+
+                                var committed =
+                                    DomainEventTransactionCoordinator
+                                        .TryCommitAndPublish<
+                                            TestWorkItem,
+                                            DoorOpenedEvent>(
+                                            context,
+                                            new DoorOpenedEvent(),
+                                            payGold,
+                                            openDoor);
+
+                                Assert.True(
+                                    committed);
+
+                                //
+                                // The transaction is committed before the
+                                // domain event can execute.
+                                //
+                                Assert.Equal(
+                                    50d,
+                                    setup.GoldTarget.State.Current);
+
+                                Assert.Equal(
+                                    1UL,
+                                    setup.GoldTarget.State.Revision);
+
+                                Assert.Equal(
+                                    1,
+                                    setup.Ledger.Count);
+
+                                Assert.True(
+                                    door.IsOpen);
+
+                                Assert.False(
+                                    alarm.IsRaised);
+                                break;
+                            }
+
+                        case DoorOpenedEvent doorOpened:
+                            {
+                                trace.Add(
+                                    nameof(DoorOpenedEvent));
+
+                                //
+                                // Reactions observe already committed state.
+                                //
+                                Assert.Equal(
+                                    50d,
+                                    setup.GoldTarget.State.Current);
+
+                                Assert.True(
+                                    door.IsOpen);
+
+                                Assert.False(
+                                    alarm.IsRaised);
+
+                                raiseAlarmReaction.React(
+                                    doorOpened,
+                                    new DomainReactionContext<TestWorkItem>(
+                                        context));
+
+                                break;
+                            }
+
+                        case RaiseAlarmAction:
+                            {
+                                trace.Add(
+                                nameof(RaiseAlarmAction));
+
+                                alarm.Raise();
+
+                                break;
+                            }
+
+                        default:
+                            throw new InvalidOperationException(
+                                "Unknown test work item.");
+                    }
+                });
+
+        Assert.Equal(
+            SimulationRunStatus.Completed,
+            result.Status);
+
+        Assert.Equal(
+            3UL,
+            runner.ProcessedEvents);
+
+        Assert.Equal(
+            new[]
+            {
+            nameof(OpenDoorIntent),
+            nameof(DoorOpenedEvent),
+            nameof(RaiseAlarmAction)
+            },
+            trace);
+
+        //
+        // Same-time follow-ups advance by one scheduler wave
+        // instead of recursing inside the current event.
+        //
+        Assert.Equal(
+            new uint[]
+            {
+            0u,
+            1u,
+            2u
+            },
+            waves);
+
+        Assert.Equal(
+            50d,
+            setup.GoldTarget.State.Current);
+
+        Assert.True(
+            door.IsOpen);
+
+        Assert.True(
+            alarm.IsRaised);
+    }
+
+    [Fact]
+    public void RejectedDoorTransaction_ProducesNoDomainEventOrReaction()
+    {
+        var setup =
+            CreateResourceSetup(
+                currentGold: 150d);
+
+        var door =
+            new DoorState();
+
+        var alarm =
+            new AlarmState();
+
+        var payGold =
+            CreateGoldCostParticipant(
+                setup,
+                amount: 100d);
+
+        var openDoor =
+            new DoorTransactionParticipant(
+                door,
+                canOpen: false);
+
+        var scheduler =
+            new SimulationScheduler<TestWorkItem>(
+                new SimulationSchedulerLimits(
+                    maxQueueSize: 100,
+                    maxSameTimestampWave: 10));
+
+        var runner =
+            new SimulationRunner<TestWorkItem>(
+                scheduler,
+                new SimulationRunnerLimits(
+                    maxProcessedEvents: 10UL));
+
+        var trace =
+            new List<string>();
+
+        runner.ScheduleExternalInput(
+            new SimulationTime(100L),
+            new OpenDoorIntent());
+
+        var result =
+            runner.RunToCompletion(
+                context =>
+                {
+                    trace.Add(
+                        context.Payload
+                            .GetType()
+                            .Name);
+
+                    switch (context.Payload)
+                    {
+                        case OpenDoorIntent:
+                            {
+                                var committed =
+                                    DomainEventTransactionCoordinator
+                                        .TryCommitAndPublish<
+                                            TestWorkItem,
+                                            DoorOpenedEvent>(
+                                            context,
+                                            new DoorOpenedEvent(),
+                                            payGold,
+                                            openDoor);
+
+                                Assert.False(
+                                    committed);
+
+                                //
+                                // A rejected transaction also cancels the
+                                // prepared domain-event publication.
+                                //
+
+                                break;
+                            }
+
+                        default:
+                            throw new InvalidOperationException(
+                                "Rejected transaction produced unexpected follow-up work.");
+                    }
+                });
+
+        Assert.Equal(
+            SimulationRunStatus.Completed,
+            result.Status);
+
+        Assert.Equal(
+            1UL,
+            runner.ProcessedEvents);
+
+        Assert.Equal(
+            new[]
+            {
+            nameof(OpenDoorIntent)
+            },
+            trace);
+
+        Assert.Equal(
+            150d,
+            setup.GoldTarget.State.Current);
+
+        Assert.Equal(
+            0UL,
+            setup.GoldTarget.State.Revision);
+
+        Assert.Equal(
+            0,
+            setup.Ledger.Count);
+
+        Assert.False(
+            door.IsOpen);
+
+        Assert.False(
+            alarm.IsRaised);
+    }
+
+    [Fact]
+    public void DomainEventReservationFailure_PreventsTransactionCommit()
+    {
+        var setup =
+            CreateResourceSetup(
+                currentGold: 150d);
+
+        var door =
+            new DoorState();
+
+        var payGold =
+            CreateGoldCostParticipant(
+                setup,
+                amount: 100d);
+
+        var openDoor =
+            new DoorTransactionParticipant(
+                door,
+                canOpen: true);
+
+        var scheduler =
+            new SimulationScheduler<TestWorkItem>(
+                new SimulationSchedulerLimits(
+                    maxQueueSize: 1,
+                    maxSameTimestampWave: 10));
+
+        var runner =
+            new SimulationRunner<TestWorkItem>(
+                scheduler,
+                new SimulationRunnerLimits(
+                    maxProcessedEvents: 10UL));
+
+        runner.ScheduleExternalInput(
+            new SimulationTime(100L),
+            new OpenDoorIntent());
+
+        var result =
+    runner.RunNext(
+        context =>
+        {
+            //
+            // Occupy the only available queue slot
+            // before the transaction/event boundary
+            // attempts its reservation.
+            //
+            context.Schedule(
+                new SimulationTime(101L),
+                SchedulerPhase.FollowUp,
+                new QueueBlockerWorkItem());
+
+            DomainEventTransactionCoordinator
+                .TryCommitAndPublish<
+                    TestWorkItem,
+                    DoorOpenedEvent>(
+                    context,
+                    new DoorOpenedEvent(),
+                    payGold,
+                    openDoor);
+        });
+
+        Assert.Equal(
+            SimulationRunStatus.BudgetExceeded,
+            result.Status);
+
+        Assert.Equal(
+            SimulationBudgetKind.QueueSize,
+            result.BudgetKind);
+
+        //
+        // Event publication could not be guaranteed,
+        // therefore the transaction was never allowed
+        // to become visible.
+        //
+        Assert.Equal(
+            150d,
+            setup.GoldTarget.State.Current);
+
+        Assert.Equal(
+            0UL,
+            setup.GoldTarget.State.Revision);
+
+        Assert.Equal(
+            0,
+            setup.Ledger.Count);
+
+        Assert.False(
+            door.IsOpen);
+    }
+
+    [Fact]
+    public void ReactionFailure_FaultsRunnerWithoutRollingBackCommittedTransaction()
+    {
+        var setup =
+            CreateResourceSetup(
+                currentGold: 150d);
+
+        var door =
+            new DoorState();
+
+        var payGold =
+            CreateGoldCostParticipant(
+                setup,
+                amount: 100d);
+
+        var openDoor =
+            new DoorTransactionParticipant(
+                door,
+                canOpen: true);
+
+        var dispatcher =
+            new DomainReactionDispatcher<
+                DoorOpenedEvent,
+                TestWorkItem>(
+                new ThrowingDoorOpenedReaction());
+
+        var scheduler =
+            new SimulationScheduler<TestWorkItem>(
+                new SimulationSchedulerLimits(
+                    maxQueueSize: 100,
+                    maxSameTimestampWave: 10));
+
+        var runner =
+            new SimulationRunner<TestWorkItem>(
+                scheduler,
+                new SimulationRunnerLimits(
+                    maxProcessedEvents: 10UL));
+
+        runner.ScheduleExternalInput(
+            new SimulationTime(100L),
+            new OpenDoorIntent());
+
+        //
+        // First event commits Gold + Door and publishes DoorOpened.
+        //
+        var commitResult =
+            runner.RunNext(
+                context =>
+                {
+                    var committed =
+                        DomainEventTransactionCoordinator
+                            .TryCommitAndPublish<
+                                TestWorkItem,
+                                DoorOpenedEvent>(
+                                context,
+                                new DoorOpenedEvent(),
+                                payGold,
+                                openDoor);
+
+                    Assert.True(
+                        committed);
+                });
+
+        Assert.Equal(
+            SimulationRunStatus.InProgress,
+            commitResult.Status);
+
+        Assert.Equal(
+            50d,
+            setup.GoldTarget.State.Current);
+
+        Assert.Equal(
+            1UL,
+            setup.GoldTarget.State.Revision);
+
+        Assert.Equal(
+            1,
+            setup.Ledger.Count);
+
+        Assert.True(
+            door.IsOpen);
+
+        //
+        // DoorOpened is already authoritative.
+        // Its unexpected reaction failure must fault the runtime,
+        // not roll the previous transaction back.
+        //
+        Assert.Throws<InvalidOperationException>(
+            () =>
+                runner.RunNext(
+                    context =>
+                    {
+                        var domainEvent =
+                            Assert.IsType<DoorOpenedEvent>(
+                                context.Payload);
+
+                        dispatcher.Dispatch(
+                            domainEvent,
+                            new DomainReactionContext<TestWorkItem>(
+                                context));
+                    }));
+
+        //
+        // Original committed state remains authoritative.
+        //
+        Assert.Equal(
+            50d,
+            setup.GoldTarget.State.Current);
+
+        Assert.Equal(
+            1UL,
+            setup.GoldTarget.State.Revision);
+
+        Assert.Equal(
+            1,
+            setup.Ledger.Count);
+
+        Assert.True(
+            door.IsOpen);
+
+        //
+        // Fail-stop: runtime cannot continue.
+        //
+        Assert.Throws<InvalidOperationException>(
+            () =>
+                runner.RunNext(
+                    _ =>
+                    {
+                    }));
+
+        Assert.Throws<InvalidOperationException>(
+            () =>
+                runner.ScheduleExternalInput(
+                    new SimulationTime(101L),
+                    new OpenDoorIntent()));
     }
 
     [Fact]
@@ -422,5 +947,85 @@ public sealed class CrossModuleTransactionTests
                 _door.Open();
             }
         }
+
     }
+
+    private abstract class TestWorkItem
+    {
+    }
+
+    private sealed class OpenDoorIntent
+        : TestWorkItem
+    {
+    }
+
+    private sealed class DoorOpenedEvent
+    : TestWorkItem,
+      IDomainEvent
+    {
+    }
+
+    private sealed class RaiseAlarmAction
+        : TestWorkItem
+    {
+    }
+
+    private sealed class RaiseAlarmReaction
+    : IDomainReaction<
+        DoorOpenedEvent,
+        TestWorkItem>
+    {
+        public void React(
+            DoorOpenedEvent domainEvent,
+            DomainReactionContext<TestWorkItem> context)
+        {
+            ArgumentNullException.ThrowIfNull(
+                domainEvent);
+
+            ArgumentNullException.ThrowIfNull(
+                context);
+
+            context.ScheduleFollowUp(
+                new RaiseAlarmAction());
+        }
+    }
+
+    private sealed class AlarmState
+    {
+        public bool IsRaised { get; private set; }
+
+        public int RaiseCount { get; private set; }
+
+        public void Raise()
+        {
+            IsRaised = true;
+            RaiseCount++;
+        }
+    }
+
+    private sealed class QueueBlockerWorkItem
+    : TestWorkItem
+    {
+    }
+
+    private sealed class ThrowingDoorOpenedReaction
+    : IDomainReaction<
+        DoorOpenedEvent,
+        TestWorkItem>
+    {
+        public void React(
+            DoorOpenedEvent domainEvent,
+            DomainReactionContext<TestWorkItem> context)
+        {
+            ArgumentNullException.ThrowIfNull(
+                domainEvent);
+
+            ArgumentNullException.ThrowIfNull(
+                context);
+
+            throw new InvalidOperationException(
+                "Synthetic reaction failure.");
+        }
+    }
+
 }
