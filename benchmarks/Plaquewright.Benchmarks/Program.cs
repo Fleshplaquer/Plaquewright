@@ -183,7 +183,8 @@ internal static class Program
                 [
                     new SchedulerBurstProfile(
                 100_000),
-            new SchedulerBurstCyclesProfile()
+                new SchedulerBurstCyclesProfile(),
+                new SchedulerBurstCyclesRetainedProfile()
                 ]);
         }
 
