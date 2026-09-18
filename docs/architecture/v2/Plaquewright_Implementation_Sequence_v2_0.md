@@ -2,7 +2,7 @@
 
 **Version:** 2.0 · **Datum:** 18. September 2026
 **Ausgangspunkt:** Nutzerbestätigte Audit-Baseline `d39cb54`, nicht der alte Idler-P00-Start
-**Status:** Freigegebene Architektur-Baufolge; PW-S02 abgenommen auf `b04fcbe`, PW-S03 auf `f90517a`, PW-S04 auf `8bd4dd0`, PW-S05 auf `d8826a2`; finaler S05-Testumfang 1248 Tests, anschließend `gcc`
+**Status:** Freigegebene Architektur-Baufolge; PW-S02 abgenommen auf `b04fcbe`, PW-S03 auf `f90517a`, PW-S04 auf `8bd4dd0`, PW-S05 auf `d8826a2`, PW-S06 auf `3ee638a`; finaler S06-Testumfang 1267/1267, anschließend `gcc`
 
 ## 1. Ziel der Reihenfolge
 
@@ -22,7 +22,7 @@ Die neue Reihenfolge verwendet `PW-Sxx`, um weder alte P-Meilensteine noch abges
 | PW-S03 | Kleine explizite Modulkomposition und Headless-/Godot-Referenz **– abgenommen** | Beweist Benutzbarkeit außerhalb interner Tests |
 | PW-S04 | Zweites fachliches Referenzszenario mit vorhandenen Combat-Bausteinen **– abgenommen** | Belegt, dass dieselbe Runtime auch result-backed Combat, PreDefeat und bezahlte Damage-Folgearbeit trägt |
 | PW-S05 | Snapshot/Restore und deterministischer Replay-Beweis **– abgenommen** | Prüft State-Ownership und ausstehende Arbeit früh |
-| PW-S06 | Zeitabhängige Domain und abgeleitete Queries | Erweitert Status/Production und Cache-Invalidierung an realem Bedarf |
+| PW-S06 | Zeitabhängige Domain und abgeleitete Queries **– abgenommen** | Erweitert zeitabhängigen Domain-State und Cache-Invalidierung an realem Bedarf |
 | PW-S07 | Definierte Lastprofile, Retention und gemessene Optimierung | Performance wird geprüft statt aus Architektur abgeleitet |
 | PW-S08 | Exakte Zeitbeschleunigung, optionale Approximation und weitere Adapter | Baut auf belegten Semantik- und Replay-Grenzen auf |
 
@@ -213,11 +213,33 @@ PW-S05 verwendet bewusst ein in-memory Restore-Modell statt JSON, Savegame-Forma
 
 ## 9. PW-S06 – Zeitabhängige Domains und abgeleitete Werte
 
-Nach dem abgeschlossenen PW-S05 ergänzt ein konkreter Mechanismus die bisherigen Punkt-Events: beispielsweise eine Produktionsphase oder ein Status mit Tick und Ablauf. Vor Produktionscode wird das kleinste Referenzszenario ausgewählt, das Zeitgrenzen und abgeleitete Queries tatsächlich benötigt.
+**Status:** Abgenommen am 18. September 2026. Technischer Endstand: `3ee638a`. Finaler bestätigter Testumfang: **1267/1267**; vollständiger Regressionstest und Build grün, anschließend `gcc`.
 
-**Lieferung:** Domain-eigener Zustand, typisierte Queries, definierte Zeitgrenzen sowie Invalidierung abgeleiteter Werte. Ein Status, der Resistance beeinflusst, wird bei seiner eigenen Zustandsänderung relevant; ein Combat-Resolver liest anschließend die passende Sicht.
+PW-S06 wählte bewusst keinen allgemeinen Status-/Timer-Unterbau, sondern einen kleinen zeitabhängigen Modifier-State in `Stats`. Damit wurde der Zeit-/Query-Vertrag an vorhandener `ModifierAccumulator`-/`ModifierMath`-Semantik bewiesen.
 
-**Abnahme:** Kein Full-World-Scan ohne Bedarf, kein Observer als rückwirkende Reparatur von State. Ablauf, gleiche Timestamps, Cancellation/Versionierung und Cache-/Referenzvergleich sind explizit geprüft.
+**Technischer Verlauf:**
+
+- `238a24a` – `TimedModifierStateSet`, Modifier-Key/Generation/Expiration, `TimedModifierValueQuery` und externer `StateBoundary`-Ablaufbeweis; 1256/1256 Tests, danach `gcc`.
+- `0739c31` – revision-basierter `TimedModifierValueQueryCache`; Cache-Hit sowie Invalidierung nach Apply/Refresh/Cancel/Expire und Nicht-Invalidierung bei stale Expiration; 1260/1260, danach `gcc`.
+- `982798e` – Domain-Snapshot/Restore für aktive und inaktive Slots samt Generation, Revision, Ablaufzeit und Exhaustion; 1265/1265, danach `gcc`.
+- `3ee638a` – Fortsetzungsbeweis mit Domain-Snapshot plus pending Runner-Arbeit; stale und aktuelle Expiration werden nach Restore deterministisch weiterverarbeitet; 1267/1267, Build grün, danach `gcc`.
+
+**Abgenommene Semantik:**
+
+1. Der zeitabhängige Modifier-State gehört der Stats-Domain; der Kernel kennt weder Status noch Resistance.
+2. Eine aktive Lebensdauer wird durch `TimedModifierExpiration(Key, Generation, ExpiresAt)` beschrieben. Refresh erzeugt eine neue Generation; Cancel lässt die alte Generation als inaktiven Slot bestehen.
+3. Alte Expiration-Work-Items müssen nicht aus dem Scheduler entfernt werden. Stimmen Generation oder aktiver Slot nicht mehr, ist der Ablauf erwartbar stale und mutiert keinen State.
+4. Reale State-Mutation erhöht `Revision`; stale Arbeit nicht. Darauf basiert die Cache-Invalidierung.
+5. Ablauf bei `ExpiresAt` wird im Referenzszenario als `SchedulerPhase.StateBoundary` geplant. Eine `Execution` am selben Timestamp liest deshalb bereits den abgelaufenen State.
+6. Zero-duration wird im ersten Profil abgewiesen; es wird kein Same-Time-Child als vorgezogene StateBoundary interpretiert.
+7. `TimedModifierValueQuery` bleibt read-only und verwendet dieselbe Modifier-Rechenlogik wie der ungecachte Referenzpfad.
+8. Der Cache-Key umfasst State-Identität, Revision und Query-Input; gleiche Revision verschiedener State-Instanzen ist kein Cache-Hit.
+9. Snapshot/Restore erhält aktive und inaktive Slots, Generationen, Revision und Ablaufdaten. Restore reproduziert den Zustand direkt statt die Änderungs-API erneut auszuführen.
+10. Der finale Continuation-Test baut eine frische Composition gegen den restaurierten State. Eine stale Generation und die aktuelle Generation bleiben über Snapshot/Restore semantisch korrekt; Query- und Cache-Ergebnisse stimmen mit der Referenzrechnung überein.
+
+**Abgenommen:** PW-QA-20 für den beschriebenen S06-Referenzumfang. Die Prüfung deckt Same-Timestamp-Ablauf, Refresh/Cancel-Versionierung, Cache-vs.-Referenzrechnung, Snapshot/Restore und pending Expiration über Restore ab.
+
+**Bewusst nicht eingeführt:** allgemeines Status-/Buff-System, globaler Timer-Service, Scheduler-Cancellation-Registry, generischer Dependency-Graph für Derived Values, Produktions-Serializer oder Integration der Stats-Domain als Pflichtfeld von `SimulationRuntimeState`.
 
 **Zusammenführung:** Weitere Skills, Inventory, Equipment und neue Regelprofile kommen als eigenständige vertikale Fälle hinzu. Dieses Dokument schreibt dafür keine universell richtige Genre-Reihenfolge vor.
 
@@ -249,6 +271,6 @@ Bei Codeänderungen bleiben `dotnet test`, `dotnet build`, Diff-Prüfung und ein
 
 Die Arbeit endet an einem nutzbaren Zwischenstand. Ein offen gebliebenes Folgefeature wird weder versteckt noch durch eine neue Generalschicht ersetzt.
 
-**Quellen:** [E1–E5, E7–E11](SOURCE_EVIDENCE_v2_0.md).
+**Quellen:** [E1–E5, E7–E12](SOURCE_EVIDENCE_v2_0.md).
 **Detailverträge:** [Manifest](Plaquewright_Manifest_v2_0.md).
 **Test-IDs:** [Abnahmekatalog](Plaquewright_Freigabe_und_Testnachweise_v2_0.md).

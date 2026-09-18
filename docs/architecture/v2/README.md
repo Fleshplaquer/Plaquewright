@@ -6,7 +6,8 @@
 **PW-S03-Nachweis:** `f90517a`, vom Nutzer als grün / committed / clean bestätigt  
 **PW-S04-Nachweis:** `8bd4dd0`, vom Nutzer nach 1215/1215 Tests als grün / committed / clean bestätigt  
 **PW-S05-Nachweis:** `d8826a2`, vom Nutzer nach vollständigem Regressionstest und Build als grün / committed / clean bestätigt; finaler S05-Testumfang 1248 Tests  
-**Dokumentstatus:** Architektur 2.0 angenommen; D-01, D-02, D-04 und D-05 beschlossen; PW-S02 bis PW-S05 abgenommen
+**PW-S06-Nachweis:** `3ee638a`, vom Nutzer nach 1267/1267 Tests und Build als grün / committed / clean bestätigt  
+**Dokumentstatus:** Architektur 2.0 angenommen; D-01, D-02, D-04 und D-05 beschlossen; PW-S02 bis PW-S06 abgenommen
 
 ## Was diese Fassung festlegt
 
@@ -24,7 +25,7 @@ Die bestehende Implementierung und der A/B-Auditabschluss werden weiterverwendet
 
 **D-05 – Commit/Event/Fault:** Autoritative Event-Kapazität wird vor dem zugehörigen Commit gesichert. Ein unerwarteter Reaction-Fehler rollt den bereits gültigen Commit nicht zurück, sondern beendet die weitere autoritative Ausführung dieser Runtime als Fault.
 
-Snapshots entstehen im aktuellen Profil nur an **quiescent boundaries**. Ein Restore rekonstruiert neue Runtime-Objekte und eine neue `SimulationRuntimeIdentity`; alte Live-Objekte oder alte Handlerbindungen werden nicht als Persistenzzustand übernommen.
+Runtime-/Session-Fortsetzungssnapshots entstehen im aktuellen Profil nur an **quiescent boundaries**. Ein S05-Runtime-Restore rekonstruiert neue Runtime-Objekte und eine neue `SimulationRuntimeIdentity`; domainlokale Snapshots wie in S06 rekonstruieren ihren eigenen State unabhängig. Alte Live-Objekte oder alte Handlerbindungen werden nicht als Persistenzzustand übernommen.
 
 ## Dokumente
 
@@ -61,8 +62,24 @@ Die alte Ledger-History vor der Snapshot-Grenze ist im aktuellen Profil **nicht*
 
 PW-S05 ist keine Freigabe für JSON-/Binary-Savegames, universelle polymorphe Persistenz aller `ISimulationWorkItem`-Typen, Cross-Version-Migration, automatische Ruleset-Migration, vollständige Replay-History-Retention, echte Host-/Netzwerk-Side-Effect-Unterdrückung, aufgezeichnete Physics-Host-Facts, Cross-Platform-/Cross-Engine-Bitgleichheit oder einen 30-Sekunden-Analyse-Scrubber.
 
+## PW-S06 – abgenommener Zeit-/Query-Umfang
+
+PW-S06 wurde auf `3ee638a` abgeschlossen. Die technische Folge lautet `238a24a` → `0739c31` → `982798e` → `3ee638a`; der finale bestätigte Teststand beträgt **1267/1267**, Build grün, anschließend `gcc`.
+
+Der abgenommene Umfang umfasst:
+
+- `TimedModifierStateSet` als domain-eigenen autoritativen Zustand mit `Revision`, pro Key fortgesetzter `Generation`, aktiven/inaktiven Slots und explizitem Ablaufzeitpunkt.
+- `TimedModifierExpiration` als Gültigkeitstoken. Refresh und Cancel benötigen kein physisches Entfernen bereits geplanter Scheduler-Arbeit; alte Expirations werden über die Generation kontrolliert stale.
+- Ablauf über `SchedulerPhase.StateBoundary`, sodass ein Ablauf bei `T` vor `Execution` desselben Timestamps sichtbar wird. Zero-duration wird im ersten Profil bewusst abgewiesen.
+- `TimedModifierValueQuery` als read-only Referenzrechnung über die vorhandene `ModifierAccumulator`-/`ModifierMath`-Semantik.
+- `TimedModifierValueQueryCache` mit Cache-Key aus State-Identität, `Revision` und Query-Input. Nur echte autoritative Mutation invalidiert; stale Expiration verändert die Revision nicht.
+- `TimedModifierStateSetSnapshot` samt aktiven und inaktiven Slots, Generationen, Revision und Expiration-State. Restore rekonstruiert unabhängig und ruft nicht `ApplyOrRefresh(...)` nach.
+- Einen Fortsetzungsbeweis, der Domain-Snapshot und pending Scheduler-Arbeit gemeinsam restauriert. Eine alte Expiration bleibt nach Restore stale, die aktuelle Generation läuft am korrekten `StateBoundary` ab, und Query/Cache liefern in beiden Branches dieselbe Fortsetzung.
+
+PW-S06 führt **kein** allgemeines Status-/Buff-System, keine globale Timer-Registry, keinen Scheduler-Cancel-Service, keinen universellen Work-Item-Serializer und keine Pflichtintegration der Stats-Domain in `SimulationRuntimeState` ein. PW-QA-20 ist für diesen Referenzumfang abgenommen.
+
 ## Nächster Entwicklungsstrang
 
-Der nächste reguläre Architekturbaustein ist **PW-S06 – zeitabhängige Domain und abgeleitete Queries**. Vor dem ersten Produktionscode wird dafür ein konkretes Referenzszenario ausgewählt, das Ablauf-/Tick-/Zeitgrenzen und Query-/Cache-Invalidierung tatsächlich benötigt. Es wird keine allgemeine Status-, Timer- oder Cache-Plattform vorsorglich gebaut.
+Der nächste reguläre Architekturbaustein ist **PW-S07 – definierte Lastprofile, Retention und gemessene Optimierung**. Zuerst wird ein reproduzierbares Referenzprofil mit Hardware-/Runtime-/Buildangaben und semantischer Referenzmessung festgelegt; erst danach werden Hot Paths oder Retention optimiert. D-06 bleibt bis zu solchen Messungen offen.
 
 D-03, D-06 und D-07 bleiben offene technische Detailgates.

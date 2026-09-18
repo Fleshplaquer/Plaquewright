@@ -1,7 +1,7 @@
 # Plaquewright – Code Classification 2.0
 
 **Datum:** 18. September 2026 · **Status:** Freigegebene v2.0-Einordnung / statische Momentaufnahme
-**Historische Audit-Baseline:** `d39cb54`; **PW-S02-Nachweis:** `b04fcbe`; **PW-S03-Nachweis:** `f90517a`; **PW-S04-Nachweis:** `8bd4dd0`; **PW-S05-Nachweis:** `d8826a2`, finaler S05-Testumfang 1248 Tests + `gcc`; **vollständig direkt untersuchte Source-Basis:** älterer Archiv-Snapshot `zip.7z` plus im S02/S03/S04/S05-Durchgang gezeigte oder gemeinsam erarbeitete betroffene Verträge, Tests und Host-Dateien
+**Historische Audit-Baseline:** `d39cb54`; **PW-S02-Nachweis:** `b04fcbe`; **PW-S03-Nachweis:** `f90517a`; **PW-S04-Nachweis:** `8bd4dd0`; **PW-S05-Nachweis:** `d8826a2`; **PW-S06-Nachweis:** `3ee638a`, finaler S06-Testumfang 1267/1267 + `gcc`; **vollständig direkt untersuchte Source-Basis:** älterer Archiv-Snapshot `zip.7z` plus im S02–S06-Durchgang gezeigte oder gemeinsam erarbeitete betroffene Verträge, Tests und Host-Dateien
 
 Die in der Architekturübergabe genannte alte `CODE_CLASSIFICATION.md` ist im bereitgestellten Archiv nicht enthalten. Diese neue Klassifikation verwendet tatsächliche Quellpfade, behauptet aber keinen vollständigen aktuellen Dependency-Audit.
 
@@ -39,6 +39,9 @@ Die in der Architekturübergabe genannte alte `CODE_CLASSIFICATION.md` ist im be
 | `SimulationRuntimeSessionSnapshot<TPayloadSnapshot>` | Höherer interner Fortsetzungs-Envelope über Runtime- und Runner-Snapshot | Bündelt autoritativen Runtime-/Execution-State; `SimulationComposition` wird nicht gesnapshottet und muss gegen Runtime B neu aufgebaut werden |
 | `DamageApplicationOwnerPlan`, `ResolvedDamageApplicationExecutor`, `ResolvedDamageApplicationResult` | Combat-interne Orchestrierung von Loss-Plänen, PreDefeat pro Owner und Defeat-aware Commit | Mehrere Plans/Owner bleiben möglich; kein `CombatService` und keine Kernel-Abstraktion daraus machen |
 | `Stats/ModifierMath`, `ModifierAccumulator` | Rechenbausteine der Stats-/Modifier-Domain | Kein Beleg eines bereits vollständigen Stat-Graph-/Cache-Systems |
+| `ModifierKind`, `TimedModifierKey`, `TimedModifierExpiration`, `TimedModifierStateSet` | PW-S06-Referenz für domain-eigenen zeitabhängigen Modifier-State | Generation bestimmt Lebensdauer-Gültigkeit; Revision nur bei echter Mutation; kein allgemeines Status-/Timer-System daraus ableiten |
+| `TimedModifierValueQuery`, `TimedModifierValueQueryCache` | Read-only Derived Query plus kleiner revision-basierter Cache | Referenzrechnung bleibt ungecacht verfügbar; Cache-Key umfasst State-Identität, Revision und Query-Input; kein globaler Query-Graph |
+| `TimedModifierActiveSnapshot`, `TimedModifierSlotSnapshot`, `TimedModifierStateSetSnapshot` | Domainlokale Fortsetzungsdaten für PW-S06 | Aktive und inaktive Slots samt Generation/Revision/Ablauf erhalten; Restore führt `ApplyOrRefresh` nicht erneut aus |
 | `Tags/*`, `Conditions/*` | Klassifikation und Auswertung, mit bestehender Kopplung | Nur bei einer benötigten Grenze trennen, nicht aus Ordnerästhetik |
 | `Numerics/NumericComparison` | Geteilte numerische Hilfsfunktion | Nicht mit einem universellen plattformübergreifenden Numerikvertrag verwechseln |
 | `src/Presentation/Main.cs` | Dünner Godot-Referenzadapter | Besitzt/erstellt `SimulationSession`, übersetzt Host-Input und darf keinen zweiten autoritativen Gameplay-Pfad bilden |
@@ -66,13 +69,15 @@ PW-S04 ist auf `8bd4dd0` abgenommen. Der Schritt führt `ISimulationWorkItem` al
 
 PW-S05 wurde danach von der Grundlage `653c1f5` bis zum Endstand `d8826a2` abgeschlossen. Snapshot/Restore existiert für Resource-/Entity-State, relevante ID-Allocator, `SimulationRuntimeState`, Scheduler und Runner. `CombatWorkItemSnapshotCodec` erweitert den ersten pending Action-Fall um `DamageCommittedEvent`; der Event wird als bereits committed Fakt rehydriert. `SimulationRuntimeSessionSnapshot<TPayloadSnapshot>` bündelt Runtime und Runner, während die Composition neu gegen Runtime B gebaut wird. Der finale Replay-Test bringt nach der Snapshot-Grenze weitere identische geordnete Inputs in beide Branches ein und vergleicht Trace/Ordering, Event-Fakten/IDs, Resource-State/Revision und neue Ledger-Provenienz. [E10, E11]
 
+PW-S06 wurde anschließend über `238a24a`, `0739c31` und `982798e` bis `3ee638a` abgeschlossen. Der Stats-Referenzfall besitzt zeitabhängigen Modifier-State mit Generation/Revision, `StateBoundary`-Ablauf, read-only Derived Query und einen kleinen Cache, dessen Gültigkeit aus State-Identität + Revision + Query-Input folgt. Domain-Snapshot/Restore erhält auch inaktive Slots und damit alte Generationen; der finale Continuation-Test restauriert pending Expiration-Arbeit mit frischer Composition gegen den restaurierten State. Die Work-Item-Snapshotgrenze dieses Abschlussbeweises bleibt test-only und begründet keinen universellen Serializer. [E12]
+
 ## 4. Abgenommener kleiner Ausbau, weiterhin bewusst begrenzt
 
 PW-S02 belegt eine **kleine typisierte Domain-Event-/Reaction-Pipeline**, aber keinen universellen EventBus oder ein fertiges Modul-Lifecycle-System. PW-S03 ergänzt explizite Startup-Komposition und die host-neutrale Session. PW-S04 belegt, dass diese Grenzen auch einen realen Combat-Ablauf mit result-backed Event, PreDefeat und mehreren möglichen Resource-/Owner-Plänen tragen.
 
 Aus PW-S04 folgt ausdrücklich **nicht**, dass jeder Gameplay-Pfad `ApplyResolvedDamageAction` oder den Combat-Executor verwenden muss. Resource-Routing bleibt Ruleset-/Kompositionswissen, PreDefeat-Interventionen bleiben konkrete Combat-Regeln, und der interne Owner-Plan ist kein allgemeines Modul- oder Persistenzformat.
 
-Die erste Snapshot-/Restore-/Replay-Infrastruktur ist inzwischen für den vereinbarten S05-Core-Scope nachgewiesen, bleibt aber bewusst intern/in-memory und kein fertiger Savegame-Vertrag. Der aktuelle Core benötigt keinen separaten persistenten RNG-Snapshot, weil keine langlebigen RNG-Instanzen gespeichert werden. Mehrere konkrete pending Combat-Work-Item-Typen sind über einen expliziten Codec abgedeckt; daraus folgt **kein** universeller polymorpher Vertrag für beliebige `ISimulationWorkItem`-Typen. Der höhere Runtime-/Session-Snapshot und der Replay-Fortsetzungsbeweis sind vorhanden. Offen bleiben insbesondere echte Host-Facts, reale Side-Effect-Suppression, History-Retention, Serializer-/Versionierung und Cross-Platform-/Cross-Engine-Verträge.
+Die erste Snapshot-/Restore-/Replay-Infrastruktur ist für den vereinbarten S05-Core-Scope nachgewiesen und wurde in S06 durch einen unabhängigen domainlokalen Snapshot-/Continuation-Fall ergänzt. Beides bleibt bewusst intern/in-memory und kein fertiger Savegame-Vertrag. Der aktuelle Core benötigt keinen separaten persistenten RNG-Snapshot, weil keine langlebigen RNG-Instanzen gespeichert werden. Mehrere konkrete pending Combat-Work-Item-Typen sind über einen expliziten Codec abgedeckt; der S06-Abschluss verwendet dagegen eine test-only Snapshotgrenze für seine Work Items. Daraus folgt **kein** universeller polymorpher Vertrag für beliebige `ISimulationWorkItem`-Typen. Offen bleiben insbesondere echte Host-Facts, reale Side-Effect-Suppression, History-Retention, Serializer-/Versionierung, Performance/Retention und Cross-Platform-/Cross-Engine-Verträge.
 
 Vor neuen Typen wird weiterhin der konkrete aktuelle Stand geprüft.
 
@@ -82,5 +87,5 @@ Vor neuen Typen wird weiterhin der konkrete aktuelle Stand geprüft.
 
 Methodennamen wie `...Preserves...` oder `...IsRejected...` geben Hinweise, beweisen aber ohne Testkörper nicht, was genau unverändert bleibt. Neue Matrixeinträge nennen deshalb Setup, Assertion und nachgewiesene Grenze.
 
-**Quellen / Snapshotgrenzen:** [Quellenregister](SOURCE_EVIDENCE_v2_0.md), insbesondere E10 und E11.
+**Quellen / Snapshotgrenzen:** [Quellenregister](SOURCE_EVIDENCE_v2_0.md), insbesondere E10, E11 und E12.
 **Nächste Eingriffe:** [Migrationsplan](MIGRATION_PLAN_v2_0.md).

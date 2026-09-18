@@ -7,6 +7,7 @@
 **PW-S03-Nachweisstand:** `f90517a`, vom Nutzer als grün, committed und clean bestätigt
 **PW-S04-Nachweisstand:** `8bd4dd0`, vom Nutzer nach 1215/1215 Tests als grün, committed und clean bestätigt
 **PW-S05-Nachweisstand:** `d8826a2`, vom Nutzer nach vollständigem Regressionstest und Build als grün, committed und clean bestätigt; finaler S05-Testumfang 1248 Tests
+**PW-S06-Nachweisstand:** `3ee638a`, vom Nutzer nach 1267/1267 Tests und Build als grün, committed und clean bestätigt
 
 ## 1. Was tatsächlich bestätigt ist
 
@@ -32,8 +33,9 @@ Dazu: Branch `main`, mit `origin/main` synchron, Working Tree clean; `gcc` wurde
 | PW-S03 | Abgenommen | Expliziter Execution Plan, Required/Provided-Modulkomposition, host-neutrale `SimulationSession`, zwei Headless-Konfigurationen und echter Godot-Smoke-Run über dieselbe Core-Autorität |
 | PW-S04 | Abgenommen | Result-backed Combat-Pipeline mit produktiver Damage-Action, PreDefeat vor Commit, `DamageCommittedEvent` nach Commit, Executor-Negativgrenzen sowie bezahltem Cost→Damage-Referenzablauf |
 | PW-S05 | Abgenommen für den vereinbarten in-memory Core-Scope | Domain-/Runtime-/Scheduler-/Runner-Snapshots, quiescent boundary, expliziter Combat-Work-Item-Codec, fresh RuntimeIdentity, höherer Runtime-/Session-Snapshot und deterministische A/B-Fortsetzung mit weiteren geordneten Inputs |
-| Build / Tests | Finaler PW-S05-Stand: 1248 Tests; vollständiger Regressionstest und Build grün, danach `gcc` | Die Dokumentaktualisierung selbst führt keinen neuen Testlauf aus |
-| Repository | `d8826a2 (HEAD -> main, origin/main)`; `git status --short --branch` zeigt `## main...origin/main` ohne Änderungen | Kein eigener Live-Abruf des Remotes für diese Dokumentation |
+| PW-S06 | Abgenommen für den zeitabhängigen Stats-/Derived-Query-Referenzumfang | Domain-eigener Timed-Modifier-State, Generation/Revision, StateBoundary-Ablauf, Query/Cache-Invalidierung, Domain-Snapshot/Restore und pending Expiration über Restore |
+| Build / Tests | Finaler PW-S06-Stand: 1267/1267 Tests; vollständiger Regressionstest und Build grün, danach `gcc` | Die Dokumentaktualisierung selbst führt keinen neuen Testlauf aus |
+| Repository | `3ee638a (HEAD -> main, origin/main)` vor dieser Dokumentaktualisierung; `git status --short --branch` zeigt `## main...origin/main` ohne Änderungen | Kein eigener Live-Abruf des Remotes für diese Dokumentation; ein späterer Docs-Commit bekommt eigenen Hash |
 
 Eine vollständig gezeigte frühere Testausgabe enthält **1176 bestandene Tests** nach dem Pre-Defeat-Teil. Im PW-S02-Durchgang wurde zwischenzeitlich eine vollständige Summary mit 1196 Tests gezeigt, davon zunächst ein erwartungsbedingt fehlschlagender neuer Reservation-Test; nach Korrektur der Runner-Erwartung sowie den weiteren Ordering-/Fault-/Äquivalenztests bestätigte der Nutzer die jeweiligen vollständigen Läufe mit `g` und den abschließenden Repository-Stand mit `gcc`.
 
@@ -45,9 +47,9 @@ Die Architekturübergabe mit 1023 Tests beschreibt einen älteren technischen St
 
 ## 2. Was diese Dokumentation selbst ausgeführt hat
 
-Der ursprüngliche v2-Dokumentationsdurchgang las die bereitgestellten Quellen und erzeugte die Architekturdateien ohne Produktionsänderung. **Seitdem** wurden PW-S02, PW-S03 und PW-S04 im Nutzerrepository implementiert und getestet. Der Nutzer bestätigte die S02-Codeänderungen einschließlich PW-QA-12 auf `b04fcbe`, den abgeschlossenen S03-Stand `f90517a` und den abgeschlossenen S04-Stand `8bd4dd0` jeweils mit `gcc`.
+Der ursprüngliche v2-Dokumentationsdurchgang las die bereitgestellten Quellen und erzeugte die Architekturdateien ohne Produktionsänderung. **Seitdem** wurden PW-S02 bis PW-S06 im Nutzerrepository schrittweise implementiert und getestet. Der Nutzer bestätigte die jeweiligen Abschlussstände bis einschließlich `3ee638a` mit `gcc`.
 
-Diese aktuelle Dokumentaktualisierung führt selbst **keinen neuen .NET-Testlauf, Godot-Start oder Benchmark** aus und verändert das Nutzerrepository nicht. Sie übernimmt die im Projektgespräch gezeigten/bestätigten Nachweise bis einschließlich PW-S05. `d39cb54` bleibt historische A/B-Audit-Baseline, `b04fcbe` PW-S02, `f90517a` PW-S03, `8bd4dd0` PW-S04 und `d8826a2` der abgeschlossene PW-S05-Funktionsnachweis. Einzelheiten stehen im [Quellenregister](SOURCE_EVIDENCE_v2_0.md).
+Diese aktuelle Dokumentaktualisierung führt selbst **keinen neuen .NET-Testlauf, Godot-Start oder Benchmark** aus und verändert das Nutzerrepository nicht. Sie übernimmt die im Projektgespräch gezeigten/bestätigten Nachweise bis einschließlich PW-S06. `d39cb54` bleibt historische A/B-Audit-Baseline, `b04fcbe` PW-S02, `f90517a` PW-S03, `8bd4dd0` PW-S04, `d8826a2` PW-S05 und `3ee638a` der abgeschlossene PW-S06-Funktionsnachweis. Einzelheiten stehen im [Quellenregister](SOURCE_EVIDENCE_v2_0.md).
 
 ## 3. Statussprache für künftige Nachweise
 
@@ -147,6 +149,8 @@ Der zweite vertikale Referenztest führt eine bezahlte Action über `Cost Commit
 
 Für PW-S05 wurde danach zunächst die Snapshot-/Restore-Grundlage auf `653c1f5` mit 1239/1239 Tests bestätigt. Darauf folgten `789763c` für die explizite Combat-Pending-Work-Snapshot-Grenze, `c6b2327` für den höheren Runtime-/Session-Fortsetzungs-Snapshot und `d8826a2` für den deterministischen Replay-Fortsetzungsbeweis. Der Nutzer bestätigte den finalen vollständigen Regressionstest und Build als grün sowie anschließend `gcc`; der finale S05-Testumfang beträgt 1248 Tests. [E10, E11]
 
+Für PW-S06 folgten `238a24a` (State/Boundary), `0739c31` (Query-Cache), `982798e` (Domain-Snapshot/Restore) und `3ee638a` (Continuation-Replay). Die bestätigten vollständigen Teststände waren 1256/1256, 1260/1260, 1265/1265 und final 1267/1267; der finale Build war grün und `gcc` wurde bestätigt. [E12]
+
 ### 4.4 Abgenommener PW-S05-Umfang
 
 PW-S05 ist auf `d8826a2` für den vereinbarten **in-memory Core-Snapshot-/Replay-Scope abgenommen**. Die Abnahme ist bewusst enger als ein fertiges Savegame-, Host-Fact- oder Cross-Version-System.
@@ -172,6 +176,31 @@ Zusätzlich belegt der S05-Endstand:
 
 Der technische S05-Verlauf ist: `653c1f5` → `789763c` → `c6b2327` → `d8826a2`. Der letzte Stand ist mit `origin/main` synchron und clean.
 
+### 4.5 Abgenommener PW-S06-Umfang
+
+PW-S06 ist auf `3ee638a` für den **zeitabhängigen Stats-/Derived-Query-Referenzumfang abgenommen**. Die Abnahme erweitert den S05-Fortsetzungsvertrag um einen unabhängigen Domain-Fall, ohne eine allgemeine Status-/Timer-/Cache- oder Persistenzplattform einzuführen.
+
+| ID | Status im S06-Endstand | Nachweisgrenze |
+|---|---|---|
+| PW-QA-20 | Abgenommen für den S06-Referenzumfang | Direkte `TimedModifierValueQuery` und Cache stimmen überein; Apply/Refresh/Cancel/erfolgreiche Expiration invalidieren über Revision, stale Expiration nicht; Same-Time-Expiration läuft im Referenzfall als `StateBoundary` vor `Execution` |
+| PW-QA-17 | Zusätzlicher S06-Fortsetzungsbeleg; ursprüngliche S05-Abnahme bleibt scopegebunden | Domain-Snapshot plus pending Expiration wird restauriert; daraus wird kein universeller Work-Item-/Savegame-Vertrag abgeleitet |
+| PW-QA-18 | Zusätzlicher S06-Verlaufsbeleg; ursprüngliche S05-Abnahme bleibt scopegebunden | Original und Restore stimmen im S06-Fall bei Trace, Query-/Expiration-Ergebnissen und Revisionen überein |
+| PW-QA-19 | Weiterhin offen | Keine realen Netzwerk-/Kauf-/Host-Side-Effects im S06-Szenario |
+| PW-QA-27 | Weiterhin offen | Keine aufgezeichneten Physics-/Collision-/anderen externen Host Facts |
+
+Zusätzlich belegt der S06-Endstand:
+
+- `TimedModifierStateSet` besitzt autoritativen State; Query und Cache mutieren ihn nicht.
+- `Generation` identifiziert die aktuelle Lebensdauer eines Keys. Refresh macht ältere Expiration-Tokens stale; Cancel lässt den inaktiven Slot erhalten, damit Reapply mit der nächsten Generation fortsetzt.
+- `Revision` ändert sich nur bei echter autoritativer Mutation. Stale Expiration ist erwartete Arbeit ohne Revisionserhöhung.
+- Ablauf bei `ExpiresAt` wird im Referenzfall in `SchedulerPhase.StateBoundary` geplant. Eine `Execution` am selben Timestamp sieht den bereits abgelaufenen Modifier.
+- `TimedModifierValueQueryCache` verwendet State-Identität + Revision + Query-Input als Gültigkeitsgrenze und wird gegen die ungecachte Referenzrechnung geprüft.
+- Snapshot/Restore erhält aktive und inaktive Slots, Generationen, Revisionen, Modifierwerte und Ablaufzeit sowie Revision-/Generation-Exhaustion.
+- Der Abschlussbeweis baut eine frische Composition gegen den restaurierten State und setzt pending stale/aktuelle Expirations in Original und Restore fort. Die Work-Item-Snapshotformen des Tests bleiben test-only.
+- Die Stats-Domain wurde nicht als Pflichtzustand in `SimulationRuntimeState` eingebaut; kein allgemeines Status-/Buff-System oder Scheduler-Cancel-Service wurde eingeführt.
+
+Der technische S06-Verlauf ist: `238a24a` → `0739c31` → `982798e` → `3ee638a`. Der letzte Funktionsstand war mit `origin/main` synchron und clean; ein nachfolgender Dokumentationscommit erhält einen eigenen Hash.
+
 ## 5. Mindestinhalt eines Test-/Release-Belegs
 
 Ein Beleg nennt Commit, betroffene Module und Regelversionen, Buildkonfiguration, Runtime und Plattform, tatsächlich ausgeführte Befehle, Ergebnis sowie bewusst nicht geprüfte Aspekte.
@@ -182,7 +211,7 @@ Authoring-/Replay-Versionen und Migrationsverhalten werden erst als unterstützt
 
 ## 6. Freigabe der Dokumentversion
 
-D-01 und D-02 wurden am 17. September 2026 ausdrücklich angenommen. D-04 und D-05 wurden anschließend im PW-S02-Durchgang entschieden und nachgewiesen. PW-S03 belegt Headless und Godot als Referenz-Betriebsarten über dieselbe Core-Autorität. PW-S04 belegt Combat als zweites fachliches Referenzszenario. PW-S05 belegt für den vereinbarten Core-Scope Snapshot/Restore, explizite Pending-Work-Rehydrierung und deterministische Fortsetzung mit weiteren geordneten Inputs. D-07 bleibt dennoch offen, weil Paket-/Distributionsumfang, unterstützte Host-Versionen und spätere Adapter noch nicht als Releasevertrag entschieden sind. D-03, D-06 und D-07 bleiben offene technische Detailgates.
+D-01 und D-02 wurden am 17. September 2026 ausdrücklich angenommen. D-04 und D-05 wurden anschließend im PW-S02-Durchgang entschieden und nachgewiesen. PW-S03 belegt Headless und Godot als Referenz-Betriebsarten über dieselbe Core-Autorität. PW-S04 belegt Combat als zweites fachliches Referenzszenario. PW-S05 belegt für den vereinbarten Core-Scope Snapshot/Restore, explizite Pending-Work-Rehydrierung und deterministische Fortsetzung mit weiteren geordneten Inputs. PW-S06 belegt zeitabhängigen domain-eigenen State, definierte StateBoundary-Abläufe, Derived-Query-/Cache-Invalidierung sowie domainlokale Snapshot-/Continuation-Fortsetzung. D-07 bleibt dennoch offen, weil Paket-/Distributionsumfang, unterstützte Host-Versionen und spätere Adapter noch nicht als Releasevertrag entschieden sind. D-03, D-06 und D-07 bleiben offene technische Detailgates.
 
 **Architekturfreigabe 2.0:** erteilt am 17. September 2026.
 **D-01 Determinismus/Replay:** beschlossen.
@@ -193,10 +222,12 @@ D-01 und D-02 wurden am 17. September 2026 ausdrücklich angenommen. D-04 und D-
 **PW-S03:** abgenommen auf `f90517a`; Headless-Komposition und echter Godot-Smoke-Run bestätigt.
 **PW-S04:** abgenommen auf `8bd4dd0`; result-backed Combat, PreDefeat/Reaction-Trennung und Cost→Damage-Referenzablauf bestätigt.
 **PW-S05:** abgenommen auf `d8826a2` für den vereinbarten in-memory Core-Snapshot-/Replay-Scope; vollständiger Regressionstest und Build grün, anschließend `gcc`.
+**PW-S06:** abgenommen auf `3ee638a` für den zeitabhängigen Stats-/Derived-Query-Referenzumfang; 1267/1267 Tests und Build grün, anschließend `gcc`.
 **Bestätigter S03-Testumfang:** 1210/1210; danach Godot-Adapter-Test/Build erneut grün bestätigt.
 **Bestätigter S04-Testumfang:** 1215/1215; abschließend `gcc`.
 **Bestätigter S05-Endumfang:** 1248 Tests; vollständiger Regressionstest und Build grün, anschließend `gcc`.
+**Bestätigter S06-Endumfang:** 1267/1267 Tests; vollständiger Regressionstest und Build grün, anschließend `gcc`.
 **Offene Detailgates:** D-03, D-06 und D-07.
 **Historischer A/B-Abschluss `d39cb54`:** bleibt unverändert dokumentiert.
 
-Eine Dokumentationsannahme ersetzt keinen Code-Nachweis; die hier genannten PW-S02- bis PW-S05-Status beruhen auf den vom Nutzer bestätigten Code-, Test- und Host-Läufen. PW-S05 schließt den vereinbarten in-memory Core-Snapshot-/Replay-Scope, aber nicht aufgezeichnete Host-Fact-Parität, reale Side-Effect-Suppression, universelle Work-Item-Persistenz, Cross-Version-/Cross-Platform-/Physics-Äquivalenz, Savegame-Format oder Performance ab.
+Eine Dokumentationsannahme ersetzt keinen Code-Nachweis; die hier genannten PW-S02- bis PW-S06-Status beruhen auf den vom Nutzer bestätigten Code-, Test- und Host-Läufen. PW-S05 schließt den vereinbarten in-memory Core-Snapshot-/Replay-Scope; PW-S06 den zeitabhängigen Stats-/Derived-Query-Referenzumfang. Nicht umfasst sind aufgezeichnete Host-Fact-Parität, reale Side-Effect-Suppression, universelle Work-Item-Persistenz, Cross-Version-/Cross-Platform-/Physics-Äquivalenz, Savegame-Format oder Performance-/Retention-Freigabe.

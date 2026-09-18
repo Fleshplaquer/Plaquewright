@@ -58,9 +58,13 @@ Die alte gleichnamige Glossardatei ist in der Übergabe erwähnt, nicht als voll
 | Fast Path | Spezialisierter schnellerer Ausführungspfad | Muss relevante Referenzsemantik bewahren |
 | Definition | Authoring-/Regeldaten | Nicht der veränderliche Zustand einer Instanz |
 | Runtime Instance | Konkrete Existenz und Zustand im Simulationslauf | Nicht bloß dieselbe globale Definition |
+| State Boundary | Scheduler-Phase für explizite Zustandsgrenzen an einem Timestamp | Im S06-Referenzfall läuft Expiration bei `T` vor `Execution` bei `T`; kein allgemeiner Timer-Service |
+| Timed Modifier State | Domain-eigener autoritativer Modifier-State mit Ablaufzeit | Kein globales Status-/Buff-System und kein Kernel-State |
+| Expiration Token | Beschreibbare Ablaufreferenz aus Key, Generation und `ExpiresAt` | Geplante Arbeit kann physisch pending bleiben; nur die aktuelle Generation darf mutieren |
+| Derived Query Cache | Optionaler Cache für eine read-only abgeleitete Sicht | Im S06-Referenzfall gültig nur für dieselbe State-Instanz, Revision und denselben Query-Input |
 | Revision | Version eines veränderlichen Zustands für Gültigkeitsprüfungen | Nicht die Software-/Definition-Version |
 | Runtime Identity | Abgrenzung einer konkreten laufenden Simulation | In-process Referenzprüfung ist nicht automatisch Persistenzidentität |
-| Handle / Generation | Kontrollierter Zugriff mit optionaler Wiederverwendungsabsicherung | Generationsmodell nur dort behaupten, wo es implementiert ist |
+| Handle / Generation | Kontrollierter Zugriff beziehungsweise Lebensdauerkennung mit Wiederverwendungsabsicherung | PW-S06 verwendet Generationen pro Timed-Modifier-Key; daraus folgt kein globales Handle-System |
 | Reentranz | Erneuter Eintritt in laufende Ausführung/Publikation | Für das erste Ausbauprofil nicht einfach nebenläufig zulassen |
 | Fault | Technischer Fehler mit definiertem Stopp-/Recovery-Verhalten | D-05: unerwarteter Reaction-Fault rollt vorherigen Commit nicht zurück und stoppt die weitere autoritative Ausführung der Runtime |
 | Budgetende | Explizite Arbeits-/Speichergrenze | Keine Meldung einer vollständig berechneten Simulation |
@@ -71,5 +75,7 @@ Begriffe werden nur gemeinsam mit ihren Verträgen geändert. Der Name eines Typ
 PW-S04 konkretisiert insbesondere `Work Item`, `Prepared Follow-up`, `Pre-Commit-Regel`, `Domain Event` und `Reaction`: `ApplyResolvedDamageAction` ist ein produktives Work Item; PreDefeat verändert nur den Draft; `DamageCommittedEvent` entsteht aus dem tatsächlichen Commit-Ergebnis; die anschließende Reaction erzeugt neue Arbeit. [E9]
 
 PW-S05 konkretisiert `Snapshot`, `Restore / Rebind`, `Pending-Work-Snapshot`, `Work-Item Snapshot Codec`, `Committed-Event Snapshot`, `Runtime-/Session-Fortsetzungs-Snapshot`, `Replay`, `Quiescent Boundary` und `Runtime Identity`. Der auf `d8826a2` abgenommene Core-Scope rekonstruiert eine neue Runtime, erhält autoritative State-/ID-/Scheduler-Fortsetzung, rehydriert pending Damage-Action und committed Damage-Event über eine explizite Codec-Grenze und beweist die deterministische A/B-Fortsetzung mit weiteren geordneten Inputs nach dem Snapshot. [E10, E11]
+
+PW-S06 konkretisiert `State Boundary`, `Timed Modifier State`, `Expiration Token`, `Derived Query Cache`, `Revision` und `Generation`. Auf `3ee638a` ist belegt, dass zeitabhängiger Domain-State über Generationen stale Scheduler-Arbeit entwerten kann, echte Mutationen die Revision fortsetzen, ein Cache genau an State-Identität/Revision/Input gebunden bleibt und Domain-Snapshot plus pending Expiration deterministisch fortgesetzt werden können. [E12]
 
 **Grundlage:** [Manifest](Plaquewright_Manifest_v2_0.md) und [Quellenregister](SOURCE_EVIDENCE_v2_0.md).

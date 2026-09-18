@@ -1,6 +1,6 @@
 # Plaquewright – Architecture Map 2.0
 
-**Stand:** 18. September 2026 · **Status:** Architektur 2.0 freigegeben; PW-S02 bis PW-S05 abgenommen · **Historische Audit-Baseline:** `d39cb54` · **PW-S02:** `b04fcbe` · **PW-S03:** `f90517a` · **PW-S04:** `8bd4dd0` · **PW-S05:** `d8826a2` · finaler S05-Testumfang 1248 Tests + `gcc`
+**Stand:** 18. September 2026 · **Status:** Architektur 2.0 freigegeben; PW-S02 bis PW-S06 abgenommen · **Historische Audit-Baseline:** `d39cb54` · **PW-S02:** `b04fcbe` · **PW-S03:** `f90517a` · **PW-S04:** `8bd4dd0` · **PW-S05:** `d8826a2` · **PW-S06:** `3ee638a` · finaler S06-Testumfang 1267/1267 + `gcc`
 Die frühere `ARCHITECTURE_MAP.md` wird in der Architekturübergabe genannt, liegt im bereitgestellten Archiv aber nicht vor. Diese Fassung ist eine neue Rekonstruktion, kein behaupteter zeilenweiser Abgleich. [E1, E3]
 
 ## 1. Zielbild
@@ -187,7 +187,37 @@ Snapshot an T=100
 
 Die Ledger-History **vor** dem Snapshot ist im aktuellen Profil nicht enthalten. Ebenso bleiben echte Host Facts, reale Side-Effect-Unterdrückung, Cross-Version-Migration, universelle Work-Item-Persistenz, Savegame-Format und Cross-Platform-/Physics-Parität außerhalb der S05-Abnahme.
 
-Der nächste Architekturstrang ist PW-S06: ein konkretes zeitabhängiges Domain-Szenario mit definierten Zeitgrenzen und abgeleiteten Queries. Ein globaler Serializer-, EventStore-, Plugin-Discovery- oder Editor-Unterbau wird dafür nicht vorab erforderlich.
+## 8. Abgenommener PW-S06-Abgleich
 
-**Quellen:** [E1–E4, E7–E11 und W1](SOURCE_EVIDENCE_v2_0.md).
+PW-S06 ist auf `3ee638a` für den zeitabhängigen Stats-/Derived-Query-Referenzumfang abgenommen. Die technische Folge lautet `238a24a` → `0739c31` → `982798e` → `3ee638a`. [E12]
+
+Der neue Kontrollfluss bleibt domain-owned:
+
+```text
+Apply/Refresh Modifier
+  -> TimedModifierStateSet mutiert
+  -> Revision + Generation fortsetzen
+  -> Expiration bei ExpiresAt / StateBoundary planen
+            |
+            +--> Query liest autoritativen Stats-State
+            |      -> optionaler Cache: State identity + Revision + Input
+            |
+            v
+Expiration Work
+  -> Generation aktuell? -- nein --> stale, keine Mutation
+            |
+           ja
+            v
+  -> State am Boundary entfernen
+  -> Revision erhöhen
+  -> Same-Time Execution liest neuen State
+```
+
+Refresh und Cancel erfordern kein physisches Scheduler-Cancel. Die Scheduler-Arbeit beschreibt nur geordnete Arbeit; die Stats-Domain entscheidet anhand des aktuellen Slots und der Generation, ob diese Arbeit noch gültig ist. Dadurch bleibt alte Expiration-Arbeit deterministisch und billig als stale Pfad behandelbar.
+
+Snapshot/Restore folgt demselben S05-Grundsatz, aber domainlokal: aktive **und inaktive** Slots, Generationen, Revision und Ablaufdaten werden beschrieben. Der Abschlussbeweis kombiniert diesen Domain-Snapshot mit einem Runner-Snapshot und einer test-only Work-Item-Rehydrierung. `SimulationComposition` wird neu gegen den restaurierten Stats-State gebaut; es wurde weder ein universeller Serializer noch eine Pflichtkopplung an `SimulationRuntimeState` eingeführt.
+
+PW-QA-20 ist für diesen Referenzumfang abgenommen. Der nächste Architekturstrang ist PW-S07: definierte Last-/Retention-Profile und gemessene Optimierung. Ein Fast Path wird erst nach einer reproduzierbaren Referenzmessung eingeführt.
+
+**Quellen:** [E1–E4, E7–E12 und W1](SOURCE_EVIDENCE_v2_0.md).
 **Verbindlichkeit:** [PW-00 und PW-20](Plaquewright_Manifest_v2_0.md).

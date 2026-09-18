@@ -2,12 +2,13 @@
 
 **Dokumentversion:** 2.0
 **Datum:** 18. September 2026
-**Status:** Architekturfreigabe 2.0; D-01, D-02, D-04 und D-05 beschlossen; PW-S02, PW-S03, PW-S04 und PW-S05 abgenommen
+**Status:** Architekturfreigabe 2.0; D-01, D-02, D-04 und D-05 beschlossen; PW-S02 bis PW-S06 abgenommen
 **Historische Audit-Baseline:** `d39cb54`
 **PW-S02-Nachweis:** `b04fcbe`, vom Nutzer als grün / committed / clean bestätigt
 **PW-S03-Nachweis:** `f90517a`, vom Nutzer als grün / committed / clean bestätigt
 **PW-S04-Nachweis:** `8bd4dd0`, vom Nutzer nach 1215/1215 Tests als grün / committed / clean bestätigt
 **PW-S05-Nachweis:** `d8826a2`, vereinbarter in-memory Core-Snapshot-/Replay-Scope abgenommen; finaler S05-Testumfang 1248 Tests, vollständiger Regressionstest und Build grün, anschließend `gcc`
+**PW-S06-Nachweis:** `3ee638a`, zeitabhängiger Stats-/Derived-Query-Referenzumfang abgenommen; finaler S06-Testumfang 1267/1267, vollständiger Regressionstest und Build grün, anschließend `gcc`
 **Gegenstand:** Engine-unabhängiges, deterministisches, modulares Gameplay-/Simulations-Framework für C#
 
 ## PW-00 – Geltung, Quellen und Änderungsstatus
@@ -169,6 +170,8 @@ Budgets für Queue, Arbeit und kausale Ketten sind explizit. Ein unterbrochener 
 
 **D-04 ist beschlossen:** Externe Inputs für Simulationszeit `T` dürfen nur aufgenommen werden, solange die autoritative Verarbeitung von `T` noch nicht begonnen hat. Sobald das erste Event bei `T` aus der Queue übernommen wurde, ist die externe Aufnahme für `T` und frühere Zeiten geschlossen. Bereits vorher eingeplante Inputs für `T` bleiben gültig; neue externe Inputs müssen eine spätere Simulationszeit besitzen. Kausale Same-Time-Folgearbeit wird über spätere Scheduler-Waves eingeordnet und darf nicht vor ihre Ursache springen.
 
+PW-S06 konkretisiert eine zweite Zeitgrenze: Ein zeitabhängiger Domain-State kann eine fachliche Zustandsgrenze explizit in `SchedulerPhase.StateBoundary` bei `ExpiresAt` planen. Im Referenzfall wird der Modifier bei `T` entfernt, bevor `Execution` bei demselben `T` liest. Refresh oder Cancel müssen alte Scheduler-Einträge nicht physisch entfernen; deren Gültigkeit wird über den aktuellen Domain-State und die Generation entschieden. Zero-duration wird im ersten Profil abgewiesen, damit ein Same-Time-Child nicht fälschlich als vorgezogene Boundary behandelt wird. [E12]
+
 ## PW-10 – Determinismus und RNG
 
 Übernommenes Ziel:
@@ -207,6 +210,8 @@ Caches, Projektionen und Prepared-Objekte haben benannte Lebensdauern. Alte Arbe
 
 PW-S05 belegt diesen Vertrag für den vereinbarten ersten Core-Scope: Resource-/Entity-State und relevante ID-Allocator werden in-memory beschrieben; Restore erzeugt eine neue `SimulationRuntimeIdentity`. Pending `ApplyResolvedDamageAction` wird aus IDs und bereits resolved Werten gegen die neue Runtime rekonstruiert; ein pending `DamageCommittedEvent` wird als bereits committed Fakt rehydriert, ohne den historischen Commit erneut auszuführen. Der höhere Runtime-/Session-Snapshot restauriert Runner und Runtime gemeinsam, während die Composition bewusst neu gegen Runtime B gebaut wird. Das bleibt eine interne Fortsetzungsgrenze und keine generische Storage-/Savegame-Schicht. [E10, E11]
 
+PW-S06 ergänzt einen unabhängigen Stats-Fall für Lebensdauer und Cache-Gültigkeit. `TimedModifierStateSet` besitzt aktive und inaktive Slots, `Generation` unterscheidet aufeinanderfolgende Lebensdauern eines Keys und `Revision` verändert sich nur bei echter autoritativer Mutation. Stale Expiration-Arbeit ist erwartete Arbeit ohne Mutation. Der Derived-Query-Cache ist nur für dieselbe State-Instanz, dieselbe Revision und denselben Query-Input gültig. Damit bleibt Cache-Gültigkeit an Domain-State gebunden statt an Observer- oder Scheduler-Aktivität. [E12]
+
 ## PW-13 – Bestehende Domains und erweiterbare Fachregeln
 
 Resources mit `Current` und `Maximum` bleiben die Grundlage für passende Pools; eine parallele Pools-Domain entsteht nicht ohne unterschiedliche Semantik. Stats beschreiben Werte, Modifier Beiträge zu Werten. Tags klassifizieren; Conditions werten Voraussetzungen aus. [E1]
@@ -218,6 +223,8 @@ Eine offene Fachklassifikation kann später registrierte Keys/IDs benötigen. Ei
 Combat-spezifische Begriffe und Abstraktionen bleiben im Combat-Bereich. Eine Regel oder Abstraktion wird erst dann in allgemeinere Framework-Infrastruktur gehoben, wenn mindestens ein weiterer unabhängiger Anwendungsfall denselben Vertrag tatsächlich benötigt. Alternative Spiele dürfen andere Combat-Regelprofile oder gar kein Combat verwenden.
 
 PW-S04 folgt diesem Vertrag: `ApplyResolvedDamageAction`, `DamageCommittedEvent` und `ResolvedDamageApplicationExecutor` bleiben Combat-spezifisch. Allgemeinisiert wurden nur der kleine `ISimulationWorkItem`-Marker und die payload-späte interne Follow-up-Reservation, weil diese keine Combat-Fachsemantik tragen. [E9]
+
+PW-S06 folgt demselben Prinzip im Stats-Bereich: `TimedModifierStateSet`, `TimedModifierValueQuery` und der kleine Query-Cache bleiben fachlich bei Stats. Der Kernel erhält weder einen Statusbegriff noch eine globale Timer-, Cancellation- oder Cache-Registry. Die vorhandene Modifier-Rechenlogik bleibt die Referenzsemantik. [E12]
 
 Kernel-Verträge bleiben für alle Profile gültig. Fachregeln eines Combat-Profils gelten nur innerhalb dieses Profils. Beispielsweise ist eine definierte Schadensbilanz ein Domain-Vertrag; die konkrete Armor-Formel ist keine allgemeine Kernel-Invariante.
 
@@ -243,6 +250,8 @@ Snapshots entstehen nur an **quiescent boundaries**: kein Participant-Apply ist 
 
 Der abschließende S05-Replay-Beweis pausiert nach einem bereits ausgeführten Damage-Commit, während dessen committed Event und weiteres resolved Damage noch pending sind. Nach dem Snapshot werden in Runtime A und Runtime B identische geordnete neue Inputs eingebracht. Verglichen werden Runner-/Scheduler-Ergebnis, Trace-Reihenfolge, Event-Fakten einschließlich der generierten Gameplay-/Damage-/Hit-IDs, Resource-State/Revision sowie die nach der Snapshot-Grenze neu entstehende Ledger-History und Provenienz. Die Ledger-History vor dem Snapshot ist im aktuellen Profil nicht Teil des Snapshots. [E11]
 
+PW-S06 zeigt, dass die Fortsetzungsgrenze auch einen neuen domainlokalen Zustand tragen kann: `TimedModifierStateSetSnapshot` erhält aktive und inaktive Slots, Generation, Revision, Modifierdaten und Ablaufzeit. Der Abschlussbeweis restauriert zusätzlich pending Expiration-Arbeit aus einem Runner-Snapshot und baut die Composition neu gegen den restaurierten Stats-State. Eine alte Generation bleibt stale; die aktuelle Generation läuft am vorgesehenen StateBoundary ab. Die hierfür verwendeten Work-Item-Snapshottypen sind test-only und erweitern den S05-Combat-Codec nicht zu einem universellen Serializer. [E12]
+
 B07 transportiert eine kausale Gameplay-Execution in Ressourcenprovenienz. Das ist ein Baustein, noch kein vollständiger Graph aus Action, Effect, Rule, Transaction und Event. [E2]
 
 Vorgeschlagene Trennung: immer benötigte kompakte Identitäten; autoritative History nur soweit für die zugesagte Funktion nötig; optionales Detailtracing in den Stufen Off, Minimal, Gameplay und Full Debug. Tracing an/aus darf das Gameplay-Ergebnis nicht ändern.
@@ -255,6 +264,8 @@ Beide Strategien bleiben ausdrücklich Teil der Vision. Exact bedeutet semantisc
 
 Ein exakter Zeitsprung darf relevante Thresholds, Ablaufereignisse, Reihenfolgen, RNG-Verwendung und beobachtbare Folgeeffekte nicht überspringen. Gleicher Endbestand allein genügt nicht, wenn zwischendurch ein Kill, Proc oder Kauf möglich gewesen wäre.
 
+Der S06-Referenzfall liefert dafür erstmals eine konkrete nicht-Combat Ablaufgrenze: `ExpiresAt` plus `StateBoundary` ist semantisch relevant, weil eine Query bei demselben Timestamp vor oder nach dem Ablauf unterschiedliche Werte liest. Ein späterer Fast-forward darf solche Boundaries nicht überspringen oder nur aus Endwerten rekonstruieren. [E12]
+
 Für kontinuierliche Vorgänge meldet das verantwortliche Modul Integrationsmöglichkeiten und die nächste relevante Grenze. Fehlt ein belegter exakter Fast Path, verwendet es den Referenzpfad oder meldet die nicht unterstützte Fähigkeit.
 
 Approximation ist ein gewähltes Profil mit Herkunft und Gültigkeitsbereich. Ein Lauf wird nicht heimlich approximiert, weil sein Arbeitsbudget erschöpft ist.
@@ -266,6 +277,8 @@ Das Ziel von ungefähr 500 individuell simulierten Gegnern ist ein künftiges La
 Gemessen werden mindestens Laufzeitverteilung, Arbeit pro Simulationssekunde, Allokationen, GC-Verhalten sowie Queue-, Ledger- und Trace-Wachstum. Numerische Zielbudgets werden im jeweiligen Benchmarkprofil beschlossen; dieses Manifest erfindet keine Messwerte.
 
 Batching, kompakte Handles, domainnahe Speicher, Cache-Invalidierung und spezialisierte Ausführungspfade sind erlaubt. Sie müssen gegen den Referenzpfad die für das Profil relevante Semantik erhalten.
+
+PW-S06 hat einen kleinen Cache bereits semantisch abgesichert, aber **nicht** als Performancegewinn abgenommen: `TimedModifierValueQueryCache` muss gegen die direkte Query denselben Wert liefern und invalidiert an State-Identität/Revision/Input. Ob dieser oder andere Caches unter Last sinnvoll sind, ist Gegenstand von PW-S07 und D-06. [E12]
 
 Ein AoE gegen 300 Ziele braucht nicht zwingend 300 schwergewichtige generische Transactions. Die atomare fachliche Grenze und die Ergebnishistorie dürfen aber auch nicht allein zugunsten eines schnelleren Loops verändert werden.
 
@@ -292,7 +305,10 @@ vorhandene Transaction-Grenze
   -> expliziter Pending-Work-Codec             [PW-S05 abgenommen]
   -> Runtime-/Session-Fortsetzung              [PW-S05 abgenommen]
   -> deterministischer Replay-Beweis           [PW-S05 abgenommen: d8826a2]
-  -> weitere Domain-Regeln und Lastmessung
+  -> zeitabhängiger Domain-State                [PW-S06 abgenommen]
+  -> Derived Query + revisionsbasierter Cache  [PW-S06 abgenommen]
+  -> Domain-Snapshot + pending Expiration       [PW-S06 abgenommen: 3ee638a]
+  -> definierte Lastprofile und Lastmessung     [PW-S07]
 ```
 
 Jeder Schritt bringt den kleinsten nützlichen Referenzfall, negative Grenzfälle und eine dokumentierte Änderung mit. Fehlende Verträge werden dort präzisiert, wo sie das Szenario benötigt. Es gibt weder einen Komplettumbau noch einen jahrelangen „erst generischen Kernel fertigbauen“-Vorlauf.
@@ -313,4 +329,4 @@ Testnamen sind ein Inhaltsverzeichnis, kein Nachweis der Assertion-Qualität. AP
 
 D-03, D-06 und D-07 bleiben technische Detailgates. D-04 und D-05 wurden im Rahmen von PW-S02 entschieden und durch die zugehörigen Tests konkretisiert. PW-S03 belegt inzwischen Headless und Godot als gemeinsame Referenz-Betriebsarten über `SimulationSession`; D-07 bleibt offen, bis Distributionsumfang, unterstützte Host-Versionen und weitere Adapter als Releasevertrag entschieden werden.
 
-**Annahmeprotokoll:** Architektur 2.0 am 17. September 2026 im Projektgespräch angenommen; D-01 und D-02 ausdrücklich bestätigt. D-04 und D-05 wurden anschließend im PW-S02-Durchgang beschlossen und auf `b04fcbe` als Teil des abgenommenen Referenzprofils dokumentiert. PW-S03 wurde am 18. September 2026 auf `f90517a` mit Headless-Nachweisen und echtem Godot-Smoke-Run abgenommen. PW-S04 wurde am 18. September 2026 auf `8bd4dd0` nach 1215/1215 bestandenen Tests als Combat-Referenzszenario abgenommen. PW-S05 wurde über `653c1f5`, `789763c` und `c6b2327` bis zum abschließenden Replay-Nachweis `d8826a2` geführt. Der Nutzer bestätigte den finalen vollständigen Regressionstest und Build als grün sowie danach `gcc`; der finale S05-Testumfang beträgt 1248 Tests. Damit ist der vereinbarte in-memory Core-Snapshot-/Replay-Scope abgenommen. Host-Fact-Replay, reale Side-Effect-Suppression, universelle Work-Item-Persistenz, Cross-Version-, Cross-Platform-, Physics-Paritäts- und Performance-Freigaben bleiben separat.
+**Annahmeprotokoll:** Architektur 2.0 am 17. September 2026 im Projektgespräch angenommen; D-01 und D-02 ausdrücklich bestätigt. D-04 und D-05 wurden anschließend im PW-S02-Durchgang beschlossen und auf `b04fcbe` als Teil des abgenommenen Referenzprofils dokumentiert. PW-S03 wurde am 18. September 2026 auf `f90517a` mit Headless-Nachweisen und echtem Godot-Smoke-Run abgenommen. PW-S04 wurde am 18. September 2026 auf `8bd4dd0` nach 1215/1215 bestandenen Tests als Combat-Referenzszenario abgenommen. PW-S05 wurde über `653c1f5`, `789763c` und `c6b2327` bis zum abschließenden Replay-Nachweis `d8826a2` geführt; der finale S05-Testumfang beträgt 1248 Tests. PW-S06 wurde anschließend über `238a24a`, `0739c31` und `982798e` bis `3ee638a` geführt. Der Nutzer bestätigte final 1267/1267 Tests, vollständigen Build und danach `gcc`. Damit sind der vereinbarte S05-in-memory Core-Snapshot-/Replay-Scope sowie der S06-Zeit-/Derived-Query-Referenzumfang abgenommen. Host-Fact-Replay, reale Side-Effect-Suppression, universelle Work-Item-Persistenz, Cross-Version-, Cross-Platform-, Physics-Paritäts-, Performance- und Retention-Freigaben bleiben separat.

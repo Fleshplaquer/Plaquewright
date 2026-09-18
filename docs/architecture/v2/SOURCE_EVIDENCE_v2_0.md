@@ -5,9 +5,9 @@
 
 ## 1. Quellenhierarchie nach Aussageart
 
-Für das **Produktziel** gilt die neu eingebrachte Architekturübergabe E1: Framework statt einzelnes Idle-Spiel. Für die **historische A/B-Audit-Baseline** gilt E2 mit `d39cb54`; für den **PW-S02-Funktionsnachweis** gilt E7 mit `b04fcbe`; für den **PW-S03-Funktionsnachweis** gilt E8 mit `f90517a`; für PW-S04 gilt E9 mit `8bd4dd0`; für die PW-S05-Grundlage gilt E10 mit `653c1f5`; für den **abgeschlossenen PW-S05-Funktionsnachweis** gilt E11 mit `d8826a2`. Für den vollständig direkt gelesenen älteren Quellcode gilt der bereitgestellte Archiv-Snapshot E3. Eine ältere Zusammenfassung wird nicht allein durch ihren späteren Upload zum neuesten Code.
+Für das **Produktziel** gilt die neu eingebrachte Architekturübergabe E1: Framework statt einzelnes Idle-Spiel. Für die **historische A/B-Audit-Baseline** gilt E2 mit `d39cb54`; für den **PW-S02-Funktionsnachweis** gilt E7 mit `b04fcbe`; für den **PW-S03-Funktionsnachweis** gilt E8 mit `f90517a`; für PW-S04 gilt E9 mit `8bd4dd0`; für die PW-S05-Grundlage gilt E10 mit `653c1f5`; für den **abgeschlossenen PW-S05-Funktionsnachweis** gilt E11 mit `d8826a2`; für den **abgeschlossenen PW-S06-Funktionsnachweis** gilt E12 mit `3ee638a`. Für den vollständig direkt gelesenen älteren Quellcode gilt der bereitgestellte Archiv-Snapshot E3. Eine ältere Zusammenfassung wird nicht allein durch ihren späteren Upload zum neuesten Code.
 
-Technische Entscheidungen werden nur dort als beschlossen ausgegeben, wo sie aus E1 oder den bestätigten Projektständen hervorgehen. D-03, D-06 und D-07 bleiben offene Detailgates. D-04 und D-05 wurden im PW-S02-Durchgang beschlossen und technisch nachgewiesen. PW-S03 belegt Headless/Godot als gemeinsame Host-Autoritätsgrenze, schließt D-07 als Release-/Distributionsentscheidung aber noch nicht. PW-S04 belegt Combat als zweites fachliches Referenzszenario. E10 und E11 belegen zusammen den vereinbarten PW-S05-in-memory Snapshot-/Replay-Scope; Host-Fact-, Cross-Version-, Side-Effect- und Plattformfreigaben folgen daraus nicht.
+Technische Entscheidungen werden nur dort als beschlossen ausgegeben, wo sie aus E1 oder den bestätigten Projektständen hervorgehen. D-03, D-06 und D-07 bleiben offene Detailgates. D-04 und D-05 wurden im PW-S02-Durchgang beschlossen und technisch nachgewiesen. PW-S03 belegt Headless/Godot als gemeinsame Host-Autoritätsgrenze, schließt D-07 als Release-/Distributionsentscheidung aber noch nicht. PW-S04 belegt Combat als zweites fachliches Referenzszenario. E10 und E11 belegen zusammen den vereinbarten PW-S05-in-memory Snapshot-/Replay-Scope. E12 belegt PW-S06 für den zeitabhängigen Stats-/Derived-Query-Referenzumfang einschließlich Cache-Invalidierung und domainlokaler Snapshot-/Continuation-Fortsetzung. Host-Fact-, Cross-Version-, Side-Effect-, Performance- und Plattformfreigaben folgen daraus nicht.
 
 ## 2. Projektquellen
 
@@ -139,6 +139,30 @@ Die Ledger-History vor dem Snapshot wird im aktuellen Profil nicht persistiert; 
 
 E11 belegt PW-S05 für den vereinbarten **in-memory Core-Snapshot-/Replay-Scope**. Es belegt nicht: universelle polymorphe Persistenz aller `ISimulationWorkItem`-Typen, JSON-/Binary-Saveformat, Cross-Version-Migration, aufgezeichnete Physics-/Collision-Host-Facts, reale Netzwerk-/Kauf-Side-Effect-Suppression, Cross-Platform-/Cross-Engine-Bitgleichheit, 30-Sekunden-Retention oder Performancefreigabe.
 
+### E12 – PW-S06 Abschluss: zeitabhängiger Stats-State, Derived Query, Cache und Continuation, 18. September 2026
+
+Quelle: Projektgespräch, der vor PW-S06 erzeugte Source-Export `Plaquewright_S06_Source.txt`, die im Gespräch gemeinsam erarbeiteten S06-Produktions-/Teständerungen, die vom Nutzer bestätigten vollständigen Test-/Build-Läufe und die abschließende Git-Ausgabe. Der Source-Export zeigt den sauberen Ausgangspunkt `6ba6ae9 Document PW-S05 acceptance` und die relevanten vorhandenen `Stats`, `SimulationTime`, `SimulationDuration`, `SchedulerPhase`, `SimulationEventContext`, `SimulationRunner`, Composition- und Entity-Grenzen. Er ist **kein** vollständiger Post-S06-Repository-Snapshot.
+
+Der Nutzer bestätigte die vier S06-Blöcke jeweils nach vollständigem Testlauf und anschließendem `gcc`. Maßgeblich ist die danach vom Nutzer gezeigte tatsächliche Git-Historie:
+
+```text
+3ee638a (HEAD -> main, origin/main) Prove PW-S06 timed modifier continuation replay
+982798e Add PW-S06 timed modifier snapshot restore
+0739c31 Add PW-S06 derived query cache invalidation
+238a24a Add PW-S06 timed modifier state and boundary proof
+6ba6ae9 Document PW-S05 acceptance
+## main...origin/main
+```
+
+Die bestätigten Teststände im Projektgespräch waren: S06-A **1256/1256**, S06-B **1260/1260**, S06-C **1265/1265**, S06-D **1267/1267**. Nach dem finalen S06-D-Lauf wurde zusätzlich `gcc` bestätigt; der vollständige Build war grün.
+
+1. **`238a24a` – zeitabhängiger State und Boundary-Beweis.** `ModifierKind`, `TimedModifierKey`, `TimedModifierExpiration`, `TimedModifierStateSet` und `TimedModifierValueQuery` bilden den kleinen Stats-Referenzfall. Generationen unterscheiden aufeinanderfolgende Lebensdauern desselben Keys; Revisionen ändern sich nur bei echter autoritativer Mutation. Der externe Session-Test plant Expiration bei `ExpiresAt` in `SchedulerPhase.StateBoundary` und zeigt, dass eine `Execution` am selben Timestamp bereits den abgelaufenen State liest. Zero-duration wird im ersten Profil abgewiesen.
+2. **`0739c31` – Derived-Query-Cache.** `TimedModifierValueQueryCache` bindet Gültigkeit an State-Identität, Revision und Query-Input. Die Tests vergleichen den Cache gegen die ungecachte Referenzrechnung. Apply, Refresh, Cancel und erfolgreiche Expiration invalidieren durch Revision; eine stale Expiration mutiert nicht und lässt den Cache gültig.
+3. **`982798e` – Domain-Snapshot/Restore.** `TimedModifierActiveSnapshot`, `TimedModifierSlotSnapshot` und `TimedModifierStateSetSnapshot` erhalten aktive und inaktive Slots, Generation, Revision, Modifierdaten und Ablaufzeit. Inaktive Slots sind notwendig, damit nach Cancel/Restore eine neue Lebensdauer mit `Generation + 1` fortsetzt und alte Expiration-Tokens stale bleiben. Restore reproduziert Revision-/Generation-Exhaustion und führt die Änderungs-API nicht erneut aus.
+4. **`3ee638a` – pending Expiration über Restore.** Der Abschlussbeweis kombiniert `TimedModifierStateSetSnapshot` mit einem `SimulationRunnerSnapshot<TestWorkItemSnapshot>`. Die Work-Item-Snapshotformen sind test-only und bilden keinen neuen Produktionsserializer. Eine frische `SimulationComposition` bindet gegen den restaurierten State. Im Refresh-Fall bleibt die alte Generation bei t=110 stale, ohne Revision zu erhöhen; die aktuelle Generation läuft bei t=150 am StateBoundary ab; die Same-Time-Query sieht den Basiswert. Original und Restore stimmen bei Trace, Query-Ergebnissen, Expiration-Ergebnissen und Revisionen überein.
+
+E12 belegt PW-S06 und PW-QA-20 für diesen konkreten Referenzumfang. Es belegt **nicht**: allgemeines Status-/Buff-System, globalen Timer-/Cancellation-Service, universellen Derived-Value-Graph, universellen Work-Item-Serializer, Cross-Version-Persistenz, reale Host-Fact-/Side-Effect-Replayfälle oder Performance-/Retention-Ziele.
+
 **W1 – Godot, Physics introduction.** Gelesen am 17. September 2026. Die offizielle Dokumentation warnt, dass Physics nicht deterministisch garantiert ist. Verwendet nur zur Abgrenzung von Engine-Unabhängigkeit und autoritativem räumlichem Replay.
 
 URL: `https://docs.godotengine.org/en/stable/tutorials/physics/physics_introduction.html`
@@ -197,8 +221,8 @@ E2 ist eine sichtbare Gesprächsangabe und wird nicht als künstliche herunterge
 
 ## 6. Grenzen dieser Bearbeitung
 
-Ausgeführt in der ursprünglichen Dokumenterstellung: Quelleninspektion, Entwurfsarbeit, Markdown-Dateierstellung und strukturelle Dokumentprüfung. Im anschließenden Projektverlauf wurden PW-S02, PW-S03 und PW-S04 durch den Nutzer im Repository umgesetzt und getestet; E7, E8 und E9 dokumentieren diese bestätigte Entwicklung. PW-S05 wurde anschließend von der auf `653c1f5` bestätigten Grundlage E10 bis zum Abschluss `d8826a2` in E11 fortgeführt.
+Ausgeführt in der ursprünglichen Dokumenterstellung: Quelleninspektion, Entwurfsarbeit, Markdown-Dateierstellung und strukturelle Dokumentprüfung. Im anschließenden Projektverlauf wurden PW-S02, PW-S03 und PW-S04 durch den Nutzer im Repository umgesetzt und getestet; E7, E8 und E9 dokumentieren diese bestätigte Entwicklung. PW-S05 wurde von der auf `653c1f5` bestätigten Grundlage E10 bis zum Abschluss `d8826a2` in E11 fortgeführt. PW-S06 wurde anschließend vom dokumentierten Ausgangspunkt `6ba6ae9` bis zum Funktionsabschluss `3ee638a` in E12 nachgewiesen.
 
-Diese aktuelle Dokumentaktualisierung führt selbst keinen neuen .NET-Testlauf, Godot-Start, Cross-Platform-Test, Benchmark oder vollständigen Dependency-Graph-Audit aus. Sie rekonstruiert keinen vollständigen Source-Snapshot von `d8826a2`; Aussagen über PW-S02 bis PW-S05 beschränken sich auf die im Gespräch aufgebauten/benannten Verträge, direkt gezeigten relevanten Sources, gezeigten beziehungsweise bestätigten Test-/Build-Ausgaben, den gemeldeten Godot-Smoke-Run, die Git-Ausgaben und die Nutzerbestätigungen.
+Diese aktuelle Dokumentaktualisierung führt selbst keinen neuen .NET-Testlauf, Godot-Start, Cross-Platform-Test, Benchmark oder vollständigen Dependency-Graph-Audit aus. Sie rekonstruiert keinen vollständigen Post-S06-Source-Snapshot von `3ee638a`; Aussagen über PW-S02 bis PW-S06 beschränken sich auf die im Gespräch aufgebauten/benannten Verträge, direkt gezeigten relevanten Sources, gezeigten beziehungsweise bestätigten Test-/Build-Ausgaben, den gemeldeten Godot-Smoke-Run, die Git-Ausgaben und die Nutzerbestätigungen.
 
-PW-S04 ist als Referenzschritt abgeschlossen. PW-S05 ist auf `d8826a2` für den ausdrücklich beschriebenen in-memory Core-Snapshot-/Replay-Scope abgeschlossen. Host-Fact-Replay, reale Side-Effect-Suppression, universelle Work-Item-Persistenz, Cross-Version-/Physics-/Plattform-Parität, History-Retention und Performance werden dadurch nicht vorweggenommen.
+PW-S04 ist als Referenzschritt abgeschlossen. PW-S05 ist auf `d8826a2` für den ausdrücklich beschriebenen in-memory Core-Snapshot-/Replay-Scope abgeschlossen. PW-S06 ist auf `3ee638a` für den zeitabhängigen Stats-/Derived-Query-Referenzumfang abgeschlossen. Host-Fact-Replay, reale Side-Effect-Suppression, universelle Work-Item-Persistenz, Cross-Version-/Physics-/Plattform-Parität, History-Retention und Performance werden dadurch nicht vorweggenommen.
