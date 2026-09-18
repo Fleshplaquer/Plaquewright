@@ -1,8 +1,9 @@
 # Plaquewright – Migrationsplan 2.0
 
-**Datum:** 17. September 2026 · **Status:** Angenommener Migrationsleitplan 2.0  
+**Datum:** 18. September 2026 · **Status:** Angenommener Migrationsleitplan 2.0  
 **Historische Audit-Baseline:** `d39cb54`  
-**Aktueller Funktionsnachweis:** PW-S02 auf `b04fcbe`  
+**PW-S02-Nachweis:** `b04fcbe`  
+**Aktueller Funktionsnachweis:** PW-S03 auf `f90517a`  
 **Prinzip:** Verhalten erhalten, Grenzen testen, dann den kleinsten notwendigen Eingriff vornehmen.
 
 Die frühere `MIGRATION_PLAN.md` wird in der Architekturübergabe genannt, ist im bereitgestellten Archiv aber nicht vorhanden. Dieses Dokument ersetzt deshalb keine ungelesene Detailentscheidung stillschweigend.
@@ -17,21 +18,21 @@ Alte Gameplay-Regeln werden nicht gelöscht. Gemäß D-02 bleiben die bestehende
 
 ## 2. Baseline nicht umdeuten
 
-`d39cb54` bleibt der historische A/B-Auditpunkt. Der spätere Stand `b04fcbe` belegt PW-S02; beide Referenzen werden nicht miteinander vermischt. Dokumentationscommits erhalten wiederum eigene Hashes und ändern diese Nachweisrollen nicht.
+`d39cb54` bleibt der historische A/B-Auditpunkt. `b04fcbe` belegt PW-S02; `f90517a` belegt den abgeschlossenen PW-S03-Stand. Diese Referenzen werden nicht miteinander vermischt. Dokumentationscommits erhalten wiederum eigene Hashes und ändern diese Nachweisrollen nicht.
 
 A/B-Findings werden nicht neu nummeriert, und fehlende ausführliche Finding-Texte werden nicht rekonstruiert, als wären sie vorhanden. Die ursprüngliche Framework-Übergabe mit 1023 Tests und „Transaction Boundary als nächster Schritt“ wird als älterer Technikstand gekennzeichnet.
 
-## 3. Nach PW-S02 weiterhin keine Komplettreorganisation
+## 3. Nach PW-S03 weiterhin keine Komplettreorganisation
 
-PW-S02 hat gezeigt, dass bestehender Transaction-Coordinator und Scheduler mit wenigen schmalen Verträgen die benötigte Commit→Event→Reaction-Semantik tragen. Diese neuen Verträge werden nicht zum Anlass genommen, die komplette Runtime, alle Domains oder sämtliche Scheduler-Aufrufer umzubauen.
+PW-S02 hat gezeigt, dass bestehender Transaction-Coordinator und Scheduler mit wenigen schmalen Verträgen die benötigte Commit→Event→Reaction-Semantik tragen. PW-S03 hat darauf einen eingefrorenen Execution Plan, explizite Required/Provided-Komposition und die host-neutrale `SimulationSession` gesetzt, ohne die komplette Runtime neu zu ordnen.
 
-Der nächste Codeblock ist PW-S03: eine kleine explizite Modulkomposition für Door/Alarm im Headless-Betrieb und anschließend ein minimaler Godot-Host. Nur wenn dieser zweite Betriebsmodus eine konkrete vorhandene Kopplung blockiert, wird genau diese Grenze refaktoriert.
+Der nächste Codeblock ist PW-S04: ein kleiner vorhandener Combat-Ablauf als zweites fachliches Referenzszenario. Nur wenn dieser reale Fall eine konkrete Grenze blockiert, wird genau diese Grenze refaktoriert oder generalisiert.
 
 ## 4. Generische Runtime von Gameplay-Komposition trennen
 
-`SimulationRuntimeState` wird nicht allein wegen seines Namens in `KernelWorld` umbenannt. Zunächst muss der Door-/Alarm-Fall zeigen, welche generischen Dienste er braucht, ohne Combat oder Resource-Entity-Zustand vorauszusetzen.
+`SimulationRuntimeState` wird nicht allein wegen seines Namens in `KernelWorld` umbenannt. PW-S03 hat bereits gezeigt, dass Door/Alarm sowie Resources/Door/Alarm über `SimulationComposition` und `SimulationSession` laufen können, ohne `SimulationRuntimeState` oder Combat als Pflichtzustand zu verwenden.
 
-Erst diese Dienste erhalten eine schmale Kompositionsgrenze. Der bestehende Typ kann weiterhin eine bequeme Zusammenstellung für das vorhandene Gameplay bleiben.
+Diese schmale Kompositionsgrenze bleibt bestehen. Der vorhandene `SimulationRuntimeState` kann weiterhin eine bequeme Zusammenstellung für das vorhandene Gameplay bleiben, bis PW-S04 oder ein späterer realer Fall eine konkrete Entkopplung verlangt.
 
 **Schutz:** Alle bisherigen Ownership-/Runtime-Tests bleiben bestehen. Ein formaler Dependency-Split darf keine fremden Kontexte plötzlich gültig machen.
 
@@ -67,8 +68,8 @@ Bei API-Änderungen werden vorhandene Aufrufer migriert oder bewusst kompatible 
 
 ## 9. Nächster Repository-Schritt nach dieser Dokumentaktualisierung
 
-Diese Dokumentaktualisierung verändert selbst keinen Produktionscode und führt keinen zusätzlichen Testlauf aus. Sie synchronisiert den Architekturstand mit dem bereits vom Nutzer bestätigten PW-S02-Commit `b04fcbe`.
+Diese Dokumentaktualisierung verändert selbst keinen Produktionscode und führt keinen zusätzlichen Testlauf aus. Sie synchronisiert den Architekturstand mit dem vom Nutzer bestätigten PW-S03-Endstand `f90517a` einschließlich Headless-Nachweisen und Godot-Smoke-Run.
 
-Nach dem Dokumentationscommit folgt PW-S03 in einem getrennten, getesteten Codeblock. Keine Quellcodeverschiebung, Assembly-Neuordnung oder Combat-Migration wird allein wegen der Dokumentpflege vorgezogen.
+Nach dem Dokumentationscommit folgt PW-S04 in einem getrennten, getesteten Codeblock. Keine Quellcodeverschiebung, Assembly-Neuordnung oder Generalisierung von Combat-Typen wird allein wegen der Dokumentpflege vorgezogen.
 
-**Quellen:** [E1–E5, E7](SOURCE_EVIDENCE_v2_0.md).
+**Quellen:** [E1–E5, E7–E8](SOURCE_EVIDENCE_v2_0.md).

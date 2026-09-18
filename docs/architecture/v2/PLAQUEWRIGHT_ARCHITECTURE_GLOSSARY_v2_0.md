@@ -1,6 +1,6 @@
 # Plaquewright – Architecture Glossary 2.0
 
-**Datum:** 17. September 2026 · **Status:** Lebendes Architekturglossar 2.0  
+**Datum:** 18. September 2026 · **Status:** Lebendes Architekturglossar 2.0  
 Die alte gleichnamige Glossardatei ist in der Übergabe erwähnt, nicht als vollständiger Inhalt verfügbar. Diese Fassung definiert die Begriffe für den neuen Entwurf; sie ist kein Katalog bereits existierender C#-Typen.
 
 | Begriff | Bedeutung im Framework | Wichtige Abgrenzung |
@@ -10,9 +10,13 @@ Die alte gleichnamige Glossardatei ist in der Übergabe erwähnt, nicht als voll
 | Domain | Fachlicher Bereich mit eigenen Zuständen und Invarianten | Resources, Inventory, Combat oder externe Temperature-Domain |
 | Modul | Integrierbarer Anbieter von Domain-Funktionen oder Infrastruktur | Muss nicht sofort eine eigene Assembly sein |
 | Komposition | Auswahl und Verbindung der Module und Regelverträge für eine Simulation | Darf konkrete Domains kennen, anders als Kernel |
+| Module Contract | Explizit bereitgestellte oder benötigte Fähigkeit einer Startup-Komposition | Marker für Verfügbarkeit, kein Service Locator und kein automatischer Instanzresolver |
+| Execution Plan | Beim Build eingefrorene Zuordnung konkreter Work-Item-Typen zu Ausführungshandlern | Exaktes Typ-Routing; keine Reflection-Discovery oder polymorphe Mehrdeutigkeit |
+| Simulation Composition | Validierte Menge expliziter Module, Contracts und Execution-Handler | Required/Provided prüft Verfügbarkeit; sortiert Module nicht heimlich neu |
+| Simulation Session | Host-neutrale Fassade über Composition, Runner und Scheduler | Gemeinsame autoritative Laufzeit für Headless/Godot; kein zweiter Host-Scheduler |
 | Regelprofil / Regelpaket | Versionierte fachliche Auswahl von Regeln und Policies | D-02: bestehendes Combat bleibt benanntes austauschbares Referenz-Regelpaket |
-| Host | Ausführende Anwendung, etwa Godot oder Headless | Nicht automatisch autoritative Gameplay-Logik |
-| Adapter | Übersetzung zwischen Host/Engine und Framework-Verträgen | Keine unkontrollierten Engine-Typen im Core |
+| Host | Ausführende Anwendung, etwa Godot oder Headless | Bringt Inputs/Host Facts ein und treibt eine `SimulationSession`; nicht automatisch autoritative Gameplay-Logik |
+| Adapter | Übersetzung zwischen Host/Engine und Framework-Verträgen | Darf eine `SimulationSession` besitzen/treiben; keine unkontrollierten Engine-Typen im Core |
 | Autoritativer Zustand | Zustand, aus dem die Simulation ihre verbindlichen Ergebnisse ableitet | Nicht eine UI-Anzeige oder Debug-Kopie |
 | Query | Lesen einer benannten Zustandssicht | Keine versteckte autoritative Mutation |
 | Projection | Noch nicht veröffentlichte Sicht auf geplante Änderungen | Kein bereits committed Sachverhalt |

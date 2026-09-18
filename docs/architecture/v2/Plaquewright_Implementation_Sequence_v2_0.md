@@ -1,8 +1,8 @@
 # Plaquewright – Implementierungsfolge 2.0
 
-**Version:** 2.0 · **Datum:** 17. September 2026  
+**Version:** 2.0 · **Datum:** 18. September 2026  
 **Ausgangspunkt:** Nutzerbestätigte Audit-Baseline `d39cb54`, nicht der alte Idler-P00-Start  
-**Status:** Freigegebene Architektur-Baufolge; PW-S02 abgenommen auf `b04fcbe`, weitere Schritte werden separat durchgeführt und abgenommen
+**Status:** Freigegebene Architektur-Baufolge; PW-S02 abgenommen auf `b04fcbe`, PW-S03 abgenommen auf `f90517a`, weitere Schritte werden separat durchgeführt und abgenommen
 
 ## 1. Ziel der Reihenfolge
 
@@ -19,7 +19,7 @@ Die neue Reihenfolge verwendet `PW-Sxx`, um weder alte P-Meilensteine noch abges
 | PW-S00 | Framework-Ziel und Baseline nachvollziehbar dokumentiert | Verhindert weitere Arbeit nach falscher Produktvision |
 | PW-S01 | Transaction-Komposition hat einen eindeutigen Konflikt-/Lebensdauervertrag | Ereignispublikation darf keine unklare Mutation verdecken |
 | PW-S02 | Commit-Ergebnis → Event → deterministische Reaction **– abgenommen** | Schließt die zentrale modulübergreifende Ausführungskette |
-| PW-S03 | Kleine explizite Modulkomposition und Headless-/Godot-Referenz | Beweist Benutzbarkeit außerhalb interner Tests |
+| PW-S03 | Kleine explizite Modulkomposition und Headless-/Godot-Referenz **– abgenommen** | Beweist Benutzbarkeit außerhalb interner Tests |
 | PW-S04 | Zweites fachliches Referenzszenario mit vorhandenen Combat-Bausteinen | Prüft, ob die Grenze mehr als den Door-Fall trägt |
 | PW-S05 | Snapshot/Restore und deterministischer Replay-Beweis | Prüft State-Ownership und ausstehende Arbeit früh |
 | PW-S06 | Zeitabhängige Domain und abgeleitete Queries | Erweitert Status/Production und Cache-Invalidierung an realem Bedarf |
@@ -93,17 +93,25 @@ Der Referenzfall beweist dabei die Follow-up-Grenze; die Alarm-Action ist in PW-
 
 ## 6. PW-S03 – Modulkomposition und zwei Host-Betriebsarten
 
-Die Funktionen aus PW-S02 werden nicht dauerhaft nur als Test-Helfer verbunden.
+**Status:** Abgenommen am 18. September 2026. Technischer Endstand: `f90517a`.
 
-**Lieferung:** Eine kleine explizite Komposition, die Module und Regeladapter beim Start verbindet, benötigte Verträge validiert und einen festen Ausführungsplan erzeugt. Ein einfacher Headless-Host führt das Szenario aus; ein minimaler Godot-Host kann dieselben Eingaben übermitteln und dieselben Ergebnisse anzeigen.
+PW-S03 führt die in PW-S02 bewiesenen Primitiven in eine kleine host-neutrale Runtime-Grenze über.
 
-**Zwei Konfigurationen:** Door/Alarm ohne Combat; Resources/Door/Alarm mit bezahlter Öffnung. Damit wird auch geprüft, ob unnötige Pflichtabhängigkeiten wie globale Resource-Entities in die generische Runtime geraten.
+**Umgesetzte Bausteine:**
 
-**Abnahme:** Das externe Modul benötigt keine neuen Kernel-Fachbegriffe und kein `InternalsVisibleTo`. Fehlende Abhängigkeiten werden vor Run abgewiesen. Host-Darstellung schreibt keinen Modulzustand direkt. Gleiche definierte Eingaben erzeugen im selben unterstützten Profil dieselben autoritativen Ergebnisse.
+1. `SimulationExecutionPlanBuilder<TWorkItem>` und `SimulationExecutionPlan<TWorkItem>` bilden einen beim Build eingefrorenen Dispatchplan. Routing erfolgt über den exakten Runtime-Typ; doppelte Handler werden bei der Komposition abgewiesen.
+2. `ISimulationModuleContract`, `SimulationModuleBuilder<TWorkItem>`, `SimulationCompositionBuilder<TWorkItem>` und `SimulationComposition<TWorkItem>` beschreiben explizite Module mit Required/Provided-Contracts. Fehlende Provider und doppelte Provider scheitern vor dem ersten Run. Die Modulreihenfolge bleibt explizit; Dependencies führen nicht heimlich zu Reflection-Discovery oder automatischer Topological Sort.
+3. `SimulationSession<TWorkItem>` kapselt Composition, Runner und Scheduler als host-neutrale Fassade. Sie delegiert externe Inputs, `RunNext` und `RunToCompletion` an dieselbe autoritative Core-Laufzeit und öffnet keinen zweiten Scheduler-Zugriff.
+4. Headless wurden sowohl Door/Alarm als auch Resources/Door/Alarm mit bezahlter, atomarer Öffnung ausgeführt. Combat ist für beide Konfigurationen keine Pflichtabhängigkeit.
+5. Die Godot-Hauptassembly referenziert `Plaquewright.Core` per `ProjectReference`. `src/Presentation/Main.cs` erzeugt eine Composition und `SimulationSession`, übergibt einen externen Host-Input und führt ihn über die Core-Laufzeit aus. `main.tscn` benötigt dafür keinen eigenen Gameplay-Pfad.
 
-**Migration:** Nur die tatsächlich blockierende Kopplung aus `SimulationRuntimeState` herauslösen. Die bestehende Gameplay-Komposition kann als Convenience-Schicht erhalten bleiben.
+**Ausführungsnachweis:** Während PW-S03 wurde eine vollständige Testsummary mit **1210/1210** bestandenen Tests gezeigt. Nach dem Godot-Adapter bestätigte der Nutzer erneut Tests und Build als grün. Zusätzlich wurde ein echter Godot-Start ausgeführt; die Ausgabe lautete `Plaquewright Godot host ready. SimulationTime=0us, ProcessedEvents=1.`. Der abschließende Repository-Stand `f90517a` wurde mit `gcc` bestätigt.
 
-**Nicht enthalten:** Automatisches Plugin-Discovery, Runtime-Hotloading, Assembly-Split jedes Verzeichnisses, vollständiges ECS.
+**Abgenommen:** Das externe Modul benötigt keine neuen Kernel-Fachbegriffe und kein `InternalsVisibleTo`; fehlende oder doppelte Contracts werden vor Run abgewiesen; die Session bewahrt die D-04-Inputgrenze; Headless und Godot benutzen dieselbe `SimulationSession`-/Core-Autorität statt zwei Implementierungen. Der Godot-Nachweis ist ein Host-Smoke-Test, kein Physics-/Replay-Paritätstest.
+
+**Migrationsergebnis:** `SimulationRuntimeState` musste für PW-S03 nicht vorsorglich umgebaut werden. Die neue generische Host-/Composition-Grenze entstand daneben als schmale Infrastruktur; die bestehende Gameplay-Komposition kann bis zu einem realen Blocker erhalten bleiben.
+
+**Nicht enthalten:** Automatisches Plugin-Discovery, Runtime-Hotloading, Service Locator, dynamische Contract-Prioritäten, Assembly-Split jedes Verzeichnisses, vollständiges ECS, Host-Fact-Replay oder eine Cross-Engine-Kompatibilitätsmatrix.
 
 ## 7. PW-S04 – Zweites Referenzszenario: vorhandenes Combat nutzen
 

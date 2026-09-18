@@ -1,13 +1,13 @@
 # Plaquewright – Source Evidence 2.0
 
-**Datum:** 17. September 2026 · **Status:** Quellen-/Evidenzregister zur freigegebenen Architektur 2.0  
+**Datum:** 18. September 2026 · **Status:** Quellen-/Evidenzregister zur freigegebenen Architektur 2.0  
 **Zweck:** Vision, alten Source-Snapshot, neue Nutzerbestätigungen und vorgeschlagene Architektur nicht miteinander verwechseln.
 
 ## 1. Quellenhierarchie nach Aussageart
 
-Für das **Produktziel** gilt die neu eingebrachte Architekturübergabe E1: Framework statt einzelnes Idle-Spiel. Für die **historische A/B-Audit-Baseline** gilt E2 mit `d39cb54`; für den **aktuellen PW-S02-Funktionsnachweis** gilt E7 mit `b04fcbe`. Für den vollständig direkt gelesenen älteren Quellcode gilt der bereitgestellte Archiv-Snapshot E3. Eine ältere Zusammenfassung wird nicht allein durch ihren späteren Upload zum neuesten Code.
+Für das **Produktziel** gilt die neu eingebrachte Architekturübergabe E1: Framework statt einzelnes Idle-Spiel. Für die **historische A/B-Audit-Baseline** gilt E2 mit `d39cb54`; für den **PW-S02-Funktionsnachweis** gilt E7 mit `b04fcbe`; für den **aktuellen PW-S03-Funktionsnachweis** gilt E8 mit `f90517a`. Für den vollständig direkt gelesenen älteren Quellcode gilt der bereitgestellte Archiv-Snapshot E3. Eine ältere Zusammenfassung wird nicht allein durch ihren späteren Upload zum neuesten Code.
 
-Technische Entscheidungen werden nur dort als beschlossen ausgegeben, wo sie aus E1, bestätigten Änderungen, E6 oder E7 hervorgehen. D-03, D-06 und D-07 bleiben offene Detailgates. D-04 und D-05 wurden im PW-S02-Durchgang beschlossen und technisch nachgewiesen.
+Technische Entscheidungen werden nur dort als beschlossen ausgegeben, wo sie aus E1 oder den bestätigten Projektständen E6–E8 hervorgehen. D-03, D-06 und D-07 bleiben offene Detailgates. D-04 und D-05 wurden im PW-S02-Durchgang beschlossen und technisch nachgewiesen. PW-S03 belegt Headless/Godot als gemeinsame Host-Autoritätsgrenze, schließt D-07 als Release-/Distributionsentscheidung aber noch nicht.
 
 ## 2. Projektquellen
 
@@ -57,7 +57,7 @@ E1 nennt `ARCHITECTURE_MAP.md`, `CODE_CLASSIFICATION.md`, `MIGRATION_PLAN.md`, `
 
 Unter diesen Namen beziehungsweise Namensbestandteilen wurden im Archiv keine Dateien gefunden. Deshalb sind die gleichnamigen v2-Fassungen hier **neue Rekonstruktionen**, keine behaupteten Updates ungelesener Originaldateien. Es wird nicht behauptet, diese Dateien existierten auf dem Rechner des Nutzers nicht.
 
-## 3. Externe Primärquellen für zwei technische Präzisierungen
+## 3. Weitere Entscheidungs- und Primärquellen
 
 Die externen Quellen bestimmen nicht das Projektziel und führen keine neue Engine-, Datenbank- oder Bibliotheksabhängigkeit ein.
 
@@ -73,7 +73,17 @@ Im PW-S02-Durchgang wurden die typisierte Domain-Event-/Reaction-Grenze, sichere
 
 Der Nutzer bestätigte die relevanten Test-/Build-Durchgänge mit `g` und die abgeschlossenen Repository-Stände einschließlich des QA-12-Nachtrags mit `gcc`. Der zuletzt genannte HEAD nach diesem Nachtrag ist `b04fcbe`. Eine exakte finale Testanzahl wird nicht nachträglich erfunden.
 
-E7 belegt PW-S02 und die Entscheidungen D-04/D-05. Es belegt noch keinen Snapshot-/Replay-Support, keine Headless-/Godot-Äquivalenz aus PW-S03, keine Combat-Migration aus PW-S04 und keine Performance-Freigabe.
+E7 belegt für sich PW-S02 und die Entscheidungen D-04/D-05. Es belegt noch keinen Snapshot-/Replay-Support, keine Headless-/Godot-Grenze aus PW-S03, keine Combat-Migration aus PW-S04 und keine Performance-Freigabe.
+
+### E8 – PW-S03 Implementierung und Abnahme, 18. September 2026
+
+Quelle: Projektgespräch, vollständig gezeigte Test-/Build-Ausgabe während PW-S03, die gemeinsam erarbeiteten S03-Verträge und Tests, der vom Nutzer gemeldete echte Godot-Smoke-Run sowie die Bestätigung des Repository-Endstands `f90517a`.
+
+PW-S03 führte `SimulationExecutionPlan`, explizite Required/Provided-Modulkomposition und `SimulationSession<TWorkItem>` als host-neutrale Autoritätsgrenze ein. ExternalTests belegen Door/Alarm sowie Resources/Door/Alarm headless ohne Combat-Pflichtzustand. Fehlende Required-Contracts, doppelte Provider und doppelte Handler werden vor beziehungsweise beim Build der Komposition abgewiesen; die gebaute Plan-/Composition-Sicht wird nicht durch spätere Builder-Registrierungen verändert.
+
+Für den Headless-Stand wurde eine vollständige Summary mit **1210/1210** bestandenen Tests gezeigt. Nach Einbau des Godot-Adapters bestätigte der Nutzer Tests und Build erneut als grün. Die Godot-Hauptassembly referenziert `Plaquewright.Core`; `src/Presentation/Main.cs` erzeugt eine Composition/Session, gibt einen externen `GodotReadyInput` hinein und führt ihn über Core aus. Der echte Godot-Start meldete `Plaquewright Godot host ready. SimulationTime=0us, ProcessedEvents=1.`. Anschließend wurde `f90517a` als HEAD genannt und mit `gcc` bestätigt.
+
+E8 belegt PW-S03 innerhalb des aktuellen Referenzumfangs: gemeinsame Core-Autorität für Headless und Godot, nicht engineübergreifende Physics-/Render-Parität. Es belegt noch keine aufgezeichneten autoritativen Host Facts, kein Snapshot-/Replay, keine Combat-Migration und keine Release-/Binärkompatibilitätsmatrix.
 
 **W1 – Godot, Physics introduction.** Gelesen am 17. September 2026. Die offizielle Dokumentation warnt, dass Physics nicht deterministisch garantiert ist. Verwendet nur zur Abgrenzung von Engine-Unabhängigkeit und autoritativem räumlichem Replay.
 
@@ -135,6 +145,6 @@ E2 ist eine sichtbare Gesprächsangabe und wird nicht als künstliche herunterge
 
 Ausgeführt in der ursprünglichen Dokumenterstellung: Quelleninspektion, Entwurfsarbeit, Markdown-Dateierstellung und strukturelle Dokumentprüfung. Im anschließenden Projektverlauf wurde PW-S02 durch den Nutzer im Repository umgesetzt und getestet; E7 dokumentiert diese bestätigte Entwicklung.
 
-Diese aktuelle Dokumentaktualisierung führt selbst keinen neuen .NET-Testlauf, Godot-Start, Replay-/Cross-Platform-Test, Benchmark oder vollständigen Dependency-Graph-Audit aus. Sie rekonstruiert auch keinen vollständigen Source-Snapshot von `b04fcbe`; Aussagen über PW-S02 beschränken sich auf die im Gespräch aufgebauten/benannten Verträge, gezeigten Testteile und die Nutzerbestätigung.
+Diese aktuelle Dokumentaktualisierung führt selbst keinen neuen .NET-Testlauf, Godot-Start, Replay-/Cross-Platform-Test, Benchmark oder vollständigen Dependency-Graph-Audit aus. Sie rekonstruiert auch keinen vollständigen Source-Snapshot von `f90517a`; Aussagen über PW-S02/PW-S03 beschränken sich auf die im Gespräch aufgebauten/benannten Verträge, gezeigten Test-/Build-Ausgaben, den gemeldeten Godot-Smoke-Run und die Nutzerbestätigungen.
 
-PW-S03 und spätere Fähigkeiten bleiben geplante Schritte. Snapshot/Replay, Host-Äquivalenz, Combat-Migration und Performance werden nicht durch den PW-S02-Nachweis vorweggenommen.
+PW-S04 und spätere Fähigkeiten bleiben geplante Schritte. Snapshot/Replay, Host-Fact-Replay, Combat-Migration, Physics-Parität und Performance werden nicht durch die PW-S02/PW-S03-Nachweise vorweggenommen.

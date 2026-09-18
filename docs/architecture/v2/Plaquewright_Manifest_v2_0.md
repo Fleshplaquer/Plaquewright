@@ -1,10 +1,11 @@
 # Plaquewright – Framework-Manifest 2.0
 
 **Dokumentversion:** 2.0  
-**Datum:** 17. September 2026  
+**Datum:** 18. September 2026  
 **Status:** Architekturfreigabe 2.0; D-01, D-02, D-04 und D-05 beschlossen am 17. September 2026  
 **Historische Audit-Baseline:** `d39cb54`  
-**Aktueller PW-S02-Nachweis:** `b04fcbe`, vom Nutzer als grün / committed / clean bestätigt  
+**PW-S02-Nachweis:** `b04fcbe`, vom Nutzer als grün / committed / clean bestätigt  
+**Aktueller PW-S03-Nachweis:** `f90517a`, vom Nutzer als grün / committed / clean bestätigt  
 **Gegenstand:** Engine-unabhängiges, deterministisches, modulares Gameplay-/Simulations-Framework für C#
 
 ## PW-00 – Geltung, Quellen und Änderungsstatus
@@ -184,11 +185,13 @@ Die bisher verwendeten numerischen Typen werden nicht pauschal ersetzt. Numerisc
 
 Der Core enthält keine `Godot.Node`, Unity-Objekte oder Engine-Timer. Adapter können solche Objekte besitzen und in Handles, Commands, Query-Ergebnisse und Präsentationsdaten übersetzen. [E1]
 
+PW-S03 konkretisiert diese Grenze erstmals im laufenden Code: `SimulationSession<TWorkItem>` ist die host-neutrale Fassade über Composition, Runner und Scheduler. Headless-Tests verwenden sie direkt. Die Godot-Hauptassembly referenziert `Plaquewright.Core`, während `Main.cs` nur Composition/Session erstellt, einen externen Host-Input einbringt und die Core-Laufzeit ausführt. Damit existiert kein zweiter Godot-eigener Scheduler oder autoritativer Gameplay-Pfad. [E8]
+
 Eine Engine-Kollision ist nicht automatisch ein portabel reproduzierbarer Gameplay-Fakt. Für autoritativ verwendete räumliche Ergebnisse braucht die jeweilige Komposition einen Vertrag: deterministischer austauschbarer Provider oder aufgezeichnete externe Ergebnisse. Godots Dokumentation garantiert für seine Physics keinen deterministischen Ablauf; ein fixer Takt allein beseitigt diese Grenze nicht. [W1]
 
-Der Kernel implementiert deshalb nicht vorsorglich eine universelle Physik. Ein erstes Headless-Szenario kann explizite Ziele verwenden und damit seine begrenzte räumliche Semantik offenlegen.
+Der Kernel implementiert deshalb nicht vorsorglich eine universelle Physik. Die bisherigen Headless-Szenarien verwenden explizite Inputs/Ziele und der Godot-Smoke-Run enthält noch keine autoritative Physics-/Collision-Integration.
 
-Engine-Unabhängigkeit, Headless-Fähigkeit und Engine-übergreifendes Physics-Replay sind getrennte Eigenschaften. Unity-/Unreal-Adapter bleiben spätere Integrationsvorhaben, keine in diesem Stand bestätigten Lieferbestandteile.
+Engine-Unabhängigkeit, Headless-Fähigkeit und Engine-übergreifendes Physics-Replay sind getrennte Eigenschaften. PW-S03 belegt die gemeinsame Host-Autoritätsgrenze für Headless und Godot, nicht Physics-/Render-Parität. Unity-/Unreal-Adapter bleiben spätere Integrationsvorhaben, keine in diesem Stand bestätigten Lieferbestandteile.
 
 ## PW-12 – Domain-State, Identität und Lebensdauer
 
@@ -266,14 +269,15 @@ Optional notwendige Adapterverträge können entstehen, bevor ihre vollständige
 
 ## PW-19 – Entwicklungsweg und Prüfprinzip
 
-Die Baufolge schließt konkrete Zusammenspielpfade, nicht Positionen einer alten Combat-Featureliste. Der erste neue Funktionsblock ist inzwischen abgeschlossen:
+Die Baufolge schließt konkrete Zusammenspielpfade, nicht Positionen einer alten Combat-Featureliste. Die ersten beiden neuen Funktionsblöcke sind inzwischen abgeschlossen:
 
 ```text
 vorhandene Transaction-Grenze
   -> Commit-/Ereignisvertrag                 [PW-S02 abgenommen]
   -> deterministische Reaction               [PW-S02 abgenommen]
-  -> kleine explizite Modulkomposition       [PW-S03 als Nächstes]
-  -> Combat als zweiter Referenzfall          [PW-S04]
+  -> kleine explizite Modulkomposition       [PW-S03 abgenommen]
+  -> Headless/Godot über SimulationSession   [PW-S03 abgenommen]
+  -> Combat als zweiter Referenzfall          [PW-S04 als Nächstes]
   -> Snapshot-/Replay-Beweis                  [PW-S05]
   -> weitere Domain-Regeln und Lastmessung
 ```
@@ -292,8 +296,8 @@ Testnamen sind ein Inhaltsverzeichnis, kein Nachweis der Assertion-Qualität. AP
 | D-04 | Gleichzeitige externe Eingaben und Folgearbeit | **Beschlossen:** Sobald die Verarbeitung von `T` begonnen hat, ist die externe Aufnahme für `T` geschlossen. Bereits zugelassene Inputs bleiben geordnet; kausale Same-Time-Folgearbeit läuft über spätere Waves. |
 | D-05 | Ereignispuffer und technische Fehlerpolitik | **Beschlossen:** Benötigte autoritative Event-Kapazität wird vor Commit gesichert. Scheitert die Sicherung, findet kein Commit statt. Eine unerwartete Reaction-Exception rollt einen vorherigen Commit nicht zurück, sondern faultet die autoritative Runtime. |
 | D-06 | Performance-/Retention-Profil | Hardware, Last, Grenzen und längste nötige History erst durch Szenarien und Messungen festlegen. |
-| D-07 | Adapter-/Distributionsumfang der ersten Freigabe | Zunächst Headless und Godot als Referenz; weitere Engines sind Folgevorhaben. Kein Binärkompatibilitätsversprechen. |
+| D-07 | Adapter-/Distributionsumfang der ersten Freigabe | **Teilweise technisch belegt, als Releasevertrag offen:** Headless und Godot nutzen inzwischen dieselbe Core-Autorität; Paket-/Distributionsform, unterstützte Host-Versionen, weitere Engines und Binärkompatibilität sind noch nicht festgelegt. |
 
-D-03, D-06 und D-07 bleiben technische Detailgates. D-04 und D-05 wurden im Rahmen von PW-S02 entschieden und durch die zugehörigen Tests konkretisiert.
+D-03, D-06 und D-07 bleiben technische Detailgates. D-04 und D-05 wurden im Rahmen von PW-S02 entschieden und durch die zugehörigen Tests konkretisiert. PW-S03 belegt inzwischen Headless und Godot als gemeinsame Referenz-Betriebsarten über `SimulationSession`; D-07 bleibt offen, bis Distributionsumfang, unterstützte Host-Versionen und weitere Adapter als Releasevertrag entschieden werden.
 
-**Annahmeprotokoll:** Architektur 2.0 am 17. September 2026 im Projektgespräch angenommen; D-01 und D-02 ausdrücklich bestätigt. D-04 und D-05 wurden anschließend im PW-S02-Durchgang beschlossen und auf `b04fcbe` als Teil des abgenommenen Referenzprofils dokumentiert. Dies ist keine Replay-, Cross-Platform- oder Performance-Freigabe.
+**Annahmeprotokoll:** Architektur 2.0 am 17. September 2026 im Projektgespräch angenommen; D-01 und D-02 ausdrücklich bestätigt. D-04 und D-05 wurden anschließend im PW-S02-Durchgang beschlossen und auf `b04fcbe` als Teil des abgenommenen Referenzprofils dokumentiert. PW-S03 wurde am 18. September 2026 auf `f90517a` mit Headless-Nachweisen und echtem Godot-Smoke-Run abgenommen. Dies ist keine Replay-, Cross-Platform-, Physics-Paritäts- oder Performance-Freigabe.

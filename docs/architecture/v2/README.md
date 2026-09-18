@@ -1,9 +1,10 @@
 # Plaquewright – Architektur 2.0
 
-**Stand:** 17. September 2026  
+**Stand:** 18. September 2026  
 **Historische Audit-Baseline:** `d39cb54`  
-**Aktueller Funktionsnachweis:** PW-S02 auf `b04fcbe`, vom Nutzer als grün / committed / clean bestätigt  
-**Dokumentstatus:** Architektur 2.0 angenommen; D-01, D-02, D-04 und D-05 beschlossen; PW-S02 abgenommen
+**PW-S02-Nachweis:** `b04fcbe`, vom Nutzer als grün / committed / clean bestätigt  
+**Aktueller Funktionsnachweis:** PW-S03 auf `f90517a`, vom Nutzer als grün / committed / clean bestätigt  
+**Dokumentstatus:** Architektur 2.0 angenommen; D-01, D-02, D-04 und D-05 beschlossen; PW-S02 und PW-S03 abgenommen
 
 ## Was diese Fassung festlegt
 
@@ -42,11 +43,11 @@ Zuerst Manifest PW-01 bis PW-10 und die Architecture Map. Danach die Baufolge PW
 
 ## Nächster Entwicklungsstrang
 
-PW-S02 ist abgeschlossen. Der nächste Schritt ist **PW-S03 – Modulkomposition und zwei Host-Betriebsarten**.
+PW-S03 ist abgeschlossen. Der nächste Schritt ist **PW-S04 – Combat als zweites fachliches Referenzszenario auf die gemeinsame Pipeline ziehen**.
 
-Die bislang im Referenztest manuell verbundenen Bausteine werden in eine kleine explizite Simulation-Komposition überführt. Zuerst muss Door/Alarm headless ohne Combat-Pflichtzustand funktionieren. Danach wird dieselbe Autorität über einen minimalen Godot-Host angesprochen.
+Die neue Host-/Kompositionsgrenze ist bereits belegt: `SimulationExecutionPlan`, explizite `SimulationComposition` mit Required/Provided-Contracts und die host-neutrale `SimulationSession` tragen sowohl Headless-Ausführung als auch den minimalen Godot-Adapter. Door/Alarm sowie Resources/Door/Alarm laufen headless ohne Combat-Pflichtzustand; Godot referenziert `Plaquewright.Core` und führt dieselbe Session-Autorität aus.
 
-Noch nicht Ziel dieses Schritts sind automatisches Plugin-Discovery, Runtime-Hotloading, ein universeller Service-Locator oder ein Umbau des Combat-Systems.
+PW-S04 soll deshalb keine neue Kernel-Schicht erfinden. Stattdessen wird ein kleiner vorhandener Combat-Ablauf auf dieselben Transaction→Event→Reaction- und Composition-Primitiven geführt. Combat-spezifische Typen bleiben Combat-spezifisch, solange kein zweiter unabhängiger Bedarf ihre Generalisierung rechtfertigt.
 
 ## Ablage und Übernahme
 

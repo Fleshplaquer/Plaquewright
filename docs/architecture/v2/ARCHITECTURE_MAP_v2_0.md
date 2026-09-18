@@ -1,6 +1,6 @@
 # Plaquewright – Architecture Map 2.0
 
-**Stand:** 17. September 2026 · **Status:** Architektur 2.0 freigegeben; PW-S02 abgenommen · **Historische Audit-Baseline:** `d39cb54` · **PW-S02:** `b04fcbe`  
+**Stand:** 18. September 2026 · **Status:** Architektur 2.0 freigegeben; PW-S02 und PW-S03 abgenommen · **Historische Audit-Baseline:** `d39cb54` · **PW-S02:** `b04fcbe` · **PW-S03:** `f90517a`  
 Die frühere `ARCHITECTURE_MAP.md` wird in der Architekturübergabe genannt, liegt im bereitgestellten Archiv aber nicht vor. Diese Fassung ist eine neue Rekonstruktion, kein behaupteter zeilenweiser Abgleich. [E1, E3]
 
 ## 1. Zielbild
@@ -12,6 +12,14 @@ Host: Godot / Headless / spaeter weitere Hosts
     |
     v
 Adapter: Eingaben, Darstellung, externe Ergebnisse
+    |
+    v
+SimulationSession<TWorkItem>
+    |
+    +--> SimulationRunner / SimulationScheduler
+    |
+    v
+SimulationComposition / ExecutionPlan
     |
     v
 Spiel-Komposition / Regelpakete
@@ -74,6 +82,8 @@ Die Actor-/Projectile-Darstellung kann in Godot laufen. Autoritative Target-/Kon
 
 ## 5. Abhängigkeitsregeln
 
+PW-S03 konkretisiert die Startup-Komposition: Module deklarieren Required/Provided-Contracts; fehlende oder doppelte Provider werden vor dem Run abgewiesen. Ein gebauter Execution Plan ist eingefroren und routet über den exakten Work-Item-Typ. Die explizite Modulreihenfolge bleibt sichtbar; es gibt keine automatische Reflection-Discovery oder versteckte Topological Sort. [E8]
+
 Ein unabhängiges Modul verändert den Kernel nicht, um registriert zu werden. Ein verbindendes Modul darf Resources und Inventory kennen, ohne daraus eine Rückabhängigkeit in Resources zu erzeugen.
 
 Nicht jedes Zusammenspiel läuft durch einen globalen Event-Bus. Queries bleiben direkte Lesepfade; Transactions koordinieren gemeinsame Änderungen; Events beschreiben abgeschlossene Ergebnisse.
@@ -91,9 +101,11 @@ Die aktuelle `SimulationRuntimeState` ist eine vorhandene Gameplay-Komposition. 
 
 ## 7. Nächster Abgleich
 
-PW-S02 ist abgeschlossen. Der nächste Abgleich gehört zu **PW-S03**: Die im Referenztest noch manuell verbundene Simulation soll als kleine explizite Komposition headless funktionieren und anschließend über einen minimalen Godot-Host dieselbe Core-Autorität verwenden. Nur tatsächlich blockierende Kopplungen werden dafür aus der vorhandenen Gameplay-Komposition gelöst.
+PW-S03 ist abgeschlossen. Headless und Godot benutzen die gemeinsame `SimulationSession`-/Core-Autorität; Door/Alarm sowie Resources/Door/Alarm wurden headless ohne Combat-Pflichtzustand belegt, und der reale Godot-Host hat einen externen Input erfolgreich über dieselbe Runtime ausgeführt. [E8]
+
+Der nächste Abgleich gehört zu **PW-S04**: Ein kleiner bestehender Combat-Ablauf wird als zweites fachliches Referenzszenario auf die gemeinsame Transaction→Event→Reaction- und Composition-Grenze geführt. Dabei werden Combat-spezifische Typen nicht vorsorglich in den Kernel verschoben.
 
 Ein globaler Registry-, Serialization-, Plugin-Discovery- oder Editor-Unterbau ist dafür weiterhin nicht vorab erforderlich.
 
-**Quellen:** [E1–E4, E7 und W1](SOURCE_EVIDENCE_v2_0.md).  
+**Quellen:** [E1–E4, E7–E8 und W1](SOURCE_EVIDENCE_v2_0.md).  
 **Verbindlichkeit:** [PW-00 und PW-20](Plaquewright_Manifest_v2_0.md).

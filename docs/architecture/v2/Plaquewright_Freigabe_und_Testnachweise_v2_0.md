@@ -1,9 +1,10 @@
 # Plaquewright – Freigabe, Baseline und Testnachweise 2.0
 
-**Version:** 2.0 · **Datum:** 17. September 2026  
+**Version:** 2.0 · **Datum:** 18. September 2026  
 **Dokumentstatus:** Architektur 2.0 angenommen; neue Funktions-/Release-Freigaben bleiben an konkrete Code- und Testnachweise gebunden  
 **Historische Audit-Baseline:** `d39cb54`, vom Nutzer als grün, committed und clean bestätigt  
-**PW-S02-Nachweisstand:** `b04fcbe`, vom Nutzer als grün, committed und clean bestätigt
+**PW-S02-Nachweisstand:** `b04fcbe`, vom Nutzer als grün, committed und clean bestätigt  
+**PW-S03-Nachweisstand:** `f90517a`, vom Nutzer als grün, committed und clean bestätigt
 
 ## 1. Was tatsächlich bestätigt ist
 
@@ -26,18 +27,21 @@ Dazu: Branch `main`, mit `origin/main` synchron, Working Tree clean; `gcc` wurde
 | B09 | Test-Invariant-Audit im vereinbarten Umfang abgeschlossen | Testnamenlisten sind kein erschöpfender Beweis aller Kombinationen |
 | B10 | Prepared publication rights / API boundary abgeschlossen | Keine Sandbox- oder universelle Rollback-Garantie |
 | PW-S02 | Abgenommen | Commit → Domain Event → deterministische Reaction einschließlich Queue-Reservation, Input-Grenze, Reaction-Ordering, Fail-stop und RunNext/RunToCompletion-Äquivalenz |
+| PW-S03 | Abgenommen | Expliziter Execution Plan, Required/Provided-Modulkomposition, host-neutrale `SimulationSession`, zwei Headless-Konfigurationen und echter Godot-Smoke-Run über dieselbe Core-Autorität |
 | Build / Tests | Laut finaler Nutzerbestätigung grün | In diesem Dokumentationsdurchgang nicht neu ausgeführt |
 | Repository | Laut gezeigtem Git-Status clean und synchron | Kein eigener Live-Abruf des Remotes für diese Dokumentation |
 
-Eine vollständig gezeigte frühere Testausgabe enthält **1176 bestandene Tests** nach dem Pre-Defeat-Teil. Im PW-S02-Durchgang wurde zwischenzeitlich eine vollständige Summary mit 1196 Tests gezeigt, davon zunächst ein erwartungsbedingt fehlschlagender neuer Reservation-Test; nach Korrektur der Runner-Erwartung sowie den weiteren Ordering-/Fault-/Äquivalenztests bestätigte der Nutzer die jeweiligen vollständigen Läufe mit `g` und den abschließenden Repository-Stand mit `gcc`. Eine exakte finale Testanzahl für `b04fcbe` wird hier nicht nachträglich erfunden.
+Eine vollständig gezeigte frühere Testausgabe enthält **1176 bestandene Tests** nach dem Pre-Defeat-Teil. Im PW-S02-Durchgang wurde zwischenzeitlich eine vollständige Summary mit 1196 Tests gezeigt, davon zunächst ein erwartungsbedingt fehlschlagender neuer Reservation-Test; nach Korrektur der Runner-Erwartung sowie den weiteren Ordering-/Fault-/Äquivalenztests bestätigte der Nutzer die jeweiligen vollständigen Läufe mit `g` und den abschließenden Repository-Stand mit `gcc`.
+
+Für PW-S03 wurde anschließend eine vollständige Summary mit **1210 bestandenen Tests, 0 fehlgeschlagenen Tests** gezeigt. Nach Einbau des Godot-Adapters bestätigte der Nutzer den erneuten Test-/Build-Durchgang als grün und führte zusätzlich den Godot-Host aus. Dessen Output bestätigte `SimulationTime=0us` und `ProcessedEvents=1`. Der abschließende Stand `f90517a` wurde mit `gcc` bestätigt. Da nach der gezeigten 1210-Summary keine weiteren Testdateien hinzukamen, wird 1210 als bestätigter S03-Testumfang geführt; dies ist keine Performance-, Replay- oder Cross-Platform-Freigabe.
 
 Die Architekturübergabe mit 1023 Tests beschreibt einen älteren technischen Stand. Sie ist die aktuelle Quelle der Produktvision, nicht der jüngere technische Nachweis. [E1, E2]
 
 ## 2. Was diese Dokumentation selbst ausgeführt hat
 
-Der ursprüngliche v2-Dokumentationsdurchgang las die bereitgestellten Quellen und erzeugte die Architekturdateien ohne Produktionsänderung. **Seitdem** wurde PW-S02 im Nutzerrepository implementiert und getestet. Der Nutzer bestätigte die Codeänderungen, den separaten PW-QA-12-Nachtrag sowie den Stand `b04fcbe` mit `gcc`.
+Der ursprüngliche v2-Dokumentationsdurchgang las die bereitgestellten Quellen und erzeugte die Architekturdateien ohne Produktionsänderung. **Seitdem** wurden PW-S02 und PW-S03 im Nutzerrepository implementiert und getestet. Der Nutzer bestätigte die S02-Codeänderungen einschließlich PW-QA-12 auf `b04fcbe` sowie den abgeschlossenen S03-Stand `f90517a` mit `gcc`.
 
-Diese aktuelle Dokumentaktualisierung führt selbst **keinen neuen .NET-Testlauf, Godot-Start oder Benchmark** aus und verändert das Nutzerrepository nicht. Sie übernimmt den bestätigten PW-S02-Stand als neuen Funktionsnachweis, während `d39cb54` die historische A/B-Audit-Baseline bleibt. Einzelheiten stehen im [Quellenregister](SOURCE_EVIDENCE_v2_0.md).
+Diese aktuelle Dokumentaktualisierung führt selbst **keinen neuen .NET-Testlauf, Godot-Start oder Benchmark** aus und verändert das Nutzerrepository nicht. Sie übernimmt die im Projektgespräch gezeigten/bestätigten S03-Nachweise, während `d39cb54` die historische A/B-Audit-Baseline und `b04fcbe` der S02-Zwischenstand bleiben. Einzelheiten stehen im [Quellenregister](SOURCE_EVIDENCE_v2_0.md).
 
 ## 3. Statussprache für künftige Nachweise
 
@@ -70,7 +74,7 @@ Die folgenden `PW-QA`-IDs sind **künftige Abnahmen der freigegebenen Architektu
 | PW-QA-11 | Zeitordnung bei gleicher Zeit | Späte externe Eingabe und Zero-delay-Child springen nicht vor abgeschlossene Arbeit/Ursachen | PW-S02 |
 | PW-QA-12 | Wiederholtes RunNext entspricht Gesamtaufruf | Identischer autoritativer Trace und State im gleichen Profil | PW-S02–S03 |
 | PW-QA-13 | Reaction-Fault ist kein rückwirkender Abort | Vorheriger Commit bleibt als committed erkennbar; definierter Fault-/Fortsetzungsstatus | PW-S02 |
-| PW-QA-14 | Headless und Godot verwenden dieselbe Autorität | Gleiche definierte Eingaben liefern gleiche Core-Ergebnisse im gewählten Profil | PW-S03 |
+| PW-QA-14 | Headless und Godot verwenden dieselbe Autorität | Beide Hosts treiben dieselbe `SimulationSession`-/Core-Laufzeit; bei hostabhängigen Fakten folgt die strengere Ergebnisparität mit aufgezeichneten gleichen Inputs/Host Facts | PW-S03–S05 |
 | PW-QA-15 | Pre-Commit-Regel versus Post-Commit-Reaction | Prevention verändert Plan; spätere Reaction verändert nur neue Arbeit | PW-S04 |
 | PW-QA-16 | Unterschiedliche Regelkompositionen | Zweites fachliches Szenario benötigt keine Kernel-Fachbegriffe | PW-S04 |
 | PW-QA-17 | Snapshot enthält ausstehende Arbeit | Restore erhält Events, Scheduler, RNG, IDs und Domainzustände im zugesagten Scope | PW-S05 |
@@ -104,7 +108,22 @@ Für PW-S02 sind folgende Abnahmen auf dem bestätigten Stand `b04fcbe` erfüllt
 
 `PW-QA-21` bleibt als späterer, schrittübergreifender Tracing-Nachweis offen. PW-S02 führt noch kein vollständiges konfigurierbares Gameplay-Tracing ein.
 
-Der Nutzer bestätigte nach den PW-S02-Änderungen sowie nach dem separaten QA-12-Nachtrag grüne Tests/Builds und anschließend `gcc`. Eine exakte finale Testanzahl wird hier nicht nachträglich erfunden.
+### 4.2 Abgenommene PW-S03-Nachweise
+
+Für PW-S03 sind auf dem bestätigten Endstand `f90517a` folgende Abnahmen erfüllt:
+
+| ID | Status | Wesentliche Test-/Laufquelle |
+|---|---|---|
+| PW-QA-01 | Abgenommen für die S03-Kompositionsgrenze | `Core.ExternalTests` baut und verwendet Execution Plan, Modulkomposition und Session ausschließlich über öffentliche Verträge |
+| PW-QA-02 | Abgenommen | Headless Door/Alarm sowie Resources/Door/Alarm laufen ohne Combat-Pflichtzustand |
+| PW-QA-12 | Weiterhin erfüllt | `SimulationSession.RunNext()` verwendet dieselbe eingefrorene Composition über mehrere Schritte; die strengere RunNext/RunToCompletion-Äquivalenz wurde bereits in PW-S02 für das Door-/Alarm-Profil nachgewiesen |
+| PW-QA-14 | Abgenommen für die aktuelle Host-Autoritätsgrenze | Headless und Godot verwenden denselben `SimulationSession`-/Core-Pfad; echter Godot-Smoke-Run bestätigt Assembly-Referenz und Runtime-Ausführung |
+
+Zusätzlich belegen die S03-Tests, dass doppelte Handler, fehlende Required-Contracts und doppelte Provider bereits bei der Komposition abgewiesen werden und dass eine gebaute Execution-Plan-/Composition-Sicht durch spätere Builder-Änderungen nicht rückwirkend verändert wird.
+
+`PW-QA-27` bleibt offen: Der Godot-Smoke-Run bringt einen einfachen externen Host-Input ein, aber noch keine gameplayrelevanten Physics-/Collision-Host-Facts mit Replay-Aufzeichnung oder deterministischem Provider. Ebenso ist PW-QA-14 keine Behauptung einer engineübergreifenden Physics- oder Render-Parität.
+
+PW-S02 bleibt auf `b04fcbe` als eigener Zwischenstand dokumentiert. Für PW-S03 liegt dagegen eine explizit gezeigte Testsummary mit 1210/1210 sowie die nachfolgende grüne Godot-Adapter-/Build-Bestätigung vor; beide Nachweisstufen werden nicht miteinander vermischt.
 
 ## 5. Mindestinhalt eines Test-/Release-Belegs
 
@@ -116,7 +135,7 @@ Authoring-/Replay-Versionen und Migrationsverhalten werden erst als unterstützt
 
 ## 6. Freigabe der Dokumentversion
 
-D-01 und D-02 wurden am 17. September 2026 ausdrücklich angenommen. D-04 und D-05 wurden anschließend im PW-S02-Durchgang entschieden und nachgewiesen. D-03, D-06 und D-07 bleiben offene technische Detailgates.
+D-01 und D-02 wurden am 17. September 2026 ausdrücklich angenommen. D-04 und D-05 wurden anschließend im PW-S02-Durchgang entschieden und nachgewiesen. PW-S03 belegt Headless und Godot als Referenz-Betriebsarten über dieselbe Core-Autorität; D-07 bleibt dennoch offen, weil Paket-/Distributionsumfang, unterstützte Host-Versionen und spätere Adapter noch nicht als Releasevertrag entschieden sind. D-03, D-06 und D-07 bleiben offene technische Detailgates.
 
 **Architekturfreigabe 2.0:** erteilt am 17. September 2026.  
 **D-01 Determinismus/Replay:** beschlossen.  
@@ -124,7 +143,9 @@ D-01 und D-02 wurden am 17. September 2026 ausdrücklich angenommen. D-04 und D-
 **D-04 Same-Timestamp-Input-Grenze:** beschlossen und in PW-S02 nachgewiesen.  
 **D-05 Event-Publikation und Reaction-Fault-Politik:** beschlossen und in PW-S02 nachgewiesen.  
 **PW-S02:** abgenommen auf `b04fcbe`.  
+**PW-S03:** abgenommen auf `f90517a`; Headless-Komposition und echter Godot-Smoke-Run bestätigt.  
+**Bestätigter S03-Testumfang:** 1210/1210; danach Godot-Adapter-Test/Build erneut grün bestätigt.  
 **Offene Detailgates:** D-03, D-06 und D-07.  
 **Historischer A/B-Abschluss `d39cb54`:** bleibt unverändert dokumentiert.
 
-Eine Dokumentationsannahme ersetzt keinen Code-Nachweis; der hier genannte PW-S02-Status beruht auf den vom Nutzer bestätigten Code-/Testläufen. Snapshot/Replay, Cross-Host-Äquivalenz und Performance bleiben eigene spätere Freigaben.
+Eine Dokumentationsannahme ersetzt keinen Code-Nachweis; die hier genannten PW-S02-/PW-S03-Status beruhen auf den vom Nutzer bestätigten Code-, Test- und Host-Läufen. Snapshot/Replay, aufgezeichnete Host-Fact-Parität, Cross-Platform-/Physics-Äquivalenz und Performance bleiben eigene spätere Freigaben.
