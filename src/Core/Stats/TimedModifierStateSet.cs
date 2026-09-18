@@ -208,6 +208,95 @@ public sealed class TimedModifierStateSet
         return true;
     }
 
+    internal TimedModifierStateSetSnapshot
+    CaptureSnapshot()
+    {
+        var snapshots =
+            new TimedModifierSlotSnapshot[
+                _slots.Count];
+
+        var index =
+            0;
+
+        foreach (var pair in
+                 _slots)
+        {
+            TimedModifierActiveSnapshot?
+                activeSnapshot =
+                    null;
+
+            if (pair.Value.Active is { } active)
+            {
+                activeSnapshot =
+                    new TimedModifierActiveSnapshot(
+                        active.Kind,
+                        active.Value,
+                        active.ExpiresAt);
+            }
+
+            snapshots[index] =
+                new TimedModifierSlotSnapshot(
+                    TimedModifierKey.Parse(
+                        pair.Key),
+                    pair.Value.Generation,
+                    activeSnapshot);
+
+            index++;
+        }
+
+        return new TimedModifierStateSetSnapshot(
+            _revision,
+            snapshots);
+    }
+
+    internal static TimedModifierStateSet Restore(
+        TimedModifierStateSetSnapshot snapshot)
+    {
+        ArgumentNullException.ThrowIfNull(
+            snapshot);
+
+        var state =
+            new TimedModifierStateSet();
+
+        foreach (var slotSnapshot in
+                 snapshot.Slots)
+        {
+            var slot =
+                new Slot
+                {
+                    Generation =
+                        slotSnapshot.Generation
+                };
+
+            if (slotSnapshot.Active is { } active)
+            {
+                //
+                // Validate again at the restore boundary.
+                //
+                ValidateContribution(
+                    active.Kind,
+                    active.Value);
+
+                slot.Active =
+                    new ActiveModifier(
+                        active.Kind,
+                        active.Value,
+                        active.ExpiresAt);
+
+                state._activeCount++;
+            }
+
+            state._slots.Add(
+                slotSnapshot.Key.Value,
+                slot);
+        }
+
+        state._revision =
+            snapshot.Revision;
+
+        return state;
+    }
+
     internal void AddActiveTo(
         ModifierAccumulator accumulator)
     {
