@@ -1,7 +1,7 @@
 # Plaquewright – Code Classification 2.0
 
 **Datum:** 18. September 2026 · **Status:** Freigegebene v2.0-Einordnung / statische Momentaufnahme
-**Historische Audit-Baseline:** `d39cb54`; **PW-S02-Nachweis:** `b04fcbe`; **PW-S03-Nachweis:** `f90517a`; **aktueller PW-S04-Nachweis:** `8bd4dd0` laut Nutzer; **vollständig direkt untersuchte Source-Basis:** älterer Archiv-Snapshot `zip.7z` plus im S02/S03/S04-Durchgang gezeigte oder gemeinsam erarbeitete betroffene Verträge, Tests und Host-Dateien
+**Historische Audit-Baseline:** `d39cb54`; **PW-S02-Nachweis:** `b04fcbe`; **PW-S03-Nachweis:** `f90517a`; **PW-S04-Nachweis:** `8bd4dd0`; **aktueller PW-S05-Zwischenstand:** 1239/1239 + `gcc`, Commit-Hash hier nicht erfasst; **vollständig direkt untersuchte Source-Basis:** älterer Archiv-Snapshot `zip.7z` plus im S02/S03/S04/S05-Durchgang gezeigte oder gemeinsam erarbeitete betroffene Verträge, Tests und Host-Dateien
 
 Die in der Architekturübergabe genannte alte `CODE_CLASSIFICATION.md` ist im bereitgestellten Archiv nicht enthalten. Diese neue Klassifikation verwendet tatsächliche Quellpfade, behauptet aber keinen vollständigen aktuellen Dependency-Audit.
 
@@ -10,13 +10,15 @@ Die in der Architekturübergabe genannte alte `CODE_CLASSIFICATION.md` ist im be
 | Vorhandener Bereich / Typ | Einordnung im Zielbild | Konsequenz für die nächste Arbeit |
 |---|---|---|
 | `SimulationTime`, `SimulationDuration` | Generische Simulationszeit | Beibehalten |
-| `SimulationScheduler<TPayload>`, `SimulationRunner<TPayload>`, Keys, Waves, Budgets | Generische Ablauf-Infrastruktur | Beibehalten; PW-S02 ergänzt reservierbare Follow-ups und die geschlossene Same-Timestamp-Input-Grenze |
+| `SimulationScheduler<TPayload>`, `SimulationRunner<TPayload>`, Keys, Waves, Budgets | Generische Ablauf-Infrastruktur | Beibehalten; PW-S02 ergänzt reservierbare Follow-ups/Input-Grenze, PW-S05 ergänzt in-memory Snapshot/Restore für Pending Keys/Sequence, Limits, Zeit, ProcessedEvents und D-04-Closure |
+| `SimulationSchedulerSnapshot<TPayloadSnapshot>`, `ScheduledEventSnapshot<TPayloadSnapshot>`, `SimulationRunnerSnapshot<TPayloadSnapshot>` | Interne beschreibbare Fortsetzungsdaten der Ablauf-Infrastruktur | Snapshot-Payload bleibt getrennt vom Live-Payload; Capture nur quiescent, Restore erhält originale Scheduler-Keys statt neu zu schedulen |
 | `DeterministicRng`, Factory, Domains, StableHash64 | Generische deterministische Infrastruktur | Beibehalten; unterstützte Versions-/Umgebungsmatrix getrennt dokumentieren |
 | `ExecutionId`, `ExecutionIdAllocator` | Allgemeine kausale Identität als Kernel-Kandidat | Keine neue parallele Skill-ID-Hierarchie ohne Bedarf |
 | `EntityId` | Allgemeine Identität als Kernel-Kandidat | Der Standort im Entities-Ordner beweist keine notwendige Resource-Kopplung |
 | `GameplayExecutionContext` | Allgemeiner Ausführungskontext mit konkretem Source-Entity-Bezug | Für entitylose Actions nicht blind zur universellen Pflicht machen |
 | `HitExecutionIdAllocator`, `DamageExecutionIdAllocator` | Combat-spezifische Identitätsinfrastruktur | Nicht allein wegen `Simulation/` in den Kernel einordnen |
-| `SimulationRuntimeState` | Vorhandene Gameplay-Komposition aus Entities, Resources und Combat | Als konkrete Komposition erhalten; generische Module nicht davon abhängig machen |
+| `SimulationRuntimeState` | Vorhandene Gameplay-Komposition aus Entities, Resources und Combat | Als konkrete Komposition erhalten; PW-S05 Restore erzeugt eine neue Runtime Identity und injiziert restaurierten Entity-/Allocator-State |
+| `SimulationRuntimeStateSnapshot`, Resource-/Entity-Snapshottypen und Allocator-Snapshots | Interne in-memory Beschreibung autoritativen Runtime-/Domain-State | Keine Object-Graph-Kopie; Revisionen und Allocator-Fortsetzung erhalten; Definition/Registry im ersten Profil kompatibel von außen bereitstellen |
 | `ITransactionParticipant`, `PreparedTransactionChange`, `TransactionCoordinator` | Generische Cross-Domain-Grenze | Weiterverwenden, neue gemeinsame Konflikte/Lebensdauern gezielt belegen |
 | `ISimulationWorkItem` | Kleiner Marker für produktive autoritative Work Items | `IDomainEvent` ist ein Work Item; niedrige Scheduler-/Runner-/Composition-Generics bleiben bewusst unbeschränkt |
 | `IDomainEvent`, `IDomainReaction<,>`, `DomainReactionContext<>`, `DomainReactionDispatcher<,>` | Kleine generische Post-Commit-Folgearbeitsgrenze | PW-S02 abgenommen; seit PW-S04 ist `IDomainEvent` zugleich `ISimulationWorkItem`; explizite Komposition statt globalem EventBus beibehalten |
@@ -31,6 +33,7 @@ Die in der Architekturübergabe genannte alte `CODE_CLASSIFICATION.md` ist im be
 | `Combat/*` | Gameplay-Domain mit konkreten fachlichen Regeln | Weiterverwenden; Kernel und künftig wählbare Regelprofile unterscheiden |
 | `DamageCommittedEvent` | Produktiver Combat-Domain-Fakt nach Resource-Commit | Trägt stabile Damage-/Execution-/Target-/Outcome-Fakten, nicht Resource-Routing- oder PreDefeat-Interna |
 | `ApplyResolvedDamageAction` | Produktive Combat-WorkItem-Grenze für bereits aufgelösten Damage | Bedeutet „resolved Damage autoritativ anwenden“; entscheidet nicht selbst, welche Resource getroffen wird |
+| `DamageResolutionQuantitiesSnapshot`, `DamageResolutionSnapshot`, `ApplyResolvedDamageActionSnapshot` | Erste Combat-spezifische Pending-Work-Snapshot-Repräsentation | Bereits resolved Mengen/IDs beschreiben und Live-Kontexte gegen neue Runtime rebind; keine alte RuntimeIdentity oder erneute ID-Allokation übernehmen |
 | `DamageApplicationOwnerPlan`, `ResolvedDamageApplicationExecutor`, `ResolvedDamageApplicationResult` | Combat-interne Orchestrierung von Loss-Plänen, PreDefeat pro Owner und Defeat-aware Commit | Mehrere Plans/Owner bleiben möglich; kein `CombatService` und keine Kernel-Abstraktion daraus machen |
 | `Stats/ModifierMath`, `ModifierAccumulator` | Rechenbausteine der Stats-/Modifier-Domain | Kein Beleg eines bereits vollständigen Stat-Graph-/Cache-Systems |
 | `Tags/*`, `Conditions/*` | Klassifikation und Auswertung, mit bestehender Kopplung | Nur bei einer benötigten Grenze trennen, nicht aus Ordnerästhetik |
@@ -58,13 +61,15 @@ PW-S03 ergänzt auf `f90517a` den eingefrorenen Execution Plan, explizite Requir
 
 PW-S04 ist auf `8bd4dd0` abgenommen. Der Schritt führt `ISimulationWorkItem` als kleinen produktiven Work-Marker ein, macht Domain Events zu solchen Work Items und generalisiert die interne Follow-up-Reservation so, dass das Event-Payload erst nach dem echten Commit-Ergebnis erzeugt werden kann. Combat liefert nun `DamageCommittedEvent`, `ApplyResolvedDamageAction` und einen kleinen `ResolvedDamageApplicationExecutor` mit Owner-Plänen. Der lethal-Damage-Fall belegt PreDefeat vor Commit und Reaction nach Commit; der Paid-Attack-Fall belegt Cost→Event→Reaction→Damage→Commit→Event→Reaction bei getrennter Cost-/Damage-Buchung. Der finale Nutzerlauf meldet 1215/1215 Tests und `gcc`. [E9]
 
+PW-S05 ist danach bis zu einem bestätigten 1239/1239-Zwischenstand fortgeführt worden. Snapshot/Restore existiert für Resource-/Entity-State, relevante ID-Allocator, `SimulationRuntimeState`, Scheduler und Runner. Scheduler-Capture verlangt Quieszenz; Runner-Restore erhält D-04-Input-Closure. Restore bindet Runtime-spezifische Combat-Kontexte neu und übernimmt nicht die alte `SimulationRuntimeIdentity`. Der erste End-to-End-Pending-Work-Test restauriert ein `ApplyResolvedDamageAction` in eine neue Runtime und vergleicht State, Revision, Scheduler-Key/Trace sowie Ledger-Ergebnis/Provenienz. [E10]
+
 ## 4. Abgenommener kleiner Ausbau, weiterhin bewusst begrenzt
 
 PW-S02 belegt eine **kleine typisierte Domain-Event-/Reaction-Pipeline**, aber keinen universellen EventBus oder ein fertiges Modul-Lifecycle-System. PW-S03 ergänzt explizite Startup-Komposition und die host-neutrale Session. PW-S04 belegt, dass diese Grenzen auch einen realen Combat-Ablauf mit result-backed Event, PreDefeat und mehreren möglichen Resource-/Owner-Plänen tragen.
 
 Aus PW-S04 folgt ausdrücklich **nicht**, dass jeder Gameplay-Pfad `ApplyResolvedDamageAction` oder den Combat-Executor verwenden muss. Resource-Routing bleibt Ruleset-/Kompositionswissen, PreDefeat-Interventionen bleiben konkrete Combat-Regeln, und der interne Owner-Plan ist kein allgemeines Modul- oder Persistenzformat.
 
-Ebenso sind generische Snapshot-/Restore-Infrastruktur und Replay-Scrubber weiterhin nicht nachgewiesen. PW-S05 prüft als nächstes, welcher State aus Scheduler, IDs, RNG, Domains und Pending Work an einer quiescent boundary tatsächlich serialisierbar beziehungsweise wiederherstellbar sein muss.
+Eine erste generische Snapshot-/Restore-Infrastruktur ist inzwischen nachgewiesen, aber bewusst nur intern/in-memory und noch nicht als fertiger Savegame-Vertrag. Der aktuelle Core benötigt keinen separaten persistenten RNG-Snapshot, weil keine langlebigen RNG-Instanzen gespeichert werden. Noch offen sind insbesondere ein allgemeiner Pending-Work-Vertrag über mehrere `ISimulationWorkItem`-Typen, ein höherer Session-/Runtime-Snapshot, vollständiges Replay mit weiteren Inputs/Host Facts sowie Serializer-/Versionierungsfragen.
 
 Vor neuen Typen wird weiterhin der konkrete aktuelle Stand geprüft.
 

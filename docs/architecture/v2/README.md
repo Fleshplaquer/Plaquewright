@@ -4,8 +4,9 @@
 **Historische Audit-Baseline:** `d39cb54`
 **PW-S02-Nachweis:** `b04fcbe`, vom Nutzer als grün / committed / clean bestätigt
 **PW-S03-Nachweis:** `f90517a`, vom Nutzer als grün / committed / clean bestätigt
-**Aktueller Funktionsnachweis:** PW-S04 auf `8bd4dd0`, vom Nutzer mit 1215/1215 Tests sowie `gcc` bestätigt
-**Dokumentstatus:** Architektur 2.0 angenommen; D-01, D-02, D-04 und D-05 beschlossen; PW-S02, PW-S03 und PW-S04 abgenommen
+**Letzter vollständig abgenommener Funktionsnachweis:** PW-S04 auf `8bd4dd0`, vom Nutzer mit 1215/1215 Tests sowie `gcc` bestätigt
+**Aktueller PW-S05-Arbeitsstand:** 1239/1239 Tests grün und anschließend `gcc`; der Commit-Hash dieses S05-Zwischenstands wurde in diesem Dokumentationsdurchgang nicht festgehalten
+**Dokumentstatus:** Architektur 2.0 angenommen; D-01, D-02, D-04 und D-05 beschlossen; PW-S02, PW-S03 und PW-S04 abgenommen; PW-S05 in Arbeit
 
 ## Was diese Fassung festlegt
 
@@ -37,6 +38,7 @@ Snapshots sind für Replay an **quiescent boundaries** vorgesehen: kein aktiver 
 | [Migration Plan](MIGRATION_PLAN_v2_0.md) | Schrittweise Übernahme ohne Rewrite oder stillen Regelverlust |
 | [Glossar](PLAQUEWRIGHT_ARCHITECTURE_GLOSSARY_v2_0.md) | Begriffe und Grenzen |
 | [Source Evidence](SOURCE_EVIDENCE_v2_0.md) | Quellen, Snapshotgrenzen und Entscheidungsnachweise |
+| [Current Chat Handoff](CURRENT_CHAT_HANDOFF.md) | Kurzlebige Arbeitsübergabe für den nächsten Chat; bei jedem Chatwechsel ersetzen, nicht als Architekturquelle behandeln |
 
 ## Empfohlene Leserichtung
 
@@ -44,23 +46,13 @@ Zuerst Manifest PW-01 bis PW-10 und die Architecture Map. Danach die Baufolge PW
 
 ## Nächster Entwicklungsstrang
 
-PW-S04 ist abgeschlossen. Der finale Abnahmestand `8bd4dd0` trägt Combat als zweites fachliches Referenzszenario über dieselbe gemeinsame Runtime. Der bestätigte Endlauf umfasst **1215/1215 bestandene Tests**; der Nutzer bestätigte anschließend `gcc`.
+PW-S04 ist weiterhin der letzte **vollständig abgenommene** Schritt. PW-S05 ist inzwischen aktiv und besitzt einen ersten zusammenhängenden Snapshot-/Restore-Zwischenstand mit **1239/1239 bestandenen Tests**; der Nutzer bestätigte danach `gcc`. Der zugehörige Commit-Hash wurde in dieser Dokumentpflege nicht mehr erfasst und soll beim nächsten technischen Abgleich ergänzt werden.
 
-Der Combat-Nachweis trennt dabei bewusst die fachlichen Phasen:
+Der aktuelle PW-S05-Stand belegt in-memory Snapshot/Restore für Resource-/Entity-State samt Revisionen, alle derzeit relevanten deterministischen ID-Allocator, `SimulationRuntimeState`, `SimulationScheduler` und `SimulationRunner`. Restore erzeugt bewusst eine neue `SimulationRuntimeIdentity`; die Scheduler-Reihenfolge wird über die ursprünglichen `ScheduledEventKey`s erhalten. Snapshot-Capture wird abgewiesen, solange ein Event aktiv ist oder eine Prepared-Follow-up-Reservation offensteht. Die D-04-Grenze `ExternalInputsClosedThrough` wird mit restauriert.
 
-```text
-DamageResolutionContext
-  -> ApplyResolvedDamageAction
-  -> ResolvedDamageApplicationExecutor
-  -> Resource-Loss-Pläne und optionale PreDefeat-Interventionen
-  -> Defeat-aware Resource-Commit
-  -> DamageCommittedEvent
-  -> deterministische Reaction / neue Arbeit
-```
+Für Combat existieren außerdem `DamageResolutionSnapshot` und `ApplyResolvedDamageActionSnapshot`. Runtime-gebundene Damage-Kontexte werden beim Restore aus beschreibbaren IDs/Werten gegen die **neue** Runtime gebunden; bereits vergebene Execution-/Hit-/Damage-IDs werden dabei nicht erneut alloziert. Ein Integrationstest vergleicht die normale Fortsetzung von Runtime A mit `Snapshot -> Runtime B -> Restore` für ein pending `ApplyResolvedDamageAction` und erhält Scheduler-Key, Resource-State/Revision sowie Ledger-Ergebnis/Provenienz.
 
-Ein zweiter vertikaler Test führt eine bezahlte Action über `Cost Commit -> Event -> Reaction -> Damage -> Commit -> Event -> Reaction`. Kosten bleiben `ResourceCostLedgerEntry`, Damage bleibt `ResourceLossLedgerEntry`; PreDefeat verändert nur den noch nicht committed Draft, während Post-Commit-Reactions ausschließlich neue Arbeit erzeugen.
-
-Der nächste Schritt ist **PW-S05 – Snapshot/Restore und deterministischer Replay-Beweis**. Dabei werden zuerst die tatsächlich erforderlichen autoritativen Zustände, Pending-Work-, RNG-/ID- und Versionsgrenzen an einer quiescent boundary festgelegt. PW-S05 soll keine Serialization-Allzweckschicht vorwegnehmen.
+Bewusst noch nicht eingeführt sind eine JSON-/Serializer-/Savegame-Schicht, Cross-Version-Migration, ein allgemeiner Event Store oder ein universeller polymorpher Work-Item-Serializer. Der nächste S05-Teil generalisiert die Pending-Work-Snapshot-Grenze über mehr als den ersten Combat-Work-Item-Typ und führt daraus einen höheren Runtime-/Session-Snapshot sowie einen vollständigen Replay-Beweis mit weiteren Inputs/Trace-Vergleich zusammen.
 
 ## Ablage und Übernahme
 

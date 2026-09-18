@@ -43,10 +43,12 @@ Die alte gleichnamige Glossardatei ist in der Übergabe erwähnt, nicht als voll
 | Provenienz | Ursprung und fachliche Ursache eines Ergebnisses/einer Operation | B07 ist ein Teil davon |
 | Causality | Verknüpfung von Ursache, Ausführung, Änderung und Folgeereignis | Nicht gleichbedeutend mit Volltracing |
 | Ledger | Buchung fachlicher Operationen, etwa Resource Loss/Cost/Recovery | Nicht automatisch Snapshot, universeller Event Store oder unbegrenzt aufzubewahren |
-| Snapshot | Konsistente Aufnahme des für Fortsetzung erforderlichen Zustands | Darf nicht einen halben modulübergreifenden Apply konservieren |
+| Snapshot | Konsistente, beschreibbare Aufnahme des für Fortsetzung erforderlichen autoritativen Zustands | Kein Object-Graph-Clone; darf nicht einen halben modulübergreifenden Apply konservieren |
+| Restore / Rebind | Rekonstruktion einer neuen Runtime aus Snapshot-Daten und erneutes Binden runtime-gebundener Kontexte an deren neue Runtime Identity | Alte Live-Objektinstanzen oder alte `RuntimeIdentity` werden nicht weiterverwendet |
+| Pending-Work-Snapshot | Beschreibbare Form noch nicht ausgeführter Scheduler-Arbeit | Live-Work-Items mit Runtime-Referenzen werden über typspezifische Snapshot-Daten rekonstruiert, nicht per Referenz kopiert |
 | Replay | Reproduzierte Fortsetzung innerhalb eines angegebenen Vertrags | Kein automatisches engineübergreifendes Physics-Replay |
 | Host Fact | Geordnetes autoritatives Ergebnis eines externen Systems, das Plaquewright nicht selbst reproduziert | z. B. aufgezeichneter ProjectileImpact aus Engine-Physics |
-| Quiescent Boundary | Sicherer Snapshot-Punkt ohne aktiven Apply oder halb veröffentlichten Commit | Prepared-Objekte müssen nicht serialisiert werden |
+| Quiescent Boundary | Sicherer Snapshot-Punkt ohne aktive Work-Ausführung oder halb veröffentlichte Folgearbeit | Der aktuelle S05-Scheduler lehnt Capture bei aktivem Event oder offener Prepared-Follow-up-Reservation ab; Prepared-Objekte werden nicht serialisiert |
 | Exact Simulation | Semantisch gleiches Ergebnis und relevante History im definierten Profil | Muss nicht jeden Renderframe nachspielen |
 | Approximate Simulation | Explizit erlaubter Verlust an Simulationsdetail | Kein stiller Notfallmodus bei Budgetende |
 | Fast Path | Spezialisierter schnellerer Ausführungspfad | Muss relevante Referenzsemantik bewahren |
@@ -63,5 +65,7 @@ Die alte gleichnamige Glossardatei ist in der Übergabe erwähnt, nicht als voll
 Begriffe werden nur gemeinsam mit ihren Verträgen geändert. Der Name eines Types oder Tests ist kein eigenständiger Nachweis seiner Semantik.
 
 PW-S04 konkretisiert insbesondere `Work Item`, `Prepared Follow-up`, `Pre-Commit-Regel`, `Domain Event` und `Reaction`: `ApplyResolvedDamageAction` ist ein produktives Work Item; PreDefeat verändert nur den Draft; `DamageCommittedEvent` entsteht aus dem tatsächlichen Commit-Ergebnis; die anschließende Reaction erzeugt neue Arbeit. [E9]
+
+PW-S05 konkretisiert `Snapshot`, `Restore / Rebind`, `Pending-Work-Snapshot`, `Quiescent Boundary` und `Runtime Identity`: Restore erzeugt eine neue Runtime Identity, erhält autoritative IDs/Ordering/State und rekonstruiert den ersten runtime-gebundenen Combat-Work-Item-Fall gegen die neue Runtime. Der aktuelle Nachweis ist ein Zwischenstand, noch keine vollständige PW-S05-Abnahme. [E10]
 
 **Grundlage:** [Manifest](Plaquewright_Manifest_v2_0.md) und [Quellenregister](SOURCE_EVIDENCE_v2_0.md).

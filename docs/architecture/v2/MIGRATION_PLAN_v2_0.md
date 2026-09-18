@@ -4,7 +4,8 @@
 **Historische Audit-Baseline:** `d39cb54`
 **PW-S02-Nachweis:** `b04fcbe`
 **PW-S03-Nachweis:** `f90517a`
-**Aktueller Funktionsnachweis:** PW-S04 auf `8bd4dd0`
+**Letzter vollständig abgenommener Funktionsnachweis:** PW-S04 auf `8bd4dd0`
+**Aktueller PW-S05-Arbeitsstand:** 1239/1239 Tests grün und `gcc`; Commit-Hash dieses Zwischenstands hier nicht erfasst
 **Prinzip:** Verhalten erhalten, Grenzen testen, dann den kleinsten notwendigen Eingriff vornehmen.
 
 Die frühere `MIGRATION_PLAN.md` wird in der Architekturübergabe genannt, ist im bereitgestellten Archiv aber nicht vorhanden. Dieses Dokument ersetzt deshalb keine ungelesene Detailentscheidung stillschweigend.
@@ -27,7 +28,7 @@ A/B-Findings werden nicht neu nummeriert, und fehlende ausführliche Finding-Tex
 
 PW-S02 hat gezeigt, dass bestehender Transaction-Coordinator und Scheduler mit wenigen schmalen Verträgen die benötigte Commit→Event→Reaction-Semantik tragen. PW-S03 hat darauf einen eingefrorenen Execution Plan, explizite Required/Provided-Komposition und die host-neutrale `SimulationSession` gesetzt. PW-S04 hat anschließend vorhandene Combat-Bausteine über dieselbe Runtime geführt, ohne einen globalen Combat-Service oder Kernel-Fachbegriffe einzuführen.
 
-Die dabei notwendige Generalisierung blieb klein: produktive Work Items erhielten `ISimulationWorkItem`, die interne Follow-up-Reservation wurde payload-spät nutzbar, und Combat bekam einen result-backed Event sowie einen kleinen Application-Executor. Der nächste Codeblock ist PW-S05: Snapshot/Restore und Replay an einer quiescent boundary. Auch dort wird nur die tatsächlich benötigte Persistenz-/Restore-Grenze eingeführt.
+Die dabei notwendige Generalisierung blieb klein: produktive Work Items erhielten `ISimulationWorkItem`, die interne Follow-up-Reservation wurde payload-spät nutzbar, und Combat bekam einen result-backed Event sowie einen kleinen Application-Executor. PW-S05 ist inzwischen begonnen. Die erste Restore-Grenze bleibt bewusst klein: in-memory Snapshot/Restore für Domain-/Runtime-State, Scheduler/Runner und einen realen pending Combat-Work-Item-Fall an einer quiescent boundary. Auch dort wird nur die tatsächlich benötigte Persistenz-/Restore-Grenze eingeführt; eine allgemeine Serializer- oder Savegame-Schicht bleibt zurückgestellt.
 
 ## 4. Generische Runtime von Gameplay-Komposition trennen
 
@@ -55,9 +56,11 @@ Die Enum-Frage wird punktuell behandelt: Offene Inhalte/Klassifikationen können
 
 ## 7. Snapshots und zeitliche Arbeit nicht nachträglich vergessen
 
-Neue geplante Arbeit erhält beschreibbare Identität, Payload und Versions-/Lifetime-Regeln. Für persistierbare Arbeit werden versteckte Closure-Zustände und Engine-Objektreferenzen vermieden.
+PW-S05 setzt diese Regel inzwischen konkret um. Snapshot bedeutet **nicht** Object-Graph-Clone, sondern beschreibbarer autoritativer Zustand, aus dem eine neue Runtime rekonstruiert werden kann. Resource-/Entity-State samt Revisionen, deterministische ID-Allocator, Runner-Zeit/Input-Closure und Scheduler-Pending-Work/Ordering werden im aktuellen Zwischenstand erfasst. Restore erzeugt eine neue `SimulationRuntimeIdentity`.
 
-Das bedeutet noch nicht, dass ein Speicherformat jetzt feststeht. Vor dem ersten Replay muss aber klar sein, welche neuen Zustände und Queues zum Snapshot gehören.
+Runtime-gebundene pending Arbeit wird nicht als alte Objektinstanz konserviert. Der erste reale Beweis verwendet `DamageResolutionSnapshot` und `ApplyResolvedDamageActionSnapshot`, um IDs und bereits aufgelöste Damage-Mengen zu erhalten und die Live-Kontexte gegen die neue Runtime neu zu binden. Der Restore alloziert dafür keine neuen Gameplay-/Hit-/Damage-IDs.
+
+Die Snapshot-Grenze ist quiescent: kein aktives Scheduler-Event und keine offene Prepared-Follow-up-Reservation. Prepared-Objekte und laufende Callback-Stacks werden nicht serialisiert. Ein Speicherformat ist weiterhin bewusst **nicht** festgelegt; die erste Implementierung ist in-memory. Der aktuelle Code hält außerdem keine persistenten RNG-Instanzen, die separat restauriert werden müssten; sollte ein Modul später einen langlebigen RNG besitzen, wird dessen Zustand Domain-Snapshot-Inhalt.
 
 ## 8. Tests und Kompatibilität
 
@@ -69,8 +72,8 @@ Bei API-Änderungen werden vorhandene Aufrufer migriert oder bewusst kompatible 
 
 ## 9. Nächster Repository-Schritt nach dieser Dokumentaktualisierung
 
-Diese Dokumentaktualisierung verändert selbst keinen Produktionscode und führt keinen zusätzlichen Testlauf aus. Sie synchronisiert den Architekturstand mit dem vom Nutzer bestätigten PW-S04-Endstand `8bd4dd0` und dem finalen Testumfang 1215/1215.
+Diese Dokumentaktualisierung verändert selbst keinen Produktionscode und führt keinen zusätzlichen Testlauf aus. Sie synchronisiert den Architekturstand mit dem letzten vollständig abgenommenen PW-S04-Endstand `8bd4dd0` **und** dem danach vom Nutzer bestätigten PW-S05-Zwischenstand mit 1239/1239 grünen Tests sowie `gcc`. Der konkrete Commit-Hash dieses S05-Zwischenstands wurde in diesem Dokumentationsdurchgang nicht festgehalten.
 
-Nach dem Dokumentationscommit folgt PW-S05 in einem getrennten, getesteten Codeblock. Zuerst werden Snapshot-Inhalt, quiescent boundary, Restore-Zielruntime sowie Pending Scheduler-/Reaction-, RNG-, ID- und Domainzustände konkret am aktuellen Codebestand geprüft. Keine allgemeine Serializer-, Savegame-, EventStore- oder Cross-Version-Schicht wird allein wegen der Dokumentpflege vorgezogen.
+Als nächster S05-Codeblock folgt nicht erneut die Grundlagenanalyse, sondern die Generalisierung der Pending-Work-Snapshot-Grenze über den ersten `ApplyResolvedDamageAction`-Fall hinaus, anschließend ein höherer Runtime-/Session-Snapshot und ein vollständiger deterministischer Replay-Vergleich. Keine allgemeine Serializer-, Savegame-, EventStore- oder Cross-Version-Schicht wird allein wegen der Dokumentpflege vorgezogen.
 
-**Quellen:** [E1–E5, E7–E9](SOURCE_EVIDENCE_v2_0.md).
+**Quellen:** [E1–E5, E7–E10](SOURCE_EVIDENCE_v2_0.md).

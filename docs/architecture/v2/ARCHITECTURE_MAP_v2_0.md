@@ -1,6 +1,6 @@
 # Plaquewright – Architecture Map 2.0
 
-**Stand:** 18. September 2026 · **Status:** Architektur 2.0 freigegeben; PW-S02, PW-S03 und PW-S04 abgenommen · **Historische Audit-Baseline:** `d39cb54` · **PW-S02:** `b04fcbe` · **PW-S03:** `f90517a` · **PW-S04:** `8bd4dd0`
+**Stand:** 18. September 2026 · **Status:** Architektur 2.0 freigegeben; PW-S02, PW-S03 und PW-S04 abgenommen; PW-S05 in Arbeit · **Historische Audit-Baseline:** `d39cb54` · **PW-S02:** `b04fcbe` · **PW-S03:** `f90517a` · **PW-S04:** `8bd4dd0` · **PW-S05-Zwischenstand:** 1239/1239 + `gcc`, Commit-Hash hier nicht erfasst
 Die frühere `ARCHITECTURE_MAP.md` wird in der Architekturübergabe genannt, liegt im bereitgestellten Archiv aber nicht vor. Diese Fassung ist eine neue Rekonstruktion, kein behaupteter zeilenweiser Abgleich. [E1, E3]
 
 ## 1. Zielbild
@@ -132,13 +132,39 @@ Die aktuelle `SimulationRuntimeState` ist eine vorhandene Gameplay-Komposition. 
 - Headless ist keine automatische Approximation.
 - Engine-Unabhängigkeit ist noch kein Beweis für Physics-/Plattform-Replay.
 
-## 7. Nächster Abgleich
+## 7. Aktueller PW-S05-Abgleich
 
-PW-S04 ist abgeschlossen. Der finale Nachweisstand `8bd4dd0` wurde nach 1215/1215 bestandenen Tests mit `gcc` bestätigt. Damit tragen Door/Alarm, Resources/Door/Alarm und Combat dieselbe generische Runtime, während Combat-Fachbegriffe außerhalb des Kernels bleiben. [E9]
+PW-S04 bleibt auf `8bd4dd0` mit 1215/1215 Tests vollständig abgenommen. PW-S05 ist inzwischen begonnen; der aktuelle Zwischenstand wurde mit **1239/1239** Tests und anschließendem `gcc` bestätigt. Der konkrete S05-Commit-Hash ist in dieser Dokumentpflege nicht erfasst. [E10]
 
-Der nächste Abgleich gehört zu **PW-S05**: Snapshot/Restore und deterministischer Replay-Beweis an einer quiescent boundary. Vor einer Implementierung wird konkret bestimmt, welche Domainzustände, ausstehenden Scheduler-/Reaction-Work-Items, RNG-/ID-Zustände, Regelversionen und autoritativen Inputs beziehungsweise Host Facts für den gewählten kleinen Referenzfall benötigt werden.
+Der erste Restore-Pfad ist bewusst in-memory und trennt Snapshot-Daten von Live-Objekten:
 
-Ein globaler Serialization-, EventStore-, Registry-, Plugin-Discovery- oder Editor-Unterbau ist dafür weiterhin nicht vorab erforderlich.
+```text
+Runtime A
+  Domain State + Revisions
+  ID Allocators
+  Runner / Scheduler
+  pending ApplyResolvedDamageAction
+            |
+            v
+        Snapshot
+            |
+            v
+Runtime B
+  neue RuntimeIdentity
+  restaurierter Domain State
+  gleiche Allocatorpositionen
+  gleiche Scheduler Keys/Sequence
+  neu gebundener DamageResolutionContext
+            |
+            v
+       Fortsetzung
+```
 
-**Quellen:** [E1–E4, E7–E9 und W1](SOURCE_EVIDENCE_v2_0.md).
+Die Snapshot-Grenze ist quiescent: kein aktives Scheduler-Event und keine offene Prepared-Follow-up-Reservation. `ExternalInputsClosedThrough` wird mit restauriert, damit D-04 nach Restore nicht aufgeweicht wird. Pending Combat Work speichert keine alte Runtime-Referenz; IDs und bereits resolved Damage-Mengen werden beschrieben und gegen Runtime B neu gebunden.
+
+Der aktuelle Integrationstest vergleicht die direkte Fortsetzung in Runtime A mit `Snapshot -> Runtime B -> Restore` und erhält im geprüften Scope Scheduler-Key/Trace, Resource-State/Revision sowie Ledger-Ergebnis/Provenienz. Das ist ein wichtiger Replay-Baustein, aber noch keine vollständige PW-S05-Abnahme.
+
+Als nächster Abgleich wird die Pending-Work-Snapshot-Grenze über den ersten Combat-Typ hinaus generalisiert und anschließend zu einem höheren Runtime-/Session-Snapshot plus vollständigem Replay-Vergleich mit weiteren geordneten Inputs beziehungsweise Host Facts zusammengesetzt. Ein globaler Serializer-, EventStore-, Plugin-Discovery- oder Editor-Unterbau bleibt dafür nicht vorab erforderlich.
+
+**Quellen:** [E1–E4, E7–E10 und W1](SOURCE_EVIDENCE_v2_0.md).
 **Verbindlichkeit:** [PW-00 und PW-20](Plaquewright_Manifest_v2_0.md).
