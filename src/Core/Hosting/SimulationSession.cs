@@ -38,6 +38,45 @@ public sealed class SimulationSession<TWorkItem>
                 runnerLimits);
     }
 
+    internal SimulationRunnerSnapshot<TPayloadSnapshot>
+    CaptureRunnerSnapshot<TPayloadSnapshot>(
+        Func<TWorkItem, TPayloadSnapshot>
+            capturePayload)
+    {
+        ArgumentNullException.ThrowIfNull(
+            capturePayload);
+
+        return _runner.CaptureSnapshot(
+            capturePayload);
+    }
+
+    internal static SimulationSession<TWorkItem>
+        Restore<TPayloadSnapshot>(
+            SimulationComposition<TWorkItem> composition,
+            SimulationRunnerSnapshot<TPayloadSnapshot>
+                runnerSnapshot,
+            Func<TPayloadSnapshot, TWorkItem>
+                restorePayload)
+    {
+        ArgumentNullException.ThrowIfNull(
+            composition);
+
+        ArgumentNullException.ThrowIfNull(
+            runnerSnapshot);
+
+        ArgumentNullException.ThrowIfNull(
+            restorePayload);
+
+        var runner =
+            SimulationRunner<TWorkItem>.Restore(
+                runnerSnapshot,
+                restorePayload);
+
+        return new SimulationSession<TWorkItem>(
+            composition,
+            runner);
+    }
+
     public SimulationTime CurrentTime =>
         _runner.CurrentTime;
 
@@ -63,5 +102,21 @@ public sealed class SimulationSession<TWorkItem>
     {
         return _runner.RunToCompletion(
             _composition.Execute);
+    }
+    private SimulationSession(
+    SimulationComposition<TWorkItem> composition,
+    SimulationRunner<TWorkItem> runner)
+    {
+        ArgumentNullException.ThrowIfNull(
+            composition);
+
+        ArgumentNullException.ThrowIfNull(
+            runner);
+
+        _composition =
+            composition;
+
+        _runner =
+            runner;
     }
 }
