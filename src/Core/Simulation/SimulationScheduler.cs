@@ -331,6 +331,29 @@ public sealed class SimulationScheduler<TPayload>
         return false;
     }
 
+    internal void ReleaseUnusedCapacityAtQuiescence()
+    {
+        EnsureOutsideEventExecution();
+
+        //
+        // Queue storage is non-authoritative.
+        //
+        // Only release it at a real quiescent boundary:
+        // no pending event and no prepared follow-up slot.
+        //
+        // Do not trim merely because TryDequeue temporarily
+        // made the queue empty while an event is still able
+        // to schedule follow-up work.
+        //
+        if (_queue.Count != 0 ||
+            _reservedQueueSlots != 0)
+        {
+            return;
+        }
+
+        _queue.TrimExcess();
+    }
+
     internal void BeginEventExecution(
         ScheduledEventKey eventKey)
     {

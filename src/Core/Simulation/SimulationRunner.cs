@@ -281,6 +281,14 @@ public sealed class SimulationRunner<TPayload>
 
     private SimulationRunResult CreateCompletedResult()
     {
+        //
+        // Completed is a stable quiescent boundary.
+        //
+        // Pending scheduler storage has no authoritative
+        // meaning once no work remains.
+        //
+        _scheduler.ReleaseUnusedCapacityAtQuiescence();
+
         return new SimulationRunResult(
             SimulationRunStatus.Completed,
             CurrentTime,

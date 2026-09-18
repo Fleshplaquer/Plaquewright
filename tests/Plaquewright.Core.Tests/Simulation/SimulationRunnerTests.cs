@@ -43,6 +43,86 @@ public sealed class SimulationRunnerTests
     }
 
     [Fact]
+    public void CompletedRunner_CanResumeAfterQueueCapacityRelease()
+    {
+        var scheduler =
+            new SimulationScheduler<string>(
+                new SimulationSchedulerLimits(
+                    maxQueueSize: 100,
+                    maxSameTimestampWave: 10));
+
+        var runner =
+            new SimulationRunner<string>(
+                scheduler,
+                new SimulationRunnerLimits(
+                    maxProcessedEvents: 10UL));
+
+        var trace =
+            new List<string>();
+
+        runner.ScheduleExternalInput(
+            new SimulationTime(10L),
+            "first");
+
+        var firstResult =
+            runner.RunToCompletion(
+                context =>
+                    trace.Add(
+                        context.Payload));
+
+        Assert.Equal(
+            SimulationRunStatus.Completed,
+            firstResult.Status);
+
+        Assert.Equal(
+            1UL,
+            runner.ProcessedEvents);
+
+        var secondKey =
+            runner.ScheduleExternalInput(
+                new SimulationTime(20L),
+                "second");
+
+        //
+        // Releasing queue storage must not reset
+        // authoritative scheduler sequencing.
+        //
+        Assert.Equal(
+            2UL,
+            secondKey.Sequence.Value);
+
+        var secondResult =
+            runner.RunToCompletion(
+                context =>
+                    trace.Add(
+                        context.Payload));
+
+        Assert.Equal(
+            SimulationRunStatus.Completed,
+            secondResult.Status);
+
+        Assert.Equal(
+            new[]
+            {
+            "first",
+            "second"
+            },
+            trace);
+
+        Assert.Equal(
+            new SimulationTime(20L),
+            runner.CurrentTime);
+
+        Assert.Equal(
+            2UL,
+            runner.ProcessedEvents);
+
+        Assert.Equal(
+            0,
+            secondResult.PendingEvents);
+    }
+
+    [Fact]
     public void RunNext_ExecutesEarliestEvent()
     {
         var scheduler =
