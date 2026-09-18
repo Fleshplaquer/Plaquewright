@@ -7,12 +7,12 @@ internal sealed class PreparedScheduledFollowUp<TPayload>
 
     private readonly ScheduledEventKey _parent;
 
-    private readonly ScheduledEvent<TPayload> _scheduledEvent;
+    private readonly ScheduledEventKey _key;
 
     internal PreparedScheduledFollowUp(
         SimulationScheduler<TPayload> scheduler,
         ScheduledEventKey parent,
-        ScheduledEvent<TPayload> scheduledEvent)
+        ScheduledEventKey key)
     {
         ArgumentNullException.ThrowIfNull(
             scheduler);
@@ -23,14 +23,15 @@ internal sealed class PreparedScheduledFollowUp<TPayload>
         _parent =
             parent;
 
-        _scheduledEvent =
-            scheduledEvent;
+        _key =
+            key;
     }
 
     internal ScheduledEventKey Key =>
-        _scheduledEvent.Key;
+        _key;
 
-    internal ScheduledEventKey Publish()
+    internal ScheduledEventKey Publish(
+        TPayload payload)
     {
         var scheduler =
             _scheduler ??
@@ -40,7 +41,8 @@ internal sealed class PreparedScheduledFollowUp<TPayload>
         var key =
             scheduler.PublishPreparedFollowUp(
                 _parent,
-                _scheduledEvent);
+                _key,
+                payload);
 
         _scheduler =
             null;

@@ -99,8 +99,7 @@ public sealed class SimulationScheduler<TPayload>
     internal PreparedScheduledFollowUp<TPayload>
     PrepareFollowUpFromActiveEvent(
         ScheduledEventKey parent,
-        SimulationTime time,
-        TPayload payload)
+        SimulationTime time)
     {
         if (_activeEventKey is not { } activeEventKey ||
             activeEventKey != parent)
@@ -146,23 +145,19 @@ public sealed class SimulationScheduler<TPayload>
                 SchedulerPhase.FollowUp,
                 NextSequence());
 
-        var scheduledEvent =
-            new ScheduledEvent<TPayload>(
-                key,
-                payload);
-
         _reservedQueueSlots =
             checked(_reservedQueueSlots + 1);
 
         return new PreparedScheduledFollowUp<TPayload>(
             this,
             parent,
-            scheduledEvent);
+            key);
     }
 
     internal ScheduledEventKey PublishPreparedFollowUp(
-        ScheduledEventKey parent,
-        ScheduledEvent<TPayload> scheduledEvent)
+    ScheduledEventKey parent,
+    ScheduledEventKey key,
+    TPayload payload)
     {
         if (_activeEventKey is not { } activeEventKey ||
             activeEventKey != parent)
@@ -177,13 +172,18 @@ public sealed class SimulationScheduler<TPayload>
                 "No prepared follow-up queue slot is reserved.");
         }
 
+        var scheduledEvent =
+            new ScheduledEvent<TPayload>(
+                key,
+                payload);
+
         _queue.Enqueue(
             scheduledEvent,
-            scheduledEvent.Key);
+            key);
 
         _reservedQueueSlots--;
 
-        return scheduledEvent.Key;
+        return key;
     }
 
     internal void CancelPreparedFollowUp()

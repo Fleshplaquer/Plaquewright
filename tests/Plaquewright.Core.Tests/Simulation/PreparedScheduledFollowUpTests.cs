@@ -24,8 +24,7 @@ public sealed class PreparedScheduledFollowUpTests
                 context =>
                 {
                     using var prepared =
-                        context.PrepareFollowUp(
-                            "reserved");
+                        context.PrepareFollowUp();
 
                     Assert.Throws<SimulationBudgetExceededException>(
                         () =>
@@ -60,10 +59,13 @@ public sealed class PreparedScheduledFollowUpTests
                 context =>
                 {
                     using var prepared =
-                        context.PrepareFollowUp(
-                            "child");
+    context.PrepareFollowUp();
 
-                    prepared.Publish();
+                    var payload =
+                        "child";
+
+                    prepared.Publish(
+                        payload);
                 });
 
         Assert.Equal(
@@ -106,8 +108,7 @@ public sealed class PreparedScheduledFollowUpTests
         runner.RunNext(
             context =>
             {
-                using (context.PrepareFollowUp(
-                           "cancelled"))
+                using (context.PrepareFollowUp())
                 {
                 }
 
@@ -154,14 +155,17 @@ public sealed class PreparedScheduledFollowUpTests
             context =>
             {
                 using var prepared =
-                    context.PrepareFollowUp(
-                        "child");
+    context.PrepareFollowUp();
 
-                prepared.Publish();
+                var payload =
+                    "child";
+
+                prepared.Publish(
+                    payload);
 
                 Assert.Throws<InvalidOperationException>(
                     () =>
-                        prepared.Publish());
+                        prepared.Publish("second"));
             });
 
         var result =

@@ -24,8 +24,7 @@ public static class DomainEventTransactionCoordinator
         }
 
         using var preparedEvent =
-            simulationContext.PrepareFollowUp(
-                domainEvent);
+            simulationContext.PrepareFollowUp();
 
         var committed =
             TransactionCoordinator.TryCommit(
@@ -36,7 +35,8 @@ public static class DomainEventTransactionCoordinator
             return false;
         }
 
-        preparedEvent.Publish();
+        preparedEvent.Publish(
+            domainEvent);
 
         return true;
     }
