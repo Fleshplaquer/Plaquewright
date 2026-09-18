@@ -10,10 +10,10 @@ namespace Plaquewright.Benchmarks;
 internal static class Program
 {
     private const int WarmupIterations =
-        3;
+        20;
 
     private const int MeasuredIterations =
-        20;
+        30;
 
     public static int Main()
     {
