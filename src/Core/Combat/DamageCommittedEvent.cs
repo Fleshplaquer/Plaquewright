@@ -74,4 +74,19 @@ public sealed class DamageCommittedEvent
         Outcome =
             commitResult.Outcome;
     }
+    // Only rehydrates facts captured from an existing committed event.
+    // The live construction path above still requires the real commit result.
+    internal DamageCommittedEvent(
+        DamageCommittedEventSnapshot snapshot)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+
+        DamageExecutionId = snapshot.DamageExecutionId;
+        GameplayExecutionId = snapshot.GameplayExecutionId;
+        SourceEntityId = snapshot.SourceEntityId;
+        TargetEntityId = snapshot.TargetEntityId;
+        RelatedHitExecutionId = snapshot.RelatedHitExecutionId;
+        StartedAt = snapshot.StartedAt;
+        Outcome = snapshot.Outcome;
+    }
 }
