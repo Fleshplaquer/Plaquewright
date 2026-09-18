@@ -1,12 +1,12 @@
 # Plaquewright – Architektur 2.0
 
-**Stand:** 18. September 2026
-**Historische Audit-Baseline:** `d39cb54`
-**PW-S02-Nachweis:** `b04fcbe`, vom Nutzer als grün / committed / clean bestätigt
-**PW-S03-Nachweis:** `f90517a`, vom Nutzer als grün / committed / clean bestätigt
-**Letzter vollständig abgenommener Funktionsnachweis:** PW-S04 auf `8bd4dd0`, vom Nutzer mit 1215/1215 Tests sowie `gcc` bestätigt
-**Aktueller PW-S05-Arbeitsstand:** 1239/1239 Tests grün und anschließend `gcc`; der Commit-Hash dieses S05-Zwischenstands wurde in diesem Dokumentationsdurchgang nicht festgehalten
-**Dokumentstatus:** Architektur 2.0 angenommen; D-01, D-02, D-04 und D-05 beschlossen; PW-S02, PW-S03 und PW-S04 abgenommen; PW-S05 in Arbeit
+**Stand:** 18. September 2026  
+**Historische Audit-Baseline:** `d39cb54`  
+**PW-S02-Nachweis:** `b04fcbe`, vom Nutzer als grün / committed / clean bestätigt  
+**PW-S03-Nachweis:** `f90517a`, vom Nutzer als grün / committed / clean bestätigt  
+**PW-S04-Nachweis:** `8bd4dd0`, vom Nutzer nach 1215/1215 Tests als grün / committed / clean bestätigt  
+**PW-S05-Nachweis:** `d8826a2`, vom Nutzer nach vollständigem Regressionstest und Build als grün / committed / clean bestätigt; finaler S05-Testumfang 1248 Tests  
+**Dokumentstatus:** Architektur 2.0 angenommen; D-01, D-02, D-04 und D-05 beschlossen; PW-S02 bis PW-S05 abgenommen
 
 ## Was diese Fassung festlegt
 
@@ -24,7 +24,7 @@ Die bestehende Implementierung und der A/B-Auditabschluss werden weiterverwendet
 
 **D-05 – Commit/Event/Fault:** Autoritative Event-Kapazität wird vor dem zugehörigen Commit gesichert. Ein unerwarteter Reaction-Fehler rollt den bereits gültigen Commit nicht zurück, sondern beendet die weitere autoritative Ausführung dieser Runtime als Fault.
 
-Snapshots sind für Replay an **quiescent boundaries** vorgesehen: kein aktiver Apply, kein halb veröffentlichter Commit, kein laufender interner Callback-Stack als Persistenzanforderung.
+Snapshots entstehen im aktuellen Profil nur an **quiescent boundaries**. Ein Restore rekonstruiert neue Runtime-Objekte und eine neue `SimulationRuntimeIdentity`; alte Live-Objekte oder alte Handlerbindungen werden nicht als Persistenzzustand übernommen.
 
 ## Dokumente
 
@@ -32,30 +32,37 @@ Snapshots sind für Replay an **quiescent boundaries** vorgesehen: kein aktiver 
 |---|---|
 | [Manifest](Plaquewright_Manifest_v2_0.md) | Verbindlicher Architekturvertrag, Grenzen, Determinismus, Replay und Entscheidungen |
 | [Implementierungsfolge](Plaquewright_Implementation_Sequence_v2_0.md) | Vertikale Schritte ab der bestätigten Baseline |
-| [Freigabe und Testnachweise](Plaquewright_Freigabe_und_Testnachweise_v2_0.md) | Technischer Anschlussstand und künftige Abnahmen |
+| [Freigabe und Testnachweise](Plaquewright_Freigabe_und_Testnachweise_v2_0.md) | Technischer Anschlussstand und Abnahmen |
 | [Architecture Map](ARCHITECTURE_MAP_v2_0.md) | Verantwortlichkeiten und Beispielabläufe |
 | [Code Classification](CODE_CLASSIFICATION_v2_0.md) | Einordnung vorhandener Typen ohne pauschale Ordnergleichsetzung |
 | [Migration Plan](MIGRATION_PLAN_v2_0.md) | Schrittweise Übernahme ohne Rewrite oder stillen Regelverlust |
 | [Glossar](PLAQUEWRIGHT_ARCHITECTURE_GLOSSARY_v2_0.md) | Begriffe und Grenzen |
 | [Source Evidence](SOURCE_EVIDENCE_v2_0.md) | Quellen, Snapshotgrenzen und Entscheidungsnachweise |
-| [Current Chat Handoff](CURRENT_CHAT_HANDOFF.md) | Kurzlebige Arbeitsübergabe für den nächsten Chat; bei jedem Chatwechsel ersetzen, nicht als Architekturquelle behandeln |
+| [Current Chat Handoff](CURRENT_CHAT_HANDOFF.md) | Kurzlebige Arbeitsübergabe; bei jedem Chatwechsel ersetzen |
 
-## Empfohlene Leserichtung
+## PW-S05 – abgenommener Snapshot-/Replay-Umfang
 
-Zuerst Manifest PW-01 bis PW-10 und die Architecture Map. Danach die Baufolge PW-S01 bis PW-S05. Das Quellenregister trennt historische Dokumente, beobachteten Code, bestätigte Auditstände und neue Architekturentscheidungen.
+PW-S05 wurde auf `d8826a2` im vereinbarten **in-memory Core-Profil** abgeschlossen. Der Ausbau verlief über `653c1f5` (Snapshot-/Restore-Grundlage), `789763c` (expliziter Combat-Pending-Work-Codec), `c6b2327` (Runtime-/Session-Fortsetzungs-Snapshot) und `d8826a2` (deterministischer Replay-Fortsetzungsbeweis).
+
+Der abgenommene Umfang umfasst:
+
+- Resource-/Entity-State samt Revisionen und relevante deterministische ID-Allocator.
+- `SimulationRuntimeState`, Scheduler und Runner einschließlich `ScheduledEventKey`, Sequence-Fortsetzung, Zeit, `ProcessedEvents`, Limits und D-04-Input-Closure.
+- Quiescent Snapshot-Capture: kein aktives Event und keine offene Prepared-Follow-up-Reservation.
+- `DamageResolutionSnapshot` / `ApplyResolvedDamageActionSnapshot` als Rebind eines bereits resolved Combat-Vorgangs gegen Runtime B, ohne erneute Rule-Resolution oder ID-Allokation.
+- `CombatWorkItemSnapshotCodec` als explizite, geschlossene Snapshot-Grenze für `ApplyResolvedDamageAction` und `DamageCommittedEvent`; unbekannte Work Items werden abgewiesen.
+- `DamageCommittedEventSnapshot` rekonstruiert einen bereits committed Fakt, ohne Commit oder Damage erneut auszuführen.
+- `SimulationRuntimeSessionSnapshot<TPayloadSnapshot>` bündelt Runtime- und Runner-Fortsetzungszustand. Die Composition wird bewusst **nicht** gesnapshottet, sondern für Runtime B neu aufgebaut.
+- Ein Replay-Vergleich setzt nach der Snapshot-Grenze weitere identische geordnete Inputs in Runtime A und B ein und vergleicht Scheduler-/Trace-Verlauf, Event-Fakten und generierte IDs, Resource-State/Revision sowie die nach der Snapshot-Grenze neu entstehende Ledger-History/Provenienz.
+
+Die alte Ledger-History vor der Snapshot-Grenze ist im aktuellen Profil **nicht** Teil des Snapshots. `CompiledResourceRegistry` und kompatible Regeln/Definitionen werden von außen bereitgestellt. Der Core hält derzeit keinen langlebigen RNG-State, der separat restauriert werden müsste.
+
+## Bewusst nicht mit PW-S05 freigegeben
+
+PW-S05 ist keine Freigabe für JSON-/Binary-Savegames, universelle polymorphe Persistenz aller `ISimulationWorkItem`-Typen, Cross-Version-Migration, automatische Ruleset-Migration, vollständige Replay-History-Retention, echte Host-/Netzwerk-Side-Effect-Unterdrückung, aufgezeichnete Physics-Host-Facts, Cross-Platform-/Cross-Engine-Bitgleichheit oder einen 30-Sekunden-Analyse-Scrubber.
 
 ## Nächster Entwicklungsstrang
 
-PW-S04 ist weiterhin der letzte **vollständig abgenommene** Schritt. PW-S05 ist inzwischen aktiv und besitzt einen ersten zusammenhängenden Snapshot-/Restore-Zwischenstand mit **1239/1239 bestandenen Tests**; der Nutzer bestätigte danach `gcc`. Der zugehörige Commit-Hash wurde in dieser Dokumentpflege nicht mehr erfasst und soll beim nächsten technischen Abgleich ergänzt werden.
-
-Der aktuelle PW-S05-Stand belegt in-memory Snapshot/Restore für Resource-/Entity-State samt Revisionen, alle derzeit relevanten deterministischen ID-Allocator, `SimulationRuntimeState`, `SimulationScheduler` und `SimulationRunner`. Restore erzeugt bewusst eine neue `SimulationRuntimeIdentity`; die Scheduler-Reihenfolge wird über die ursprünglichen `ScheduledEventKey`s erhalten. Snapshot-Capture wird abgewiesen, solange ein Event aktiv ist oder eine Prepared-Follow-up-Reservation offensteht. Die D-04-Grenze `ExternalInputsClosedThrough` wird mit restauriert.
-
-Für Combat existieren außerdem `DamageResolutionSnapshot` und `ApplyResolvedDamageActionSnapshot`. Runtime-gebundene Damage-Kontexte werden beim Restore aus beschreibbaren IDs/Werten gegen die **neue** Runtime gebunden; bereits vergebene Execution-/Hit-/Damage-IDs werden dabei nicht erneut alloziert. Ein Integrationstest vergleicht die normale Fortsetzung von Runtime A mit `Snapshot -> Runtime B -> Restore` für ein pending `ApplyResolvedDamageAction` und erhält Scheduler-Key, Resource-State/Revision sowie Ledger-Ergebnis/Provenienz.
-
-Bewusst noch nicht eingeführt sind eine JSON-/Serializer-/Savegame-Schicht, Cross-Version-Migration, ein allgemeiner Event Store oder ein universeller polymorpher Work-Item-Serializer. Der nächste S05-Teil generalisiert die Pending-Work-Snapshot-Grenze über mehr als den ersten Combat-Work-Item-Typ und führt daraus einen höheren Runtime-/Session-Snapshot sowie einen vollständigen Replay-Beweis mit weiteren Inputs/Trace-Vergleich zusammen.
-
-## Ablage und Übernahme
-
-Die Dateien sind für eine gemeinsame Ablage unter `docs/architecture/v2/` gedacht. Alte Idler-Dokumente bleiben historische Entscheidungsgrundlage und werden nicht per Suchen/Ersetzen umgedeutet. Ein Repository-Commit dieser Dokumente ist ein Dokumentationscommit und keine Behauptung neuer Framework-Funktionalität.
+Der nächste reguläre Architekturbaustein ist **PW-S06 – zeitabhängige Domain und abgeleitete Queries**. Vor dem ersten Produktionscode wird dafür ein konkretes Referenzszenario ausgewählt, das Ablauf-/Tick-/Zeitgrenzen und Query-/Cache-Invalidierung tatsächlich benötigt. Es wird keine allgemeine Status-, Timer- oder Cache-Plattform vorsorglich gebaut.
 
 D-03, D-06 und D-07 bleiben offene technische Detailgates.

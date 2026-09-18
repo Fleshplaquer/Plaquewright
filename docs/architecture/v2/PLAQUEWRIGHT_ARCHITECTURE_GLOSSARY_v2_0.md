@@ -1,6 +1,6 @@
 # Plaquewright – Architecture Glossary 2.0
 
-**Datum:** 18. September 2026 · **Status:** Lebendes Architekturglossar 2.0
+**Datum:** 18. September 2026 · **Status:** Lebendes Architekturglossar 2.0  
 Die alte gleichnamige Glossardatei ist in der Übergabe erwähnt, nicht als vollständiger Inhalt verfügbar. Diese Fassung definiert die Begriffe für den neuen Entwurf; sie ist kein Katalog bereits existierender C#-Typen.
 
 | Begriff | Bedeutung im Framework | Wichtige Abgrenzung |
@@ -46,9 +46,13 @@ Die alte gleichnamige Glossardatei ist in der Übergabe erwähnt, nicht als voll
 | Snapshot | Konsistente, beschreibbare Aufnahme des für Fortsetzung erforderlichen autoritativen Zustands | Kein Object-Graph-Clone; darf nicht einen halben modulübergreifenden Apply konservieren |
 | Restore / Rebind | Rekonstruktion einer neuen Runtime aus Snapshot-Daten und erneutes Binden runtime-gebundener Kontexte an deren neue Runtime Identity | Alte Live-Objektinstanzen oder alte `RuntimeIdentity` werden nicht weiterverwendet |
 | Pending-Work-Snapshot | Beschreibbare Form noch nicht ausgeführter Scheduler-Arbeit | Live-Work-Items mit Runtime-Referenzen werden über typspezifische Snapshot-Daten rekonstruiert, nicht per Referenz kopiert |
-| Replay | Reproduzierte Fortsetzung innerhalb eines angegebenen Vertrags | Kein automatisches engineübergreifendes Physics-Replay |
+| Work-Item Snapshot Codec | Explizite Zuordnung unterstützter Live-Work-Item-Typen zu ihren Snapshotformen und zurück | Kein Reflection-Service-Locator und kein Versprechen, beliebige `ISimulationWorkItem`-Typen automatisch persistieren zu können |
+| Committed-Event Snapshot | Faktische Beschreibung eines bereits committed Domain Events | Restore rehydriert den Fakt; der historische Commit wird nicht erneut ausgeführt |
+| Runtime-/Session-Fortsetzungs-Snapshot | Kohärente Bündelung von Runtime-State und Runner-State für eine neue Fortsetzungsinstanz | Die `SimulationComposition` selbst wird nicht gesnapshottet; sie wird gegen die restaurierte Runtime neu aufgebaut |
+| Replay | Reproduzierte Fortsetzung innerhalb eines angegebenen Vertrags | Der PW-S05-Core-Beweis verwendet gleiche geordnete Inputs nach dem Snapshot; kein automatisches engineübergreifendes Physics-Replay |
+| Replay-History | Für Analyse/Reproduktion aufbewahrte vergangene Eingaben, Events oder Buchungen | Nicht identisch mit autoritativem Snapshot; die Ledger-History vor dem Snapshot ist im aktuellen S05-Profil nicht enthalten |
 | Host Fact | Geordnetes autoritatives Ergebnis eines externen Systems, das Plaquewright nicht selbst reproduziert | z. B. aufgezeichneter ProjectileImpact aus Engine-Physics |
-| Quiescent Boundary | Sicherer Snapshot-Punkt ohne aktive Work-Ausführung oder halb veröffentlichte Folgearbeit | Der aktuelle S05-Scheduler lehnt Capture bei aktivem Event oder offener Prepared-Follow-up-Reservation ab; Prepared-Objekte werden nicht serialisiert |
+| Quiescent Boundary | Sicherer Snapshot-Punkt ohne aktive Work-Ausführung oder halb veröffentlichte Folgearbeit | Der S05-Scheduler lehnt Capture bei aktivem Event oder offener Prepared-Follow-up-Reservation ab; Prepared-Objekte werden nicht serialisiert |
 | Exact Simulation | Semantisch gleiches Ergebnis und relevante History im definierten Profil | Muss nicht jeden Renderframe nachspielen |
 | Approximate Simulation | Explizit erlaubter Verlust an Simulationsdetail | Kein stiller Notfallmodus bei Budgetende |
 | Fast Path | Spezialisierter schnellerer Ausführungspfad | Muss relevante Referenzsemantik bewahren |
@@ -60,12 +64,12 @@ Die alte gleichnamige Glossardatei ist in der Übergabe erwähnt, nicht als voll
 | Reentranz | Erneuter Eintritt in laufende Ausführung/Publikation | Für das erste Ausbauprofil nicht einfach nebenläufig zulassen |
 | Fault | Technischer Fehler mit definiertem Stopp-/Recovery-Verhalten | D-05: unerwarteter Reaction-Fault rollt vorherigen Commit nicht zurück und stoppt die weitere autoritative Ausführung der Runtime |
 | Budgetende | Explizite Arbeits-/Speichergrenze | Keine Meldung einer vollständig berechneten Simulation |
-| gcc | Nutzerkürzel: grün, committed, clean | Aussage über gemeldeten Arbeitsstand, nicht automatisch neue Testanzahl |
+| gcc | Nutzerkürzel: grün, committed, clean | Aussage über gemeldeten Arbeitsstand, nicht automatisch eine neue Releaseklasse |
 
 Begriffe werden nur gemeinsam mit ihren Verträgen geändert. Der Name eines Types oder Tests ist kein eigenständiger Nachweis seiner Semantik.
 
 PW-S04 konkretisiert insbesondere `Work Item`, `Prepared Follow-up`, `Pre-Commit-Regel`, `Domain Event` und `Reaction`: `ApplyResolvedDamageAction` ist ein produktives Work Item; PreDefeat verändert nur den Draft; `DamageCommittedEvent` entsteht aus dem tatsächlichen Commit-Ergebnis; die anschließende Reaction erzeugt neue Arbeit. [E9]
 
-PW-S05 konkretisiert `Snapshot`, `Restore / Rebind`, `Pending-Work-Snapshot`, `Quiescent Boundary` und `Runtime Identity`: Restore erzeugt eine neue Runtime Identity, erhält autoritative IDs/Ordering/State und rekonstruiert den ersten runtime-gebundenen Combat-Work-Item-Fall gegen die neue Runtime. Der aktuelle Nachweis ist ein Zwischenstand, noch keine vollständige PW-S05-Abnahme. [E10]
+PW-S05 konkretisiert `Snapshot`, `Restore / Rebind`, `Pending-Work-Snapshot`, `Work-Item Snapshot Codec`, `Committed-Event Snapshot`, `Runtime-/Session-Fortsetzungs-Snapshot`, `Replay`, `Quiescent Boundary` und `Runtime Identity`. Der auf `d8826a2` abgenommene Core-Scope rekonstruiert eine neue Runtime, erhält autoritative State-/ID-/Scheduler-Fortsetzung, rehydriert pending Damage-Action und committed Damage-Event über eine explizite Codec-Grenze und beweist die deterministische A/B-Fortsetzung mit weiteren geordneten Inputs nach dem Snapshot. [E10, E11]
 
 **Grundlage:** [Manifest](Plaquewright_Manifest_v2_0.md) und [Quellenregister](SOURCE_EVIDENCE_v2_0.md).

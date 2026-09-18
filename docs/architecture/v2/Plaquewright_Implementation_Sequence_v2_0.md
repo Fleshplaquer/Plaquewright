@@ -2,7 +2,7 @@
 
 **Version:** 2.0 · **Datum:** 18. September 2026
 **Ausgangspunkt:** Nutzerbestätigte Audit-Baseline `d39cb54`, nicht der alte Idler-P00-Start
-**Status:** Freigegebene Architektur-Baufolge; PW-S02 abgenommen auf `b04fcbe`, PW-S03 auf `f90517a`, PW-S04 auf `8bd4dd0`; PW-S05 in Arbeit, aktueller bestätigter Zwischenstand 1239/1239 Tests und `gcc` (Commit-Hash hier nicht erfasst)
+**Status:** Freigegebene Architektur-Baufolge; PW-S02 abgenommen auf `b04fcbe`, PW-S03 auf `f90517a`, PW-S04 auf `8bd4dd0`, PW-S05 auf `d8826a2`; finaler S05-Testumfang 1248 Tests, anschließend `gcc`
 
 ## 1. Ziel der Reihenfolge
 
@@ -21,7 +21,7 @@ Die neue Reihenfolge verwendet `PW-Sxx`, um weder alte P-Meilensteine noch abges
 | PW-S02 | Commit-Ergebnis → Event → deterministische Reaction **– abgenommen** | Schließt die zentrale modulübergreifende Ausführungskette |
 | PW-S03 | Kleine explizite Modulkomposition und Headless-/Godot-Referenz **– abgenommen** | Beweist Benutzbarkeit außerhalb interner Tests |
 | PW-S04 | Zweites fachliches Referenzszenario mit vorhandenen Combat-Bausteinen **– abgenommen** | Belegt, dass dieselbe Runtime auch result-backed Combat, PreDefeat und bezahlte Damage-Folgearbeit trägt |
-| PW-S05 | Snapshot/Restore und deterministischer Replay-Beweis **– in Arbeit** | Prüft State-Ownership und ausstehende Arbeit früh |
+| PW-S05 | Snapshot/Restore und deterministischer Replay-Beweis **– abgenommen** | Prüft State-Ownership und ausstehende Arbeit früh |
 | PW-S06 | Zeitabhängige Domain und abgeleitete Queries | Erweitert Status/Production und Cache-Invalidierung an realem Bedarf |
 | PW-S07 | Definierte Lastprofile, Retention und gemessene Optimierung | Performance wird geprüft statt aus Architektur abgeleitet |
 | PW-S08 | Exakte Zeitbeschleunigung, optionale Approximation und weitere Adapter | Baut auf belegten Semantik- und Replay-Grenzen auf |
@@ -167,35 +167,53 @@ Der Test belegt ausdrücklich, dass die Kosten vor der Damage-Auflösung committ
 
 **Bewusst nicht eingeführt:** globaler `CombatService`, universelles Intervention-Interface, automatische Resource-Routing-Regel, vollständiges Skill-/Cooldown-/Channel-System, Combat-Abhängigkeit im Kernel oder eine neue allgemeine EventBus-Schicht.
 
-## 8. PW-S05 – Früher Snapshot-/Replay-Beweis
+## 8. PW-S05 – Snapshot/Restore und deterministischer Replay-Beweis
 
-**Status:** In Arbeit. Aktueller bestätigter Zwischenstand: **1239/1239** Tests grün, anschließend `gcc`. Der konkrete Commit-Hash dieses S05-Blocks wurde in der vorliegenden Dokumentpflege nicht festgehalten.
+**Status:** Abgenommen am 18. September 2026. Technischer Endstand: `d8826a2`. Finaler bestätigter S05-Testumfang: 1248 Tests; vollständiger Regressionstest und Build grün, anschließend `gcc`.
 
-PW-S05 beginnt bewusst mit einem in-memory Restore-Modell statt mit JSON, Savegame-Format oder Cross-Version-Migration. Der Leitgedanke lautet:
+PW-S05 verwendet bewusst ein in-memory Restore-Modell statt JSON, Savegame-Format oder Cross-Version-Migration. Der Leitgedanke lautet:
 
 > Snapshot ist kein Object-Graph-Clone, sondern beschreibbarer autoritativer Zustand, aus dem eine neue Runtime rekonstruiert werden kann.
 
-**Bereits umgesetzt und getestet:**
+**Technischer Verlauf:**
+
+- `653c1f5` – Snapshot-/Restore-Grundlage und erster pending `ApplyResolvedDamageAction`-Beweis; 1239/1239 Tests, `gcc`.
+- `789763c` – explizite Combat-Pending-Work-Snapshot-Grenze für `ApplyResolvedDamageAction` und `DamageCommittedEvent`; 1245 Tests.
+- `c6b2327` – höherer `SimulationRuntimeSessionSnapshot<TPayloadSnapshot>` und Session-Restore mit neu gebauter Composition gegen Runtime B; 1247 Tests.
+- `d8826a2` – deterministischer Replay-Fortsetzungsbeweis mit weiteren geordneten Inputs nach der Snapshot-Grenze; finaler vollständiger Regressionstest und Build grün, anschließend `gcc`.
+
+**Abgenommene Bausteine:**
 
 1. `ResourceState` und `ResourceStateSet` snapshotten Current/Maximum/Revision und restaurieren unabhängig weiterlaufende Instanzen.
 2. `EntityRuntimeState` und `EntityRuntimeStateSet` erhalten Entity-IDs, Resource-State und deterministische Reihenfolge.
 3. Entity-, Execution-, Hit- und Damage-ID-Allocator erhalten ihre Fortsetzungs- beziehungsweise Exhaustion-Positionen.
-4. `SimulationRuntimeStateSnapshot` bündelt Seed, Entity-/Resource-State und Allocatorstände. Restore erhält eine **neue** `SimulationRuntimeIdentity`, statt die alte Referenzidentität zu konservieren.
-5. `SimulationSchedulerSnapshot<TPayloadSnapshot>` erhält Limits, ursprüngliche `ScheduledEventKey`s, Sequenzposition und Pending Work. Capture ist nur quiescent erlaubt: kein aktives Event und keine offene Prepared-Follow-up-Reservation. Restore benutzt nicht erneut `Schedule(...)`, weil dadurch neue Sequenzen entstehen würden.
-6. `SimulationRunnerSnapshot<TPayloadSnapshot>` erhält `CurrentTime`, `ProcessedEvents`, Runner-Limit und `ExternalInputsClosedThrough`, sodass D-04 nach Restore nicht wieder geöffnet wird. Faulted- oder terminal-budgeted Runtimes werden im ersten Profil nicht als fortsetzbare Snapshots akzeptiert.
-7. Der aktuelle Core speichert keine langlebigen RNG-Instanzen. `GameplayExecutionContext` erzeugt deterministische Streams aus Root Seed und Kontext; deshalb gibt es im aktuellen S05-Scope keinen separaten persistenten RNG-Snapshot. Ein späterer Domain-eigener langlebiger RNG müsste seinen Zustand selbst snapshotten.
-8. `DamageResolutionSnapshot` und `ApplyResolvedDamageActionSnapshot` bilden den ersten realen pending Combat-Work-Fall. IDs und bereits resolved Damage-Mengen werden beschrieben; runtime-gebundene Context-Objekte werden gegen die neue Runtime rekonstruiert, ohne IDs neu zu allozieren oder Combat-Regeln erneut aufzulösen.
-9. Ein Integrationstest führt denselben pending `ApplyResolvedDamageAction` einmal in Runtime A direkt und einmal über `Snapshot -> Runtime B -> Restore` fort. Scheduler-Key, Resource-State/Revision und Ledger-Ergebnis/Provenienz stimmen überein.
+4. `SimulationRuntimeStateSnapshot` bündelt Seed, Entity-/Resource-State und Allocatorstände. Restore erhält eine **neue** `SimulationRuntimeIdentity`.
+5. `SimulationSchedulerSnapshot<TPayloadSnapshot>` erhält Limits, ursprüngliche `ScheduledEventKey`s, Sequenzposition und Pending Work. Restore schedult Pending Work nicht erneut und verändert deshalb keine Sequences.
+6. Snapshot-Capture ist nur quiescent erlaubt: kein aktives Event und keine offene Prepared-Follow-up-Reservation.
+7. `SimulationRunnerSnapshot<TPayloadSnapshot>` erhält `CurrentTime`, `ProcessedEvents`, Runner-Limit und `ExternalInputsClosedThrough`; D-04 bleibt nach Restore geschlossen. Faulted- oder terminal-budgeted Runner gehören nicht zum ersten fortsetzbaren Profil.
+8. `DamageResolutionQuantitiesSnapshot`, `DamageResolutionSnapshot` und `ApplyResolvedDamageActionSnapshot` erhalten bereits resolved Damage-Mengen und IDs und binden neue Live-Kontexte gegen Runtime B, ohne Rule-Resolution oder ID-Allokation zu wiederholen.
+9. `DamageCommittedEventSnapshot` erhält die Fakten eines bereits committed Events. Restore führt den historischen Damage-Commit nicht erneut aus.
+10. `CombatWorkItemSnapshot` + `CombatWorkItemSnapshotCodec` bilden die explizite Envelope-/Codec-Grenze für die zwei im Referenzprofil benötigten pending Typen. Unbekannte Work Items werden kontrolliert abgewiesen; es gibt keinen Reflection-Service-Locator.
+11. `SimulationRuntimeSessionSnapshot<TPayloadSnapshot>` bündelt Runtime- und Runner-Snapshot. `SimulationComposition` wird bewusst **nicht** gesnapshottet; beim Restore wird eine neue Composition gegen Runtime B erzeugt.
+12. Der abschließende Replay-Test setzt nach dem Snapshot weitere identische geordnete Inputs in Runtime A und B ein. Er vergleicht Runner-Ergebnis, Scheduler-/Trace-Reihenfolge, Event-Fakten und generierte Gameplay-/Damage-/Hit-IDs, Resource-State/Revision sowie die nach der Snapshot-Grenze neu entstandenen Ledger-Einträge und ihre Provenienz. Runtime A wird vor Runtime B vollständig beendet, damit alte Handler-/Runtime-Bindungen sichtbar würden.
 
-**Damit bereits teilweise belegt:** PW-QA-17, PW-QA-18 und die aktuelle Scheduler-Ausprägung von PW-QA-28. PW-S05 als Ganzes bleibt offen.
+**Abgenommen:** PW-QA-17, PW-QA-18 und PW-QA-28 für den beschriebenen Core-Scope. Der Replay-Beweis ist stärker als ein Endsaldovergleich: er prüft die Fortsetzungshistorie des Referenzprofils.
 
-**Nächster kleiner Block:** Die Pending-Work-Snapshot-Grenze über den einzelnen Combat-Work-Item-Typ hinaus generalisieren, ohne Reflection-Service-Locator oder vorschnellen Serializer. Danach einen höheren Runtime-/Session-Snapshot bilden und einen vollständigen Replay-Beweis mit weiteren geordneten Inputs beziehungsweise Host Facts und relevantem Trace durchführen.
+**Bewusste Scope-Grenzen:**
 
-**Weiterhin nicht enthalten:** fertiges Savegame-Format, JSON-Vertrag, allgemeiner Event Store, Cross-Version-Migration, Cloud-Saves, 30-Sekunden-Scrubber oder automatische Wiederholung realer Host-Side-Effects.
+- Die Ledger-History vor dem Snapshot wird nicht persistiert; der Test vergleicht die nach der Grenze neu entstehende History.
+- `CompiledResourceRegistry` sowie kompatible Regeln/Definitionen werden von außen bereitgestellt.
+- Der aktuelle Core speichert keine langlebigen RNG-Instanzen; ein späterer Domain-RNG müsste seinen Zustand selbst snapshotten.
+- `CombatWorkItemSnapshotCodec` ist kein universeller Serializer aller `ISimulationWorkItem`-Typen.
+- PW-QA-19 bleibt für reale Host-/Netzwerk-/Kauf-Side-Effects offen.
+- PW-QA-27 bleibt für aufgezeichnete oder deterministisch reproduzierte externe Host Facts offen.
+- Nicht enthalten sind JSON-/Binary-Saveformat, allgemeiner Event Store, Cross-Version-Migration, Cloud-Saves, Cross-Platform-/Cross-Engine-Bitgleichheit oder ein 30-Sekunden-Scrubber.
+
+**Migrationsergebnis:** Die erste Replay-Grenze konnte ohne generische Persistenzplattform, ohne Combat im Kernel und ohne Serialisierung von `SimulationComposition` eingeführt werden. Die nächste Architekturarbeit kann deshalb auf einer nachgewiesenen Fortsetzungsgrenze aufbauen, statt diese später nachzurüsten.
 
 ## 9. PW-S06 – Zeitabhängige Domains und abgeleitete Werte
 
-Jetzt ergänzt ein konkreter Mechanismus die bisherigen Punkt-Events: beispielsweise eine Produktionsphase oder ein Status mit Tick und Ablauf. Das gewählte erste Szenario wird nach PW-S04 bestimmt.
+Nach dem abgeschlossenen PW-S05 ergänzt ein konkreter Mechanismus die bisherigen Punkt-Events: beispielsweise eine Produktionsphase oder ein Status mit Tick und Ablauf. Vor Produktionscode wird das kleinste Referenzszenario ausgewählt, das Zeitgrenzen und abgeleitete Queries tatsächlich benötigt.
 
 **Lieferung:** Domain-eigener Zustand, typisierte Queries, definierte Zeitgrenzen sowie Invalidierung abgeleiteter Werte. Ein Status, der Resistance beeinflusst, wird bei seiner eigenen Zustandsänderung relevant; ein Combat-Resolver liest anschließend die passende Sicht.
 
@@ -231,6 +249,6 @@ Bei Codeänderungen bleiben `dotnet test`, `dotnet build`, Diff-Prüfung und ein
 
 Die Arbeit endet an einem nutzbaren Zwischenstand. Ein offen gebliebenes Folgefeature wird weder versteckt noch durch eine neue Generalschicht ersetzt.
 
-**Quellen:** [E1–E5, E7–E10](SOURCE_EVIDENCE_v2_0.md).
+**Quellen:** [E1–E5, E7–E11](SOURCE_EVIDENCE_v2_0.md).
 **Detailverträge:** [Manifest](Plaquewright_Manifest_v2_0.md).
 **Test-IDs:** [Abnahmekatalog](Plaquewright_Freigabe_und_Testnachweise_v2_0.md).

@@ -6,7 +6,7 @@
 **PW-S02-Nachweisstand:** `b04fcbe`, vom Nutzer als grün, committed und clean bestätigt
 **PW-S03-Nachweisstand:** `f90517a`, vom Nutzer als grün, committed und clean bestätigt
 **PW-S04-Nachweisstand:** `8bd4dd0`, vom Nutzer nach 1215/1215 Tests als grün, committed und clean bestätigt
-**PW-S05-Zwischenstand:** 1239/1239 Tests grün, anschließend `gcc`; der konkrete Commit-Hash dieses Zwischenstands wurde in diesem Dokumentationsdurchgang nicht erfasst
+**PW-S05-Nachweisstand:** `d8826a2`, vom Nutzer nach vollständigem Regressionstest und Build als grün, committed und clean bestätigt; finaler S05-Testumfang 1248 Tests
 
 ## 1. Was tatsächlich bestätigt ist
 
@@ -31,9 +31,9 @@ Dazu: Branch `main`, mit `origin/main` synchron, Working Tree clean; `gcc` wurde
 | PW-S02 | Abgenommen | Commit → Domain Event → deterministische Reaction einschließlich Queue-Reservation, Input-Grenze, Reaction-Ordering, Fail-stop und RunNext/RunToCompletion-Äquivalenz |
 | PW-S03 | Abgenommen | Expliziter Execution Plan, Required/Provided-Modulkomposition, host-neutrale `SimulationSession`, zwei Headless-Konfigurationen und echter Godot-Smoke-Run über dieselbe Core-Autorität |
 | PW-S04 | Abgenommen | Result-backed Combat-Pipeline mit produktiver Damage-Action, PreDefeat vor Commit, `DamageCommittedEvent` nach Commit, Executor-Negativgrenzen sowie bezahltem Cost→Damage-Referenzablauf |
-| PW-S05 | In Arbeit; erster Snapshot-/Restore-Zwischenstand bestätigt | In-memory Domain-/Runtime-/Scheduler-/Runner-Snapshots, quiescent boundary, fresh RuntimeIdentity und erster pending Combat-Work-Restore; vollständiger Replay-/Versions-/Host-Fact-Vertrag noch offen |
-| Build / Tests | Aktueller Nutzerstand 1239/1239 grün; danach `gcc` | In diesem Dokumentationsdurchgang nicht neu ausgeführt |
-| Repository | Laut gezeigtem Git-Status clean und synchron | Kein eigener Live-Abruf des Remotes für diese Dokumentation |
+| PW-S05 | Abgenommen für den vereinbarten in-memory Core-Scope | Domain-/Runtime-/Scheduler-/Runner-Snapshots, quiescent boundary, expliziter Combat-Work-Item-Codec, fresh RuntimeIdentity, höherer Runtime-/Session-Snapshot und deterministische A/B-Fortsetzung mit weiteren geordneten Inputs |
+| Build / Tests | Finaler PW-S05-Stand: 1248 Tests; vollständiger Regressionstest und Build grün, danach `gcc` | Die Dokumentaktualisierung selbst führt keinen neuen Testlauf aus |
+| Repository | `d8826a2 (HEAD -> main, origin/main)`; `git status --short --branch` zeigt `## main...origin/main` ohne Änderungen | Kein eigener Live-Abruf des Remotes für diese Dokumentation |
 
 Eine vollständig gezeigte frühere Testausgabe enthält **1176 bestandene Tests** nach dem Pre-Defeat-Teil. Im PW-S02-Durchgang wurde zwischenzeitlich eine vollständige Summary mit 1196 Tests gezeigt, davon zunächst ein erwartungsbedingt fehlschlagender neuer Reservation-Test; nach Korrektur der Runner-Erwartung sowie den weiteren Ordering-/Fault-/Äquivalenztests bestätigte der Nutzer die jeweiligen vollständigen Läufe mit `g` und den abschließenden Repository-Stand mit `gcc`.
 
@@ -47,7 +47,7 @@ Die Architekturübergabe mit 1023 Tests beschreibt einen älteren technischen St
 
 Der ursprüngliche v2-Dokumentationsdurchgang las die bereitgestellten Quellen und erzeugte die Architekturdateien ohne Produktionsänderung. **Seitdem** wurden PW-S02, PW-S03 und PW-S04 im Nutzerrepository implementiert und getestet. Der Nutzer bestätigte die S02-Codeänderungen einschließlich PW-QA-12 auf `b04fcbe`, den abgeschlossenen S03-Stand `f90517a` und den abgeschlossenen S04-Stand `8bd4dd0` jeweils mit `gcc`.
 
-Diese aktuelle Dokumentaktualisierung führt selbst **keinen neuen .NET-Testlauf, Godot-Start, Replay-Test oder Benchmark** aus und verändert das Nutzerrepository nicht. Sie übernimmt die im Projektgespräch gezeigten/bestätigten S03- und S04-Nachweise, während `d39cb54` die historische A/B-Audit-Baseline, `b04fcbe` der S02-Zwischenstand und `f90517a` der S03-Endstand bleiben. Einzelheiten stehen im [Quellenregister](SOURCE_EVIDENCE_v2_0.md).
+Diese aktuelle Dokumentaktualisierung führt selbst **keinen neuen .NET-Testlauf, Godot-Start oder Benchmark** aus und verändert das Nutzerrepository nicht. Sie übernimmt die im Projektgespräch gezeigten/bestätigten Nachweise bis einschließlich PW-S05. `d39cb54` bleibt historische A/B-Audit-Baseline, `b04fcbe` PW-S02, `f90517a` PW-S03, `8bd4dd0` PW-S04 und `d8826a2` der abgeschlossene PW-S05-Funktionsnachweis. Einzelheiten stehen im [Quellenregister](SOURCE_EVIDENCE_v2_0.md).
 
 ## 3. Statussprache für künftige Nachweise
 
@@ -145,21 +145,32 @@ Zusätzliche S04-Negativtests weisen nach, dass ein Resource-Loss-Plan aus einer
 
 Der zweite vertikale Referenztest führt eine bezahlte Action über `Cost Commit -> Event -> Reaction -> Damage -> Commit -> Event -> Reaction`. Der finale bestätigte Testumfang beträgt **1215/1215**. Dies ist weiterhin keine Snapshot-/Replay-, Cross-Platform-, Physics-Paritäts- oder Performance-Freigabe.
 
-Für PW-S05 wurde danach ein erster zusammenhängender Zwischenstand aufgebaut und vom Nutzer mit **1239/1239** grünen Tests sowie anschließendem `gcc` bestätigt. Er umfasst Snapshot/Restore für Resource-/Entity-State samt Revisionen, die Entity-/Execution-/Hit-/Damage-ID-Allocator, `SimulationRuntimeState`, Scheduler und Runner. Scheduler-Capture wird bei aktivem Event oder offener Follow-up-Reservation abgewiesen; Runner-Restore erhält Zeit, `ProcessedEvents` und die D-04-Input-Closure. Restore erzeugt eine neue Runtime Identity. Combat pending work wird im ersten realen Fall über `DamageResolutionSnapshot` und `ApplyResolvedDamageActionSnapshot` gegen die neue Runtime rekonstruiert. Ein Integrationstest vergleicht Runtime-A-Fortsetzung mit `Snapshot -> Runtime B -> Restore` und erhält Scheduler-Key, Resource-State/Revision sowie Ledger-Ergebnis/Provenienz. [E10]
+Für PW-S05 wurde danach zunächst die Snapshot-/Restore-Grundlage auf `653c1f5` mit 1239/1239 Tests bestätigt. Darauf folgten `789763c` für die explizite Combat-Pending-Work-Snapshot-Grenze, `c6b2327` für den höheren Runtime-/Session-Fortsetzungs-Snapshot und `d8826a2` für den deterministischen Replay-Fortsetzungsbeweis. Der Nutzer bestätigte den finalen vollständigen Regressionstest und Build als grün sowie anschließend `gcc`; der finale S05-Testumfang beträgt 1248 Tests. [E10, E11]
 
-### 4.4 Aktueller PW-S05-Zwischenstand
+### 4.4 Abgenommener PW-S05-Umfang
 
-PW-S05 ist **noch nicht vollständig abgenommen**. Für den Nutzerstand mit 1239/1239 grünen Tests und anschließendem `gcc` sind folgende Teilnachweise vorhanden:
+PW-S05 ist auf `d8826a2` für den vereinbarten **in-memory Core-Snapshot-/Replay-Scope abgenommen**. Die Abnahme ist bewusst enger als ein fertiges Savegame-, Host-Fact- oder Cross-Version-System.
 
-| ID | Status im aktuellen S05-Zwischenstand | Nachweisgrenze |
+| ID | Status im S05-Endstand | Nachweisgrenze |
 |---|---|---|
-| PW-QA-17 | Teilweise erfüllt | Domain-State, Revisions, aktuelle ID-Allocator, Scheduler-/Runner-State und ein realer pending `ApplyResolvedDamageAction` werden restauriert; allgemeine Work-Item-Vielfalt, Regel-/Definitionsversionen und Host Facts sind noch nicht vollständig im Snapshot-Vertrag |
-| PW-QA-18 | Teilweise erfüllt | Der erste pending-Combat-Fortsetzungsvergleich erhält State, Revision, Scheduler-Key sowie Ledger-Ergebnis/Provenienz; ein vollständiger Replay-Lauf mit zusätzlichen aufgezeichneten Inputs/Host Facts und breiterem Trace steht noch aus |
-| PW-QA-28 | Abgenommen für die aktuelle Scheduler-Grenze | Capture wird während aktiver Event-Ausführung und bei offener Prepared-Follow-up-Reservation abgewiesen |
+| PW-QA-17 | Abgenommen für das aktuelle Core-Profil | Resource-/Entity-State und Revisionen, relevante ID-Allocator, Scheduler-/Runner-Zustand, D-04-Closure sowie pending `ApplyResolvedDamageAction` und `DamageCommittedEvent` werden beschreibbar restauriert; unbekannte Combat-Work-Items werden vom expliziten Codec abgewiesen |
+| PW-QA-18 | Abgenommen für das aktuelle Headless-/Combat-Replayprofil | Nach dem Snapshot neu eingespielte identische geordnete Inputs liefern in Runtime A und der restaurierten Runtime B denselben Runner-/Scheduler-/Trace-Verlauf, dieselben Event-Fakten und generierten IDs, denselben Resource-State/Revision sowie äquivalente neue Ledger-Einträge/Provenienz |
+| PW-QA-28 | Abgenommen für die aktuelle Scheduler-Grenze | Capture wird während aktiver Event-Ausführung und bei offener Prepared-Follow-up-Reservation abgewiesen; Prepared-Objekte und laufende Callback-Stacks werden nicht restauriert |
+| PW-QA-19 | Weiterhin offen außerhalb des aktuellen Core-Profils | Der S05-Test führt keine realen Netzwerk-, Kauf- oder sonstigen Host-Side-Effects aus; eine Replay-Side-Effect-Suppression für solche Integrationen ist daher noch nicht nachgewiesen |
+| PW-QA-27 | Weiterhin offen für echte externe Host Facts | Der Replay-Beweis verwendet geordnete Core-Inputs, aber noch keine aufgezeichneten Physics-/Collision- oder sonstigen externen autoritativen Host Facts |
 
-Zusätzlich ist belegt, dass Restore eine neue `SimulationRuntimeIdentity` verwendet und dass die Rekonstruktion bereits vorhandener pending Damage-Kontexte keine neuen Gameplay-/Hit-/Damage-IDs alloziert. Der aktuelle Core hält keine persistenten RNG-Instanzen; Streams werden deterministisch aus Seed und Kontext erzeugt. Sollte später ein Modul langlebigen RNG-State besitzen, fällt dieser in dessen Snapshot-Verantwortung.
+Zusätzlich belegt der S05-Endstand:
 
-`PW-QA-19`, vollständige Version-/Host-Fact-Kompatibilität und die Gesamtfreigabe von PW-S05 bleiben offen. Der Commit-Hash des 1239er Zwischenstands ist in dieser Dokumentpflege nicht erfasst und sollte beim nächsten Repository-Abgleich ergänzt werden.
+- Restore erzeugt eine neue `SimulationRuntimeIdentity`; alte runtime-gebundene Live-Objekte werden nicht weiterverwendet.
+- `CombatWorkItemSnapshotCodec` unterstützt im Referenzprofil `ApplyResolvedDamageAction` und `DamageCommittedEvent`; er ist keine universelle polymorphe Persistenz aller `ISimulationWorkItem`-Typen.
+- `DamageCommittedEventSnapshot` rehydriert einen bereits committed Fakt, ohne den historischen Commit erneut auszuführen.
+- `SimulationRuntimeSessionSnapshot<TPayloadSnapshot>` bündelt Runtime- und Runner-Fortsetzungszustand. Die `SimulationComposition` wird bewusst neu gegen Runtime B aufgebaut und nicht gesnapshottet.
+- Rekonstruktion bereits vorhandener pending Damage-Kontexte alloziert keine neuen Gameplay-/Hit-/Damage-IDs. Neue Inputs nach der Snapshot-Grenze erzeugen in A und B aufgrund gleicher Allocator-Fortsetzung dieselben neuen IDs.
+- Der aktuelle Core hält keine persistenten RNG-Instanzen; ein späterer langlebiger Domain-RNG müsste seinen Zustand selbst snapshotten.
+- Die Ledger-History **vor** dem Snapshot ist nicht Teil des aktuellen Snapshotprofils. Der Replay-Test vergleicht die nach der Grenze neu entstehende History und Provenienz.
+- `CompiledResourceRegistry` sowie kompatible Regeln/Definitionen werden von außen bereitgestellt; Cross-Version-Migration ist nicht zugesagt.
+
+Der technische S05-Verlauf ist: `653c1f5` → `789763c` → `c6b2327` → `d8826a2`. Der letzte Stand ist mit `origin/main` synchron und clean.
 
 ## 5. Mindestinhalt eines Test-/Release-Belegs
 
@@ -171,7 +182,7 @@ Authoring-/Replay-Versionen und Migrationsverhalten werden erst als unterstützt
 
 ## 6. Freigabe der Dokumentversion
 
-D-01 und D-02 wurden am 17. September 2026 ausdrücklich angenommen. D-04 und D-05 wurden anschließend im PW-S02-Durchgang entschieden und nachgewiesen. PW-S03 belegt Headless und Godot als Referenz-Betriebsarten über dieselbe Core-Autorität. PW-S04 belegt Combat als zweites fachliches Referenzszenario auf derselben Runtime-Grenze. D-07 bleibt dennoch offen, weil Paket-/Distributionsumfang, unterstützte Host-Versionen und spätere Adapter noch nicht als Releasevertrag entschieden sind. D-03, D-06 und D-07 bleiben offene technische Detailgates.
+D-01 und D-02 wurden am 17. September 2026 ausdrücklich angenommen. D-04 und D-05 wurden anschließend im PW-S02-Durchgang entschieden und nachgewiesen. PW-S03 belegt Headless und Godot als Referenz-Betriebsarten über dieselbe Core-Autorität. PW-S04 belegt Combat als zweites fachliches Referenzszenario. PW-S05 belegt für den vereinbarten Core-Scope Snapshot/Restore, explizite Pending-Work-Rehydrierung und deterministische Fortsetzung mit weiteren geordneten Inputs. D-07 bleibt dennoch offen, weil Paket-/Distributionsumfang, unterstützte Host-Versionen und spätere Adapter noch nicht als Releasevertrag entschieden sind. D-03, D-06 und D-07 bleiben offene technische Detailgates.
 
 **Architekturfreigabe 2.0:** erteilt am 17. September 2026.
 **D-01 Determinismus/Replay:** beschlossen.
@@ -181,11 +192,11 @@ D-01 und D-02 wurden am 17. September 2026 ausdrücklich angenommen. D-04 und D-
 **PW-S02:** abgenommen auf `b04fcbe`.
 **PW-S03:** abgenommen auf `f90517a`; Headless-Komposition und echter Godot-Smoke-Run bestätigt.
 **PW-S04:** abgenommen auf `8bd4dd0`; result-backed Combat, PreDefeat/Reaction-Trennung und Cost→Damage-Referenzablauf bestätigt.
-**PW-S05:** in Arbeit; erster Snapshot-/Restore-/Pending-Combat-Work-Zwischenstand mit 1239/1239 Tests und anschließendem `gcc` bestätigt; Commit-Hash hier noch nicht erfasst.
+**PW-S05:** abgenommen auf `d8826a2` für den vereinbarten in-memory Core-Snapshot-/Replay-Scope; vollständiger Regressionstest und Build grün, anschließend `gcc`.
 **Bestätigter S03-Testumfang:** 1210/1210; danach Godot-Adapter-Test/Build erneut grün bestätigt.
 **Bestätigter S04-Testumfang:** 1215/1215; abschließend `gcc`.
-**Bestätigter aktueller S05-Zwischenumfang:** 1239/1239; anschließend `gcc`.
+**Bestätigter S05-Endumfang:** 1248 Tests; vollständiger Regressionstest und Build grün, anschließend `gcc`.
 **Offene Detailgates:** D-03, D-06 und D-07.
 **Historischer A/B-Abschluss `d39cb54`:** bleibt unverändert dokumentiert.
 
-Eine Dokumentationsannahme ersetzt keinen Code-Nachweis; die hier genannten PW-S02-/PW-S03-/PW-S04-Status beruhen auf den vom Nutzer bestätigten Code-, Test- und Host-Läufen. Für PW-S05 ist nur der ausdrücklich beschriebene 1239er Zwischenstand bestätigt. Vollständiges Replay mit allgemeiner Pending-Work-Grenze, aufgezeichnete Host-Fact-Parität, Cross-Version-/Cross-Platform-/Physics-Äquivalenz und Performance bleiben eigene spätere Freigaben.
+Eine Dokumentationsannahme ersetzt keinen Code-Nachweis; die hier genannten PW-S02- bis PW-S05-Status beruhen auf den vom Nutzer bestätigten Code-, Test- und Host-Läufen. PW-S05 schließt den vereinbarten in-memory Core-Snapshot-/Replay-Scope, aber nicht aufgezeichnete Host-Fact-Parität, reale Side-Effect-Suppression, universelle Work-Item-Persistenz, Cross-Version-/Cross-Platform-/Physics-Äquivalenz, Savegame-Format oder Performance ab.

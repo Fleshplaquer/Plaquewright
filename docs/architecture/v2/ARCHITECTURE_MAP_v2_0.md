@@ -1,6 +1,6 @@
 # Plaquewright – Architecture Map 2.0
 
-**Stand:** 18. September 2026 · **Status:** Architektur 2.0 freigegeben; PW-S02, PW-S03 und PW-S04 abgenommen; PW-S05 in Arbeit · **Historische Audit-Baseline:** `d39cb54` · **PW-S02:** `b04fcbe` · **PW-S03:** `f90517a` · **PW-S04:** `8bd4dd0` · **PW-S05-Zwischenstand:** 1239/1239 + `gcc`, Commit-Hash hier nicht erfasst
+**Stand:** 18. September 2026 · **Status:** Architektur 2.0 freigegeben; PW-S02 bis PW-S05 abgenommen · **Historische Audit-Baseline:** `d39cb54` · **PW-S02:** `b04fcbe` · **PW-S03:** `f90517a` · **PW-S04:** `8bd4dd0` · **PW-S05:** `d8826a2` · finaler S05-Testumfang 1248 Tests + `gcc`
 Die frühere `ARCHITECTURE_MAP.md` wird in der Architekturübergabe genannt, liegt im bereitgestellten Archiv aber nicht vor. Diese Fassung ist eine neue Rekonstruktion, kein behaupteter zeilenweiser Abgleich. [E1, E3]
 
 ## 1. Zielbild
@@ -132,17 +132,18 @@ Die aktuelle `SimulationRuntimeState` ist eine vorhandene Gameplay-Komposition. 
 - Headless ist keine automatische Approximation.
 - Engine-Unabhängigkeit ist noch kein Beweis für Physics-/Plattform-Replay.
 
-## 7. Aktueller PW-S05-Abgleich
+## 7. Abgenommener PW-S05-Abgleich
 
-PW-S04 bleibt auf `8bd4dd0` mit 1215/1215 Tests vollständig abgenommen. PW-S05 ist inzwischen begonnen; der aktuelle Zwischenstand wurde mit **1239/1239** Tests und anschließendem `gcc` bestätigt. Der konkrete S05-Commit-Hash ist in dieser Dokumentpflege nicht erfasst. [E10]
+PW-S05 ist auf `d8826a2` für den vereinbarten in-memory Core-Snapshot-/Replay-Scope abgenommen. Die technische Folge lautet `653c1f5` → `789763c` → `c6b2327` → `d8826a2`. [E10, E11]
 
-Der erste Restore-Pfad ist bewusst in-memory und trennt Snapshot-Daten von Live-Objekten:
+Der Restore-Pfad trennt Snapshot-Daten von Live-Objekten und Live-Komposition:
 
 ```text
 Runtime A
   Domain State + Revisions
   ID Allocators
   Runner / Scheduler
+  pending DamageCommittedEvent
   pending ApplyResolvedDamageAction
             |
             v
@@ -154,17 +155,39 @@ Runtime B
   restaurierter Domain State
   gleiche Allocatorpositionen
   gleiche Scheduler Keys/Sequence
+  rehydrierter committed Event
   neu gebundener DamageResolutionContext
+            |
+            +--> neue Composition fuer Runtime B
             |
             v
        Fortsetzung
 ```
 
-Die Snapshot-Grenze ist quiescent: kein aktives Scheduler-Event und keine offene Prepared-Follow-up-Reservation. `ExternalInputsClosedThrough` wird mit restauriert, damit D-04 nach Restore nicht aufgeweicht wird. Pending Combat Work speichert keine alte Runtime-Referenz; IDs und bereits resolved Damage-Mengen werden beschrieben und gegen Runtime B neu gebunden.
+Die Snapshot-Grenze ist quiescent: kein aktives Scheduler-Event und keine offene Prepared-Follow-up-Reservation. `ExternalInputsClosedThrough` wird mit restauriert, damit D-04 nach Restore nicht aufgeweicht wird. Pending Combat Work speichert keine alte Runtime-Referenz.
 
-Der aktuelle Integrationstest vergleicht die direkte Fortsetzung in Runtime A mit `Snapshot -> Runtime B -> Restore` und erhält im geprüften Scope Scheduler-Key/Trace, Resource-State/Revision sowie Ledger-Ergebnis/Provenienz. Das ist ein wichtiger Replay-Baustein, aber noch keine vollständige PW-S05-Abnahme.
+`CombatWorkItemSnapshotCodec` bildet im Referenzprofil genau `ApplyResolvedDamageAction` und `DamageCommittedEvent` ab. Der Action-Snapshot erhält IDs und bereits resolved Damage-Mengen und bindet neue Kontexte gegen Runtime B. Der Event-Snapshot erhält ausschließlich die Fakten eines bereits committed Events; der alte Damage-Commit wird beim Restore nicht wiederholt. Unbekannte Work Items werden kontrolliert abgewiesen.
 
-Als nächster Abgleich wird die Pending-Work-Snapshot-Grenze über den ersten Combat-Typ hinaus generalisiert und anschließend zu einem höheren Runtime-/Session-Snapshot plus vollständigem Replay-Vergleich mit weiteren geordneten Inputs beziehungsweise Host Facts zusammengesetzt. Ein globaler Serializer-, EventStore-, Plugin-Discovery- oder Editor-Unterbau bleibt dafür nicht vorab erforderlich.
+`SimulationRuntimeSessionSnapshot<TPayloadSnapshot>` bündelt Runtime- und Runner-Fortsetzungszustand. `SimulationComposition` gehört bewusst nicht zum Snapshot: beim Restore wird eine neue Composition mit Handlern gebaut, die Runtime B referenzieren. Damit bleibt Konfiguration/Ruleset-Wissen getrennt vom autoritativen Laufzeitzustand.
 
-**Quellen:** [E1–E4, E7–E10 und W1](SOURCE_EVIDENCE_v2_0.md).
+Der abschließende Replay-Beweis geht über einen Endsaldo hinaus:
+
+```text
+Snapshot an T=100
+  -> bereits committed Damage-Event noch pending
+  -> weiteres resolved Damage pending
+  -> gleiche neue Inputs nach Snapshot in A und B
+  -> A vollstaendig fortsetzen
+  -> B vollstaendig fortsetzen
+  -> Runner/Scheduler/Trace vergleichen
+  -> Event-Fakten + IDs vergleichen
+  -> Resource-State/Revision vergleichen
+  -> neue Ledger-History/Provenienz vergleichen
+```
+
+Die Ledger-History **vor** dem Snapshot ist im aktuellen Profil nicht enthalten. Ebenso bleiben echte Host Facts, reale Side-Effect-Unterdrückung, Cross-Version-Migration, universelle Work-Item-Persistenz, Savegame-Format und Cross-Platform-/Physics-Parität außerhalb der S05-Abnahme.
+
+Der nächste Architekturstrang ist PW-S06: ein konkretes zeitabhängiges Domain-Szenario mit definierten Zeitgrenzen und abgeleiteten Queries. Ein globaler Serializer-, EventStore-, Plugin-Discovery- oder Editor-Unterbau wird dafür nicht vorab erforderlich.
+
+**Quellen:** [E1–E4, E7–E11 und W1](SOURCE_EVIDENCE_v2_0.md).
 **Verbindlichkeit:** [PW-00 und PW-20](Plaquewright_Manifest_v2_0.md).

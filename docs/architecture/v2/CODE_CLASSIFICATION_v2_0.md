@@ -1,7 +1,7 @@
 # Plaquewright – Code Classification 2.0
 
 **Datum:** 18. September 2026 · **Status:** Freigegebene v2.0-Einordnung / statische Momentaufnahme
-**Historische Audit-Baseline:** `d39cb54`; **PW-S02-Nachweis:** `b04fcbe`; **PW-S03-Nachweis:** `f90517a`; **PW-S04-Nachweis:** `8bd4dd0`; **aktueller PW-S05-Zwischenstand:** 1239/1239 + `gcc`, Commit-Hash hier nicht erfasst; **vollständig direkt untersuchte Source-Basis:** älterer Archiv-Snapshot `zip.7z` plus im S02/S03/S04/S05-Durchgang gezeigte oder gemeinsam erarbeitete betroffene Verträge, Tests und Host-Dateien
+**Historische Audit-Baseline:** `d39cb54`; **PW-S02-Nachweis:** `b04fcbe`; **PW-S03-Nachweis:** `f90517a`; **PW-S04-Nachweis:** `8bd4dd0`; **PW-S05-Nachweis:** `d8826a2`, finaler S05-Testumfang 1248 Tests + `gcc`; **vollständig direkt untersuchte Source-Basis:** älterer Archiv-Snapshot `zip.7z` plus im S02/S03/S04/S05-Durchgang gezeigte oder gemeinsam erarbeitete betroffene Verträge, Tests und Host-Dateien
 
 Die in der Architekturübergabe genannte alte `CODE_CLASSIFICATION.md` ist im bereitgestellten Archiv nicht enthalten. Diese neue Klassifikation verwendet tatsächliche Quellpfade, behauptet aber keinen vollständigen aktuellen Dependency-Audit.
 
@@ -26,7 +26,7 @@ Die in der Architekturübergabe genannte alte `CODE_CLASSIFICATION.md` ist im be
 | `PreparedScheduledFollowUp<TPayload>` | Interne Scheduler-Publikationsreservation | Reserviert Kapazität/Key/Order vor Commit; der tatsächliche Payload kann erst nach dem Commit an `Publish(...)` übergeben werden; intern halten |
 | `SimulationExecutionPlanBuilder<TWorkItem>`, `SimulationExecutionPlan<TWorkItem>` | Generischer eingefrorener Work-Item-Dispatchplan | Exaktes Typ-Routing und Build-Time-Duplikatprüfung beibehalten; kein Reflection-Router daraus machen |
 | `ISimulationModuleContract`, `SimulationModuleBuilder<TWorkItem>`, `SimulationCompositionBuilder<TWorkItem>`, `SimulationComposition<TWorkItem>` | Explizite Startup-Komposition und Contract-Validierung | Required/Provided bleibt Verfügbarkeitsvertrag; keine automatische Dependency-Sortierung, kein Service Locator |
-| `SimulationSession<TWorkItem>` | Host-neutrale Fassade über Composition, Runner und Scheduler | Headless, Godot und spätere Hosts sollen dieselbe Autorität verwenden; keine rohe Queue-API exponieren |
+| `SimulationSession<TWorkItem>` | Host-neutrale Fassade über Composition, Runner und Scheduler | Headless, Godot und spätere Hosts sollen dieselbe Autorität verwenden; keine rohe Queue-API exponieren; S05 ergänzt nur interne Capture-/Restore-Hooks für den Fortsetzungs-Snapshot |
 | `EntityRuntimeState`, `EntityRuntimeStateSet` | Bestehende Entity-/Resource-Komposition | Nicht sofort durch ECS ersetzen; Nutzung ohne Resources später konkret nachweisen |
 | `Resources/*` | Domain und ihre eigenen Mutations-/Buchungsmechanismen | Draft und Commit-Interna nicht pauschal veröffentlichen |
 | `ResourceCostTransactionParticipant` | Öffentlicher Resources-Adapter zur generischen Transaction | Bestehende Cost-Grenze nutzen; nicht als universellen Resource-Participant ausgeben |
@@ -34,6 +34,9 @@ Die in der Architekturübergabe genannte alte `CODE_CLASSIFICATION.md` ist im be
 | `DamageCommittedEvent` | Produktiver Combat-Domain-Fakt nach Resource-Commit | Trägt stabile Damage-/Execution-/Target-/Outcome-Fakten, nicht Resource-Routing- oder PreDefeat-Interna |
 | `ApplyResolvedDamageAction` | Produktive Combat-WorkItem-Grenze für bereits aufgelösten Damage | Bedeutet „resolved Damage autoritativ anwenden“; entscheidet nicht selbst, welche Resource getroffen wird |
 | `DamageResolutionQuantitiesSnapshot`, `DamageResolutionSnapshot`, `ApplyResolvedDamageActionSnapshot` | Erste Combat-spezifische Pending-Work-Snapshot-Repräsentation | Bereits resolved Mengen/IDs beschreiben und Live-Kontexte gegen neue Runtime rebind; keine alte RuntimeIdentity oder erneute ID-Allokation übernehmen |
+| `DamageCommittedEventSnapshot` | Beschreibbare Form eines bereits committed Combat-Fakts | Rehydriert Event-Fakten ohne den historischen Damage-/Resource-Commit erneut auszuführen |
+| `CombatWorkItemSnapshot`, `CombatWorkItemSnapshotCodec` | Explizite Combat-spezifische Pending-Work-Envelope/Codec-Grenze | Unterstützt im S05-Referenzprofil `ApplyResolvedDamageAction` und `DamageCommittedEvent`; unbekannte Work Items werden abgewiesen; kein Reflection-Serializer |
+| `SimulationRuntimeSessionSnapshot<TPayloadSnapshot>` | Höherer interner Fortsetzungs-Envelope über Runtime- und Runner-Snapshot | Bündelt autoritativen Runtime-/Execution-State; `SimulationComposition` wird nicht gesnapshottet und muss gegen Runtime B neu aufgebaut werden |
 | `DamageApplicationOwnerPlan`, `ResolvedDamageApplicationExecutor`, `ResolvedDamageApplicationResult` | Combat-interne Orchestrierung von Loss-Plänen, PreDefeat pro Owner und Defeat-aware Commit | Mehrere Plans/Owner bleiben möglich; kein `CombatService` und keine Kernel-Abstraktion daraus machen |
 | `Stats/ModifierMath`, `ModifierAccumulator` | Rechenbausteine der Stats-/Modifier-Domain | Kein Beleg eines bereits vollständigen Stat-Graph-/Cache-Systems |
 | `Tags/*`, `Conditions/*` | Klassifikation und Auswertung, mit bestehender Kopplung | Nur bei einer benötigten Grenze trennen, nicht aus Ordnerästhetik |
@@ -61,7 +64,7 @@ PW-S03 ergänzt auf `f90517a` den eingefrorenen Execution Plan, explizite Requir
 
 PW-S04 ist auf `8bd4dd0` abgenommen. Der Schritt führt `ISimulationWorkItem` als kleinen produktiven Work-Marker ein, macht Domain Events zu solchen Work Items und generalisiert die interne Follow-up-Reservation so, dass das Event-Payload erst nach dem echten Commit-Ergebnis erzeugt werden kann. Combat liefert nun `DamageCommittedEvent`, `ApplyResolvedDamageAction` und einen kleinen `ResolvedDamageApplicationExecutor` mit Owner-Plänen. Der lethal-Damage-Fall belegt PreDefeat vor Commit und Reaction nach Commit; der Paid-Attack-Fall belegt Cost→Event→Reaction→Damage→Commit→Event→Reaction bei getrennter Cost-/Damage-Buchung. Der finale Nutzerlauf meldet 1215/1215 Tests und `gcc`. [E9]
 
-PW-S05 ist danach bis zu einem bestätigten 1239/1239-Zwischenstand fortgeführt worden. Snapshot/Restore existiert für Resource-/Entity-State, relevante ID-Allocator, `SimulationRuntimeState`, Scheduler und Runner. Scheduler-Capture verlangt Quieszenz; Runner-Restore erhält D-04-Input-Closure. Restore bindet Runtime-spezifische Combat-Kontexte neu und übernimmt nicht die alte `SimulationRuntimeIdentity`. Der erste End-to-End-Pending-Work-Test restauriert ein `ApplyResolvedDamageAction` in eine neue Runtime und vergleicht State, Revision, Scheduler-Key/Trace sowie Ledger-Ergebnis/Provenienz. [E10]
+PW-S05 wurde danach von der Grundlage `653c1f5` bis zum Endstand `d8826a2` abgeschlossen. Snapshot/Restore existiert für Resource-/Entity-State, relevante ID-Allocator, `SimulationRuntimeState`, Scheduler und Runner. `CombatWorkItemSnapshotCodec` erweitert den ersten pending Action-Fall um `DamageCommittedEvent`; der Event wird als bereits committed Fakt rehydriert. `SimulationRuntimeSessionSnapshot<TPayloadSnapshot>` bündelt Runtime und Runner, während die Composition neu gegen Runtime B gebaut wird. Der finale Replay-Test bringt nach der Snapshot-Grenze weitere identische geordnete Inputs in beide Branches ein und vergleicht Trace/Ordering, Event-Fakten/IDs, Resource-State/Revision und neue Ledger-Provenienz. [E10, E11]
 
 ## 4. Abgenommener kleiner Ausbau, weiterhin bewusst begrenzt
 
@@ -69,7 +72,7 @@ PW-S02 belegt eine **kleine typisierte Domain-Event-/Reaction-Pipeline**, aber k
 
 Aus PW-S04 folgt ausdrücklich **nicht**, dass jeder Gameplay-Pfad `ApplyResolvedDamageAction` oder den Combat-Executor verwenden muss. Resource-Routing bleibt Ruleset-/Kompositionswissen, PreDefeat-Interventionen bleiben konkrete Combat-Regeln, und der interne Owner-Plan ist kein allgemeines Modul- oder Persistenzformat.
 
-Eine erste generische Snapshot-/Restore-Infrastruktur ist inzwischen nachgewiesen, aber bewusst nur intern/in-memory und noch nicht als fertiger Savegame-Vertrag. Der aktuelle Core benötigt keinen separaten persistenten RNG-Snapshot, weil keine langlebigen RNG-Instanzen gespeichert werden. Noch offen sind insbesondere ein allgemeiner Pending-Work-Vertrag über mehrere `ISimulationWorkItem`-Typen, ein höherer Session-/Runtime-Snapshot, vollständiges Replay mit weiteren Inputs/Host Facts sowie Serializer-/Versionierungsfragen.
+Die erste Snapshot-/Restore-/Replay-Infrastruktur ist inzwischen für den vereinbarten S05-Core-Scope nachgewiesen, bleibt aber bewusst intern/in-memory und kein fertiger Savegame-Vertrag. Der aktuelle Core benötigt keinen separaten persistenten RNG-Snapshot, weil keine langlebigen RNG-Instanzen gespeichert werden. Mehrere konkrete pending Combat-Work-Item-Typen sind über einen expliziten Codec abgedeckt; daraus folgt **kein** universeller polymorpher Vertrag für beliebige `ISimulationWorkItem`-Typen. Der höhere Runtime-/Session-Snapshot und der Replay-Fortsetzungsbeweis sind vorhanden. Offen bleiben insbesondere echte Host-Facts, reale Side-Effect-Suppression, History-Retention, Serializer-/Versionierung und Cross-Platform-/Cross-Engine-Verträge.
 
 Vor neuen Typen wird weiterhin der konkrete aktuelle Stand geprüft.
 
@@ -79,5 +82,5 @@ Vor neuen Typen wird weiterhin der konkrete aktuelle Stand geprüft.
 
 Methodennamen wie `...Preserves...` oder `...IsRejected...` geben Hinweise, beweisen aber ohne Testkörper nicht, was genau unverändert bleibt. Neue Matrixeinträge nennen deshalb Setup, Assertion und nachgewiesene Grenze.
 
-**Quellen / Snapshotgrenzen:** [Quellenregister](SOURCE_EVIDENCE_v2_0.md).
+**Quellen / Snapshotgrenzen:** [Quellenregister](SOURCE_EVIDENCE_v2_0.md), insbesondere E10 und E11.
 **Nächste Eingriffe:** [Migrationsplan](MIGRATION_PLAN_v2_0.md).

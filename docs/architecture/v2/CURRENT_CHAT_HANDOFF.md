@@ -1,14 +1,19 @@
 # Plaquewright – CURRENT CHAT HANDOFF
 
 **Stand:** 18. September 2026
+**Aktueller HEAD:** `d8826a2` – `Prove PW-S05 deterministic replay continuation`
+**Repository:** `main` synchron mit `origin/main`, Working Tree clean (`gcc`)
+**Letzter bestätigter Teststand:** 1248 Tests; vollständiger Regressionstest und Build grün
+**Status:** PW-S02, PW-S03, PW-S04 und **PW-S05 abgenommen**; nächster regulärer Strang PW-S06
+
 **Zweck:** Kurzlebige Arbeitsübergabe an den nächsten Chat. Diese Datei bei jedem Chatwechsel **ersetzen/aktualisieren**, nicht als historische Chronik aufblasen.
-**Autorität:** `docs/architecture/v2/` definiert Architektur und Abnahmegrenzen. Diese Datei beschreibt nur den aktuellsten Arbeitsstand zwischen zwei Chats. Aktueller Source-Code und tatsächlich gezeigte Test-/Git-Ausgaben schlagen veraltete Statusangaben in dieser Datei.
+**Autorität:** `docs/architecture/v2/` definiert Architektur und Abnahmegrenzen. Aktueller Source-Code und tatsächlich gezeigte Test-/Git-Ausgaben schlagen veraltete Statusangaben in dieser Datei.
 
 ## 1. Startanweisung für den nächsten Chat
 
 Arbeite am Projekt **Plaquewright** weiter. Es ist ein engine-unabhängiges, deterministisches, modulares Gameplay-/Simulations-Framework in C#/.NET 8; Godot ist erster Host/Adapter, nicht Gameplay-Autorität. Lies zuerst `README.md`, dann diesen Handoff und bei Architekturfragen die passenden v2-Dokumente.
 
-Nicht alte A/B-Findings wieder aufrollen, solange kein konkreter neuer Codebeleg dafür vorliegt. Keine große Generalisierung oder neue Serializer-/Savegame-Schicht ohne aktuellen Bedarf einführen. Änderungen in kleinen, testbaren Blöcken durchführen.
+Nicht alte A/B-Findings oder PW-S05-Grundlagen wieder aufrollen, solange kein konkreter neuer Codebeleg dafür vorliegt. Keine große Generalisierung, Serializer-/Savegame-Schicht, EventStore- oder Cache-Plattform ohne aktuellen Bedarf einführen. Änderungen in kleinen, testbaren Blöcken durchführen.
 
 Arbeitsstil mit dem Nutzer:
 - Deutsch, direkt, kompakt.
@@ -35,76 +40,92 @@ Determinismusvertrag:
 
 Keine unkontrollierte Wall-Clock-Zeit, Randomness, Render-FPS- oder ungeordnete Gameplay-Iteration. Engine-Physics bleibt extern; gameplayrelevante Resultate werden als Host Facts/Provider-Ergebnisse eingebracht.
 
-## 3. Historische stabile Nachweise
+## 3. Stabile Nachweise
 
 - A01–A07 und B01–B10: historisch abgeschlossen; Baseline `d39cb54`.
 - PW-S02: `b04fcbe` – Domain Event/Reaction, sichere Follow-up-Reservation, D-04 Input Closure, D-05 Publication/Fault, RunNext/RunToCompletion-Beweis.
 - PW-S03: `f90517a` – Execution Plan, explizite Module/Contracts, `SimulationSession`, Headless + echter Godot-Smoke. 1210/1210 im S03-Referenzstand.
-- PW-S04: `8bd4dd0` – Combat als Referenzruleset, `ApplyResolvedDamageAction`, `DamageCommittedEvent`, PreDefeat vor Commit, result-backed Damage-Commit, Paid Cost->Damage Pipeline. 1215/1215, `gcc`.
+- PW-S04: `8bd4dd0` – Combat als Referenzruleset, `ApplyResolvedDamageAction`, `DamageCommittedEvent`, PreDefeat vor Commit, result-backed Damage-Commit, Paid Cost→Damage Pipeline. 1215/1215, `gcc`.
+- PW-S05: `d8826a2` – in-memory Snapshot/Restore + expliziter Pending-Work-Codec + Runtime-/Session-Fortsetzung + deterministischer Replay-Beweis. Final 1248 Tests, vollständiger Build grün, `gcc`.
 
-## 4. Aktueller PW-S05-Stand
+## 4. PW-S05 – endgültiger technischer Stand
 
-PW-S05 = **Snapshot/Restore + deterministischer Replay-Beweis**. Noch nicht komplett abgenommen.
+Technische Folge:
 
-Aktuell bestätigt:
-- **1239/1239 Tests grün**.
-- Danach vom Nutzer **`gcc`** bestätigt.
-- Der konkrete Commit-Hash dieses 1239er S05-Zwischenstands wurde im vorherigen Chat nach dem Commit nicht mehr festgehalten. Beim nächsten sinnvollen Git-Abgleich `git log -1 --oneline` erfassen und in die Doku nachtragen; nicht raten.
+```text
+653c1f5  Add PW-S05 snapshot restore foundation and pending combat work proof
+789763c  Generalize PW-S05 pending combat work snapshots
+c6b2327  Add PW-S05 runtime session continuation snapshot
+d8826a2  Prove PW-S05 deterministic replay continuation
+```
 
-Bereits umgesetzt:
-1. `ResourceStateSnapshot`: Current/Maximum/Revision; Restore läuft unabhängig weiter. `ulong.MaxValue` als terminale Revision bleibt gültig.
-2. `ResourceStateSetSnapshot`: IDs/State/Revisions, sortierter Restore, keine Constructor-Ambiguität.
-3. `EntityRuntimeStateSnapshot` und `EntityRuntimeStateSetSnapshot`.
-4. Snapshots/Restore für `EntityIdAllocator`, `ExecutionIdAllocator`, `HitExecutionIdAllocator`, `DamageExecutionIdAllocator`, inklusive ihrer unterschiedlichen Exhaustion-Semantik.
-5. `SimulationRuntimeStateSnapshot`: RootSeed + Entities + Allocatorstände. Restore injiziert neue State-Objekte und **immer eine neue `SimulationRuntimeIdentity`**. Alte Runtime-Ownership darf nicht über Restore gültig werden.
-6. `SimulationSchedulerSnapshot<TPayloadSnapshot>` + `ScheduledEventSnapshot<TPayloadSnapshot>`: Limits, Pending Events, originale `ScheduledEventKey`s, Sequence-Fortsetzung. Restore darf Pending Work **nicht** erneut via `Schedule(...)` einfügen, sonst ändern sich Sequences.
-7. Scheduler Snapshot Boundary: Capture verboten bei `_activeEventKey != null` oder `_reservedQueueSlots != 0`. Prepared Follow-ups werden nicht serialisiert.
-8. `SimulationRunnerSnapshot<TPayloadSnapshot>`: `CurrentTime`, `ProcessedEvents`, `MaxProcessedEvents`, `_externalInputsClosedThrough` + Scheduler-Snapshot. Faulted oder terminal-budgeted Runtime im ersten Profil nicht snapshot-fähig.
-9. D-04 wird über Restore erhalten: bereits begonnenes T bleibt für neue externe Inputs geschlossen.
-10. Persistenter RNG-State ist im aktuellen Core **nicht separat nötig**: es gibt keine langlebig gespeicherten RNG-Instanzen; Streams werden deterministisch aus Seed/Kontext erzeugt. Falls spätere Domains einen persistenten RNG halten, müssen sie ihn snapshotten.
-11. `DamageResolutionQuantitiesSnapshot`, `DamageResolutionSnapshot`, `ApplyResolvedDamageActionSnapshot`: bereits resolved Damage-Mengen und stabile IDs werden beschrieben; Live-Kontexte werden gegen Runtime B neu gebunden. Keine erneute Combat-Resolution und keine erneute Execution-/Hit-/Damage-ID-Allokation.
-12. Restore eines pending Damage-WorkItems validiert, dass referenzierte Entities in Runtime B existieren.
-13. Integrationstest: pending `ApplyResolvedDamageAction` in Scheduler A -> Runtime+Runner Snapshot -> Runtime B + Runner Restore -> ausführen. Direkte Fortsetzung A und restored Fortsetzung B stimmen im geprüften Scope bei Scheduler-Key/Trace, Resource-Current/Revision und Ledger-Ergebnis/Provenienz überein.
+Abgenommen ist der vereinbarte **in-memory Core-Scope**:
 
-Wichtige Leitentscheidung:
+1. `ResourceStateSnapshot`, `ResourceStateSetSnapshot`, `EntityRuntimeStateSnapshot`, `EntityRuntimeStateSetSnapshot` erhalten autoritativen Resource-/Entity-State samt Revisionen.
+2. Entity-/Execution-/Hit-/Damage-ID-Allocator werden mit ihren jeweiligen Fortsetzungs-/Exhaustion-Semantiken restauriert.
+3. `SimulationRuntimeStateSnapshot` erhält RootSeed + Domain-State + Allocatorstände. Restore erzeugt immer eine neue `SimulationRuntimeIdentity`.
+4. `SimulationSchedulerSnapshot<TPayloadSnapshot>` / `ScheduledEventSnapshot<TPayloadSnapshot>` erhalten Limits, Pending Events, originale `ScheduledEventKey`s und Sequence-Fortsetzung. Restore schedult Pending Work nicht neu.
+5. Snapshot-Capture ist quiescent: verboten bei aktivem Scheduler-Event oder offener Prepared-Follow-up-Reservation.
+6. `SimulationRunnerSnapshot<TPayloadSnapshot>` erhält `CurrentTime`, `ProcessedEvents`, `MaxProcessedEvents`, `_externalInputsClosedThrough` und Scheduler-Snapshot. D-04 bleibt nach Restore erhalten.
+7. Faulted oder terminal-budgeted Runner gehören nicht zum ersten fortsetzbaren Snapshotprofil.
+8. Der aktuelle Core besitzt keinen langlebigen RNG-State. Falls spätere Domains persistenten RNG halten, müssen sie ihn domainseitig snapshotten.
+9. `DamageResolutionQuantitiesSnapshot`, `DamageResolutionSnapshot`, `ApplyResolvedDamageActionSnapshot` erhalten bereits resolved Damage und IDs; Restore bindet neue Live-Kontexte an Runtime B, ohne Rule-Resolution oder ID-Allokation zu wiederholen.
+10. `DamageCommittedEventSnapshot` beschreibt einen bereits committed Fakt. Restore wiederholt den historischen Damage-/Resource-Commit nicht.
+11. `CombatWorkItemSnapshot` + `CombatWorkItemSnapshotCodec` unterstützen im Referenzprofil `ApplyResolvedDamageAction` und `DamageCommittedEvent`. Unbekannte Work Items werden abgewiesen. Kein Reflection-Service-Locator, kein universeller Serializer.
+12. `SimulationRuntimeSessionSnapshot<TPayloadSnapshot>` bündelt Runtime- und Runner-Snapshot. Die `SimulationComposition` wird **nicht** gesnapshottet.
+13. `SimulationSession<TWorkItem>.Restore(...)` erhält einen restaurierten Runner und eine **neu gegen Runtime B gebaute Composition**. Alte Handler-Closures dürfen nicht weiterverwendet werden.
+14. Der finale Replay-Test pausiert nach einem Damage-Commit mit pending `DamageCommittedEvent` und weiterem pending Damage, nimmt einen Snapshot und bringt danach in A und B identische weitere geordnete Inputs ein.
+15. Der A/B-Vergleich prüft Runner-Ergebnis, Scheduler-/Trace-Reihenfolge, Event-Fakten inklusive Gameplay-/Damage-/Hit-IDs, Resource-Current/Revision sowie die nach dem Snapshot neu entstehenden Ledger-Einträge/Provenienz.
+16. Runtime A wird vor Runtime B vollständig beendet; stale Runtime-/Handler-Bindungen werden dadurch sichtbar.
+17. Die Ledger-History **vor** der Snapshot-Grenze ist im aktuellen Profil nicht enthalten. Für den Replay-Nachweis wird die neue History ab der Grenze verglichen.
+18. `CompiledResourceRegistry` und kompatible Regeln/Definitionen werden von außen an Restore gegeben. Kein Cross-Version-Migrationsvertrag.
+
+Leitentscheidung:
 
 > Snapshot != Object Graph Clone. Snapshot = describable authoritative state from which a new runtime can be reconstructed.
 
-`CompiledResourceRegistry` wird im ersten in-memory Proof als kompatible immutable Definition von außen an Restore übergeben. Noch kein Ruleset-/Definition-Migrationsvertrag.
+## 5. Bewusst weiterhin offen
 
-## 5. Unmittelbar nächster Arbeitsschritt
-
-Nicht wieder S05-Grundlagen bauen. Als Nächstes:
-
-1. Pending-Work-Snapshot über den einzelnen `ApplyResolvedDamageActionSnapshot`-Fall hinaus generalisieren.
-2. Dafür eine kleine explizite Codec/Envelope-Grenze für mehrere `ISimulationWorkItem`-Typen entwerfen; **kein** Reflection-Service-Locator und noch kein JSON-Serializer.
-3. Darauf einen höheren Runtime-/Session-Snapshot setzen, der `SimulationRuntimeStateSnapshot` und `SimulationRunnerSnapshot<...>` kohärent zusammenführt.
-4. Danach einen echten Replay-Beweis: Snapshot -> weitere geordnete Inputs/ggf. Host Facts -> Runtime A vs. restaurierte Runtime B -> State + relevante History/Trace vergleichen.
-5. Erst wenn dieser Scope grün ist, PW-S05-Doku/Freigabe endgültig abschließen.
-
-Vor Produktionscode zunächst die aktuellen Work-Item-Typen/Execution-Plan-Grenzen prüfen, damit die Codec-Abstraktion nicht vorschnell zu breit wird.
-
-## 6. Dinge, die ausdrücklich nicht vorschnell gebaut werden
-
-- kein JSON-/Binary-Saveformat als erster Schritt
+- kein JSON-/Binary-Saveformat
 - kein universeller Event Store
 - kein Object-Graph-Serializer
+- keine universelle polymorphe Persistenz aller `ISimulationWorkItem`-Typen
+- keine Cross-Version-/Ruleset-Migration
+- keine vollständige Replay-History-/Ledger-Retention vor dem Snapshot
+- noch kein Replay echter Physics-/Collision-/anderer Host Facts
+- noch kein Nachweis der Unterdrückung realer Netzwerk-/Kauf-/Host-Side-Effects im Replay
+- keine Cross-Platform-/Cross-Engine-Bitgleichheitsfreigabe
+- kein 30-Sekunden-Analyse-Scrubber
+- kein Performance-/Retention-Profil
 - kein globaler `CombatService`
 - kein Service Locator / Reflection-Discovery
-- kein Cross-Version-Versprechen ohne Versionierungsnachweis
-- keine Wiederverwendung alter `RuntimeIdentity` oder runtime-gebundener Objektinstanzen nach Restore
-- Combat-Abstraktionen nicht in den Kernel verschieben, solange kein zweiter unabhängiger Domain-Fall denselben Vertrag beweist
 
-## 7. Dokument-/Git-Pflege bei nächstem Chatwechsel
+PW-QA-17, PW-QA-18 und PW-QA-28 sind für den aktuellen S05-Core-Scope abgenommen. PW-QA-19 und PW-QA-27 bleiben für reale Side-Effects beziehungsweise echte externe Host Facts offen.
 
-Diese Datei soll beim nächsten Chatwechsel wieder **überschrieben** werden. Mindestinhalt:
+## 6. Unmittelbar nächster Arbeitsschritt – PW-S06
 
-- aktueller HEAD-Hash und `git status`-Zustand
+PW-S06 = **zeitabhängige Domain und abgeleitete Queries**.
+
+Nicht sofort ein generisches Status-/Timer-/Cache-System bauen. Zuerst aktuellen Source-Bestand zu Stats/Modifiers/Conditions sowie Scheduler-Zeitverträgen prüfen und dann **ein** kleines Referenzszenario auswählen, das folgende Grenzen real benötigt:
+
+1. Domain-eigener zeitabhängiger autoritativer Zustand.
+2. Explizite Ablauf-/Tick-/Zeitgrenze über `SimulationTime`/Scheduler.
+3. Typisierte read-only Query beziehungsweise abgeleiteter Wert.
+4. Korrekte Invalidierung bei State- und Zeitänderung.
+5. Same-Timestamp-/Ablaufordnung ohne Full-World-Scan oder rückwirkende Observer-Reparatur.
+6. Referenzvergleich zwischen direkter Berechnung und gegebenenfalls gecachter Sicht.
+
+Vor Produktionscode die vorhandenen Stats-/Modifier-/Condition-Typen und ihre Tests lesen. Keine neue allgemeine Abstraktion einführen, bevor der konkrete Fall sie erzwingt.
+
+## 7. Dokument-/Git-Pflege beim nächsten Chatwechsel
+
+Diese Datei wieder **überschreiben**. Mindestinhalt:
+
+- aktueller HEAD und `git status`
 - letzte bestätigte Testzahl
-- welcher PW-Schritt vollständig abgenommen / in Arbeit ist
-- seit letzter v2-Doku neu entschiedene Architekturdetails
-- aktuell implementierte Dateien/Verträge, die der nächste Chat kennen muss
-- offener nächster kleiner Block
-- bekannte Stolperfallen / bewusst nicht gebaute Dinge
+- letzter vollständig abgenommener PW-Schritt
+- aktuell laufender kleiner Block
+- neu eingeführte Verträge/Dateien
+- bekannte Scope-Grenzen/Stolperfallen
 
-Wenn der laufende Schritt abgeschlossen wurde, zusätzlich die stabilen v2-Dokumente aktualisieren. Der Handoff ersetzt diese Dokumente nicht.
+Die stabilen v2-Dokumente wurden nach PW-S05 auf den Endstand `d8826a2` aktualisiert. Dieser Handoff ersetzt sie nicht.
