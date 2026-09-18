@@ -99,6 +99,7 @@ public sealed class DomainReactionDispatcherTests
     }
 
     private abstract class TestWorkItem
+    : ISimulationWorkItem
     {
     }
 

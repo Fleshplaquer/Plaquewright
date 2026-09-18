@@ -1062,6 +1062,7 @@ public sealed class CrossModuleTransactionTests
     }
 
     private abstract class TestWorkItem
+    : ISimulationWorkItem
     {
     }
 

@@ -184,6 +184,7 @@ public sealed class SimulationCompositionTests
     }
 
     private abstract class TestWorkItem
+    : ISimulationWorkItem
     {
     }
 

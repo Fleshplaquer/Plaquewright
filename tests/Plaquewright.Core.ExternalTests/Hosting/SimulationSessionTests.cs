@@ -434,6 +434,7 @@ public sealed class SimulationSessionTests
     }
 
     private abstract class TestWorkItem
+    : ISimulationWorkItem
     {
     }
 

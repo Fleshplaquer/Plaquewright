@@ -146,6 +146,7 @@ public sealed class SimulationExecutionPlanTests
     }
 
     private abstract class TestWorkItem
+    : ISimulationWorkItem
     {
     }
 

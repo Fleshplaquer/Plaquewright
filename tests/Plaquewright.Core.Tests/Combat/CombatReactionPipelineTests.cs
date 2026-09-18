@@ -6,6 +6,7 @@ using Plaquewright.Core.Hosting;
 using Plaquewright.Core.Resources;
 using Plaquewright.Core.Simulation;
 
+
 namespace Plaquewright.Core.Tests.Combat;
 
 public sealed class CombatReactionPipelineTests
@@ -48,14 +49,14 @@ public sealed class CombatReactionPipelineTests
                 2UL);
 
         var reactionDispatcher =
-            new DomainReactionDispatcher<
-                DamageCommittedEvent,
-                CombatWorkItem>(
-                new ObserveCommittedDamageReaction());
+    new DomainReactionDispatcher<
+        DamageCommittedEvent,
+        ISimulationWorkItem>(
+        new ObserveCommittedDamageReaction());
 
         var builder =
-            new SimulationCompositionBuilder<
-                CombatWorkItem>();
+    new SimulationCompositionBuilder<
+        ISimulationWorkItem>();
 
         builder.AddModule(
             "CombatReference",
@@ -212,12 +213,9 @@ public sealed class CombatReactionPipelineTests
                         // authoritative commit result.
                         //
                         preparedEvent.Publish(
-                            new DamageCommittedEvent(
-                                resolution.DamageExecutionId,
-                                resolution.GameplayExecutionId,
-                                resolution.TargetEntityId,
-                                setup.LifeId,
-                                commitResult.Outcome));
+    new DamageCommittedEvent(
+        resolution,
+        commitResult));
                     });
 
                 module.Handle<DamageCommittedEvent>(
@@ -259,8 +257,29 @@ public sealed class CombatReactionPipelineTests
                             domainEvent.TargetEntityId);
 
                         Assert.Equal(
-                            setup.LifeId,
-                            domainEvent.ResourceId);
+                            new EntityId(1UL),
+                            domainEvent.SourceEntityId);
+
+                        Assert.Null(
+                            domainEvent.RelatedHitExecutionId);
+
+                        Assert.False(
+                            domainEvent.IsHitBased);
+
+                        Assert.Equal(
+                            new SimulationTime(100L),
+                            domainEvent.StartedAt);
+
+                        Assert.Equal(
+                            DefeatAwareResourceTransactionCommitOutcome
+                                .DefeatPrevented,
+                            domainEvent.Outcome);
+
+                        Assert.True(
+                            domainEvent.DefeatWasPrevented);
+
+                        Assert.False(
+                            domainEvent.DefeatWasAccepted);
 
                         Assert.Equal(
                             DefeatAwareResourceTransactionCommitOutcome
@@ -270,8 +289,8 @@ public sealed class CombatReactionPipelineTests
                         reactionDispatcher.Dispatch(
                             domainEvent,
                             new DomainReactionContext<
-                                CombatWorkItem>(
-                                context));
+    ISimulationWorkItem>(
+    context));
                     });
 
                 module.Handle<ObserveCommittedDamageAction>(
@@ -293,7 +312,7 @@ public sealed class CombatReactionPipelineTests
             });
 
         var session =
-            new SimulationSession<CombatWorkItem>(
+            new SimulationSession<ISimulationWorkItem>(
                 builder.Build(),
                 new SimulationSchedulerLimits(
                     maxQueueSize: 100,
@@ -370,6 +389,98 @@ public sealed class CombatReactionPipelineTests
                 ResourceOperationCause.Recovery,
                 interventionExecutionId),
             recoveryEntry.Provenance);
+    }
+    [Fact]
+    public void DamageCommittedEvent_WhenResolutionAndCommitTargetDiffer_IsRejected()
+    {
+        var setup =
+            CreateSetup();
+
+        var ledger =
+            new ResourceOperationLedger();
+
+        var committedResolution =
+            CreateDamageResolution(
+                setup.Entity.Id,
+                damageTakenAmount: 100d,
+                SimulationTime.Zero,
+                new DamageExecutionId(10UL),
+                new ExecutionId(10UL));
+
+        var damageTarget =
+            new DamageResourceTargetContext(
+                committedResolution,
+                setup.LifeTarget);
+
+        var lossPlan =
+            new DamageResourceLossPlan(
+                damageTarget,
+                requestedResourceLoss: 100d);
+
+        var draft =
+            new ResourceTransactionDraft(
+                setup.Registry);
+
+        DamageResourceTransactionStager.Stage(
+            draft,
+            lossPlan);
+
+        var preDefeatContext =
+            PreDefeatInterventionContextFactory
+                .TryCreate(
+                    draft,
+                    setup.Entity,
+                    DefeatRelevantResourcePolicy.AnyDepleted,
+                    new ExecutionId(11UL));
+
+        Assert.NotNull(
+            preDefeatContext);
+
+        var intervention =
+            PreDefeatRecoveryIntervention.Apply(
+                preDefeatContext,
+                setup.LifeId,
+                recoveryAmount: 25d);
+
+        Assert.True(
+            intervention.WasDefeatResolved);
+
+        var phaseResult =
+            PreDefeatInterventionPhaseFinalizer
+                .Finalize(
+                    preDefeatContext);
+
+        var commitResult =
+            DefeatAwareResourceTransactionCommitter
+                .Commit(
+                    draft,
+                    ledger,
+                    setup.Entity,
+                    DefeatRelevantResourcePolicy.AnyDepleted,
+                    phaseResult);
+
+        Assert.Equal(
+            DefeatAwareResourceTransactionCommitOutcome
+                .DefeatPrevented,
+            commitResult.Outcome);
+
+        //
+        // Same committed result, but a resolution that claims
+        // a different target entity.
+        //
+        var mismatchedResolution =
+            CreateDamageResolution(
+                new EntityId(999UL),
+                damageTakenAmount: 100d,
+                SimulationTime.Zero,
+                new DamageExecutionId(12UL),
+                new ExecutionId(12UL));
+
+        Assert.Throws<InvalidOperationException>(
+            () =>
+                new DamageCommittedEvent(
+                    mismatchedResolution,
+                    commitResult));
     }
 
     private static DamageResolutionContext
@@ -453,65 +564,25 @@ public sealed class CombatReactionPipelineTests
         EntityRuntimeState Entity,
         ResourceStateTarget LifeTarget);
 
-    private abstract class CombatWorkItem
-    {
-    }
-
     private sealed class ResolveLethalDamageAction
-        : CombatWorkItem
+        : ISimulationWorkItem
     {
-    }
-
-    private sealed class DamageCommittedEvent
-        : CombatWorkItem,
-          IDomainEvent
-    {
-        public DamageExecutionId DamageExecutionId { get; }
-
-        public ExecutionId GameplayExecutionId { get; }
-
-        public EntityId TargetEntityId { get; }
-
-        public ResourceId ResourceId { get; }
-        public DefeatAwareResourceTransactionCommitOutcome Outcome { get; }
-
-        public DamageCommittedEvent(
-    DamageExecutionId damageExecutionId,
-    ExecutionId gameplayExecutionId,
-    EntityId targetEntityId,
-    ResourceId resourceId,
-    DefeatAwareResourceTransactionCommitOutcome outcome)
-        {
-            DamageExecutionId =
-                damageExecutionId;
-
-            GameplayExecutionId =
-                gameplayExecutionId;
-
-            TargetEntityId =
-                targetEntityId;
-
-            ResourceId =
-                resourceId;
-
-            Outcome =
-                outcome;
-        }
     }
 
     private sealed class ObserveCommittedDamageAction
-        : CombatWorkItem
+        : ISimulationWorkItem
     {
     }
 
+
     private sealed class ObserveCommittedDamageReaction
-        : IDomainReaction<
-            DamageCommittedEvent,
-            CombatWorkItem>
+    : IDomainReaction<
+        DamageCommittedEvent,
+        ISimulationWorkItem>
     {
         public void React(
-            DamageCommittedEvent domainEvent,
-            DomainReactionContext<CombatWorkItem> context)
+    DamageCommittedEvent domainEvent,
+    DomainReactionContext<ISimulationWorkItem> context)
         {
             ArgumentNullException.ThrowIfNull(
                 domainEvent);

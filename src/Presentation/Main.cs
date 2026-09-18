@@ -66,6 +66,7 @@ public partial class Main : Node
     }
 
     private abstract class HostWorkItem
+    : ISimulationWorkItem
     {
     }
 
