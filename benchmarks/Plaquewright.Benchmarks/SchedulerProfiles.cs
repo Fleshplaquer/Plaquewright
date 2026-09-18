@@ -7,11 +7,49 @@ namespace Plaquewright.Benchmarks;
 internal sealed class SchedulerBurstProfile
     : ILoadProfile
 {
-    private const int EventCount =
+    private const int DefaultEventCount =
         10_000;
 
+    private readonly int _eventCount;
+
+    private readonly string _name;
+
+    public SchedulerBurstProfile()
+        : this(
+            DefaultEventCount,
+            "SchedulerBurst")
+    {
+    }
+
+    internal SchedulerBurstProfile(
+        int eventCount)
+        : this(
+            eventCount,
+            $"SchedulerBurst[{eventCount}]")
+    {
+    }
+
+    private SchedulerBurstProfile(
+        int eventCount,
+        string name)
+    {
+        if (eventCount <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(eventCount),
+                eventCount,
+                "Scheduler burst event count must be greater than zero.");
+        }
+
+        _eventCount =
+            eventCount;
+
+        _name =
+            name;
+    }
+
     public string Name =>
-        "SchedulerBurst";
+        _name;
 
     public ProfileRunResult Run()
     {
@@ -45,19 +83,19 @@ internal sealed class SchedulerBurstProfile
                 builder.Build(),
                 new SimulationSchedulerLimits(
                     maxQueueSize:
-                        EventCount,
+                        _eventCount,
                     maxSameTimestampWave:
                         0u),
                 new SimulationRunnerLimits(
                     maxProcessedEvents:
-                        EventCount));
+                        (ulong)_eventCount));
 
         var time =
             new SimulationTime(
                 100L);
 
         for (var index = 0;
-             index < EventCount;
+             index < _eventCount;
              index++)
         {
             session.ScheduleExternalInput(
@@ -70,18 +108,18 @@ internal sealed class SchedulerBurstProfile
             SessionRunProbe.RunToCompletion(
                 session,
                 initialPendingEvents:
-                    EventCount,
+                    _eventCount,
                 out var peakPendingEvents);
 
         if (nextExpectedIndex !=
-            EventCount)
+            _eventCount)
         {
             throw new InvalidOperationException(
                 "Scheduler burst did not execute every input.");
         }
 
         if (result.ProcessedEvents !=
-            (ulong)EventCount)
+            (ulong)_eventCount)
         {
             throw new InvalidOperationException(
                 "Scheduler burst processed-event count changed.");
@@ -89,7 +127,7 @@ internal sealed class SchedulerBurstProfile
 
         return new ProfileRunResult(
             LogicalOperations:
-                EventCount,
+                _eventCount,
             PeakPendingEvents:
                 peakPendingEvents,
             LedgerEntries:

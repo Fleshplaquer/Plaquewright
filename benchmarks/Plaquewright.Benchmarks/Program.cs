@@ -15,18 +15,18 @@ internal static class Program
     private const int MeasuredIterations =
         30;
 
-    public static int Main()
+    public static int Main(
+    string[] args)
     {
-        ILoadProfile[] profiles =
-        [
-            new SchedulerBurstProfile(),
-            new SameTimestampChainProfile(),
-            new TimedModifierRefreshProfile(),
-            new LedgerLongRunProfile()
-        ];
+        var suite =
+            CreateSuite(
+                args);
+
+        var profiles =
+            suite.Profiles;
 
         Console.WriteLine(
-            "Plaquewright PW-S07 baseline");
+            $"Plaquewright PW-S07 {suite.DisplayName}");
 
         Console.WriteLine(
             $"Warmup: {WarmupIterations}, measured: {MeasuredIterations}");
@@ -35,7 +35,7 @@ internal static class Program
 
         var results =
             new List<ProfileBenchmarkResult>(
-                profiles.Length);
+                profiles.Count);
 
         foreach (var profile in profiles)
         {
@@ -81,13 +81,14 @@ internal static class Program
         var document =
             new BenchmarkDocument(
                 DateTimeOffset.UtcNow,
+                suite.Key,
                 CreateEnvironment(),
                 results);
 
         var outputPath =
             Path.Combine(
                 Path.GetTempPath(),
-                $"Plaquewright_PW-S07_Baseline_" +
+                $"Plaquewright_PW-S07_{suite.FileToken}_" +
                 $"{DateTime.UtcNow:yyyyMMdd_HHmmss}.json");
 
         File.WriteAllText(
@@ -107,6 +108,67 @@ internal static class Program
             outputPath);
 
         return 0;
+    }
+
+    private static BenchmarkSuite CreateSuite(
+    IReadOnlyList<string> args)
+    {
+        if (args.Count == 0)
+        {
+            return new BenchmarkSuite(
+                Key:
+                    "baseline",
+                DisplayName:
+                    "baseline",
+                FileToken:
+                    "Baseline",
+                Profiles:
+                [
+                    new SchedulerBurstProfile(),
+                new SameTimestampChainProfile(),
+                new TimedModifierRefreshProfile(),
+                new LedgerLongRunProfile()
+                ]);
+        }
+
+        if (args.Count == 1 &&
+            string.Equals(
+                args[0],
+                "--retention-scaling",
+                StringComparison.Ordinal))
+        {
+            return new BenchmarkSuite(
+                Key:
+                    "retention-scaling",
+                DisplayName:
+                    "retention scaling",
+                FileToken:
+                    "RetentionScaling",
+                Profiles:
+                [
+                    new SchedulerBurstProfile(
+                    1_000),
+                new SchedulerBurstProfile(
+                    10_000),
+                new SchedulerBurstProfile(
+                    50_000),
+                new SchedulerBurstProfile(
+                    100_000),
+
+                new LedgerLongRunProfile(
+                    1_000),
+                new LedgerLongRunProfile(
+                    10_000),
+                new LedgerLongRunProfile(
+                    50_000),
+                new LedgerLongRunProfile(
+                    100_000)
+                ]);
+        }
+
+        throw new ArgumentException(
+            "Supported benchmark modes are: no argument, or --retention-scaling.",
+            nameof(args));
     }
 
     private static void WarmUp(
@@ -316,6 +378,12 @@ internal static class Program
     }
 }
 
+internal sealed record BenchmarkSuite(
+    string Key,
+    string DisplayName,
+    string FileToken,
+    IReadOnlyList<ILoadProfile> Profiles);
+
 internal interface ILoadProfile
 {
     string Name { get; }
@@ -498,6 +566,7 @@ internal sealed record BenchmarkEnvironment(
 
 internal sealed record BenchmarkDocument(
     DateTimeOffset TimestampUtc,
+    string Suite,
     BenchmarkEnvironment Environment,
     IReadOnlyList<ProfileBenchmarkResult> Profiles);
 

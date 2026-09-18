@@ -7,11 +7,49 @@ namespace Plaquewright.Benchmarks;
 internal sealed class LedgerLongRunProfile
     : ILoadProfile
 {
-    private const int CommitCount =
+    private const int DefaultCommitCount =
         50_000;
 
+    private readonly int _commitCount;
+
+    private readonly string _name;
+
+    public LedgerLongRunProfile()
+        : this(
+            DefaultCommitCount,
+            "LedgerLongRun")
+    {
+    }
+
+    internal LedgerLongRunProfile(
+        int commitCount)
+        : this(
+            commitCount,
+            $"LedgerLongRun[{commitCount}]")
+    {
+    }
+
+    private LedgerLongRunProfile(
+        int commitCount,
+        string name)
+    {
+        if (commitCount <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(commitCount),
+                commitCount,
+                "Ledger commit count must be greater than zero.");
+        }
+
+        _commitCount =
+            commitCount;
+
+        _name =
+            name;
+    }
+
     public string Name =>
-        "LedgerLongRun";
+        _name;
 
     public ProfileRunResult Run()
     {
@@ -19,7 +57,7 @@ internal sealed class LedgerLongRunProfile
             1d;
 
         var initialAmount =
-            CommitCount *
+            _commitCount *
             amountPerCommit *
             2d;
 
@@ -67,7 +105,7 @@ internal sealed class LedgerLongRunProfile
                     ResourceOperationCause.Direct));
 
         for (var index = 0;
-             index < CommitCount;
+             index < _commitCount;
              index++)
         {
             var participant =
@@ -86,7 +124,7 @@ internal sealed class LedgerLongRunProfile
 
         var expectedCurrent =
             initialAmount -
-            CommitCount *
+            _commitCount *
             amountPerCommit;
 
         if (target.State.Current !=
@@ -97,14 +135,14 @@ internal sealed class LedgerLongRunProfile
         }
 
         if (target.State.Revision !=
-            (ulong)CommitCount)
+            (ulong)_commitCount)
         {
             throw new InvalidOperationException(
                 "Resource revision count changed.");
         }
 
         if (ledger.Count !=
-            CommitCount)
+            _commitCount)
         {
             throw new InvalidOperationException(
                 "Ledger entry count changed.");
@@ -112,7 +150,7 @@ internal sealed class LedgerLongRunProfile
 
         return new ProfileRunResult(
             LogicalOperations:
-                CommitCount,
+                _commitCount,
             PeakPendingEvents:
                 0,
             LedgerEntries:
