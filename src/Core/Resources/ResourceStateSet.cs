@@ -74,6 +74,88 @@ public sealed class ResourceStateSet
             copiedStates.AsReadOnly();
     }
 
+    private ResourceStateSet(
+    CompiledResourceRegistry registry,
+    ResourceState?[] statesByIndex,
+    ReadOnlyCollection<ResourceState> states)
+    {
+        ArgumentNullException.ThrowIfNull(
+            registry);
+
+        ArgumentNullException.ThrowIfNull(
+            statesByIndex);
+
+        ArgumentNullException.ThrowIfNull(
+            states);
+
+        ResourceRegistry =
+            registry;
+
+        _statesByIndex =
+            statesByIndex;
+
+        _states =
+            states;
+    }
+
+    internal static ResourceStateSet Restore(
+        CompiledResourceRegistry registry,
+        IReadOnlyList<ResourceStateSnapshot> snapshots)
+    {
+        ArgumentNullException.ThrowIfNull(
+            registry);
+
+        ArgumentNullException.ThrowIfNull(
+            snapshots);
+
+        var statesByIndex =
+            new ResourceState?[registry.Count];
+
+        var restoredStates =
+            new List<ResourceState>(
+                snapshots.Count);
+
+        for (var index = 0;
+             index < snapshots.Count;
+             index++)
+        {
+            var snapshot =
+                snapshots[index];
+
+            ValidateKnownId(
+                registry,
+                snapshot.Id);
+
+            var stateIndex =
+                snapshot.Id.Value - 1;
+
+            if (statesByIndex[stateIndex] is not null)
+            {
+                throw new InvalidOperationException(
+                    $"Duplicate resource state for ID '{snapshot.Id}'.");
+            }
+
+            var restoredState =
+                snapshot.Restore();
+
+            statesByIndex[stateIndex] =
+                restoredState;
+
+            restoredStates.Add(
+                restoredState);
+        }
+
+        restoredStates.Sort(
+            static (left, right) =>
+                left.Id.CompareTo(
+                    right.Id));
+
+        return new ResourceStateSet(
+            registry,
+            statesByIndex,
+            restoredStates.AsReadOnly());
+    }
+
     public bool Contains(
         ResourceId id)
     {

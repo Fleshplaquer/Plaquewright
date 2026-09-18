@@ -60,6 +60,75 @@ public sealed class SimulationRunner<TPayload>
             SchedulerPhase.Execution,
             payload);
     }
+
+    internal SimulationRunnerSnapshot<TPayloadSnapshot>
+    CaptureSnapshot<TPayloadSnapshot>(
+        Func<TPayload, TPayloadSnapshot>
+            capturePayload)
+    {
+        ArgumentNullException.ThrowIfNull(
+            capturePayload);
+
+        if (_isFaulted)
+        {
+            throw new InvalidOperationException(
+                "A faulted simulation runner cannot be snapshotted for continuation.");
+        }
+
+        if (_terminalBudgetKind is not null)
+        {
+            throw new InvalidOperationException(
+                "A simulation runner that reached a terminal budget cannot be snapshotted for continuation.");
+        }
+
+        var schedulerSnapshot =
+            _scheduler.CaptureSnapshot(
+                capturePayload);
+
+        return new SimulationRunnerSnapshot<
+            TPayloadSnapshot>(
+            _limits.MaxProcessedEvents,
+            CurrentTime,
+            ProcessedEvents,
+            _externalInputsClosedThrough,
+            schedulerSnapshot);
+    }
+
+    internal static SimulationRunner<TPayload>
+        Restore<TPayloadSnapshot>(
+            SimulationRunnerSnapshot<TPayloadSnapshot>
+                snapshot,
+            Func<TPayloadSnapshot, TPayload>
+                restorePayload)
+    {
+        ArgumentNullException.ThrowIfNull(
+            snapshot);
+
+        ArgumentNullException.ThrowIfNull(
+            restorePayload);
+
+        var scheduler =
+            SimulationScheduler<TPayload>.Restore(
+                snapshot.Scheduler,
+                restorePayload);
+
+        var runner =
+            new SimulationRunner<TPayload>(
+                scheduler,
+                new SimulationRunnerLimits(
+                    snapshot.MaxProcessedEvents));
+
+        runner.CurrentTime =
+            snapshot.CurrentTime;
+
+        runner.ProcessedEvents =
+            snapshot.ProcessedEvents;
+
+        runner._externalInputsClosedThrough =
+            snapshot.ExternalInputsClosedThrough;
+
+        return runner;
+    }
     public SimulationRunResult RunNext(
         Action<SimulationEventContext<TPayload>> execute)
     {

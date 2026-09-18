@@ -154,6 +154,106 @@ public sealed class SimulationScheduler<TPayload>
             key);
     }
 
+    internal SimulationSchedulerSnapshot<TPayloadSnapshot>
+    CaptureSnapshot<TPayloadSnapshot>(
+        Func<TPayload, TPayloadSnapshot>
+            capturePayload)
+    {
+        ArgumentNullException.ThrowIfNull(
+            capturePayload);
+
+        EnsureSnapshotBoundary();
+
+        var pendingEvents =
+            _queue.UnorderedItems
+                .Select(
+                    item => item.Element)
+                .OrderBy(
+                    scheduledEvent =>
+                        scheduledEvent.Key)
+                .Select(
+                    scheduledEvent =>
+                        new ScheduledEventSnapshot<
+                            TPayloadSnapshot>(
+                            scheduledEvent.Key,
+                            capturePayload(
+                                scheduledEvent.Payload)))
+                .ToArray();
+
+        return new SimulationSchedulerSnapshot<
+            TPayloadSnapshot>(
+            _limits.MaxQueueSize,
+            _limits.MaxSameTimestampWave,
+            _nextSequence,
+            pendingEvents);
+    }
+
+    internal static SimulationScheduler<TPayload>
+        Restore<TPayloadSnapshot>(
+            SimulationSchedulerSnapshot<TPayloadSnapshot>
+                snapshot,
+            Func<TPayloadSnapshot, TPayload>
+                restorePayload)
+    {
+        ArgumentNullException.ThrowIfNull(
+            snapshot);
+
+        ArgumentNullException.ThrowIfNull(
+            restorePayload);
+
+        var scheduler =
+            new SimulationScheduler<TPayload>(
+                new SimulationSchedulerLimits(
+                    snapshot.MaxQueueSize,
+                    snapshot.MaxSameTimestampWave));
+
+        scheduler._nextSequence =
+            snapshot.NextSequenceValue;
+
+        for (var index = 0;
+             index < snapshot.PendingEvents.Count;
+             index++)
+        {
+            var pending =
+                snapshot.PendingEvents[index];
+
+            var payload =
+                restorePayload(
+                    pending.Payload);
+
+            var scheduledEvent =
+                new ScheduledEvent<TPayload>(
+                    pending.Key,
+                    payload);
+
+            //
+            // Restore keeps the original authoritative
+            // ordering key. Do not call Schedule/Enqueue,
+            // because those allocate a new sequence.
+            //
+            scheduler._queue.Enqueue(
+                scheduledEvent,
+                pending.Key);
+        }
+
+        return scheduler;
+    }
+
+    private void EnsureSnapshotBoundary()
+    {
+        if (_activeEventKey is not null)
+        {
+            throw new InvalidOperationException(
+                "Scheduler snapshot cannot be captured while an event is being executed.");
+        }
+
+        if (_reservedQueueSlots != 0)
+        {
+            throw new InvalidOperationException(
+                "Scheduler snapshot cannot be captured while prepared follow-up reservations are outstanding.");
+        }
+    }
+
     internal ScheduledEventKey PublishPreparedFollowUp(
     ScheduledEventKey parent,
     ScheduledEventKey key,

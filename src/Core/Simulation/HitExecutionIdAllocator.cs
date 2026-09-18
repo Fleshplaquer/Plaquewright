@@ -27,6 +27,26 @@ internal sealed class HitExecutionIdAllocator
             startValue;
     }
 
+    private HitExecutionIdAllocator(
+    HitExecutionIdAllocatorSnapshot snapshot)
+    {
+        _nextValue =
+            snapshot.NextValue;
+    }
+
+    internal HitExecutionIdAllocatorSnapshot CaptureSnapshot()
+    {
+        return new HitExecutionIdAllocatorSnapshot(
+            _nextValue);
+    }
+
+    internal static HitExecutionIdAllocator Restore(
+        HitExecutionIdAllocatorSnapshot snapshot)
+    {
+        return new HitExecutionIdAllocator(
+            snapshot);
+    }
+
     public HitExecutionId Allocate()
     {
         if (_nextValue == 0UL)

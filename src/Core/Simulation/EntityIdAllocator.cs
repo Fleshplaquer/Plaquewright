@@ -11,6 +11,29 @@ public sealed class EntityIdAllocator
         : this(1UL)
     {
     }
+    private EntityIdAllocator(
+    EntityIdAllocatorSnapshot snapshot)
+    {
+        _nextValue =
+            snapshot.NextValue;
+
+        _isExhausted =
+            snapshot.IsExhausted;
+    }
+
+    internal EntityIdAllocatorSnapshot CaptureSnapshot()
+    {
+        return new EntityIdAllocatorSnapshot(
+            _nextValue,
+            _isExhausted);
+    }
+
+    internal static EntityIdAllocator Restore(
+        EntityIdAllocatorSnapshot snapshot)
+    {
+        return new EntityIdAllocator(
+            snapshot);
+    }
 
     internal EntityIdAllocator(
         ulong nextValue)

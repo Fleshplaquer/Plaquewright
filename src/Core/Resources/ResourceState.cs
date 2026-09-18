@@ -11,9 +11,22 @@ public sealed class ResourceState
     public ulong Revision { get; private set; }
 
     public ResourceState(
+    ResourceId id,
+    double current,
+    double maximum)
+    : this(
+        id,
+        current,
+        maximum,
+        revision: 0UL)
+    {
+    }
+
+    internal ResourceState(
         ResourceId id,
         double current,
-        double maximum)
+        double maximum,
+        ulong revision)
     {
         if (!id.IsValid)
         {
@@ -26,10 +39,19 @@ public sealed class ResourceState
             current,
             maximum);
 
-        Id = id;
-        Current = NormalizeZero(current);
-        Maximum = NormalizeZero(maximum);
-        Revision = 0UL;
+        Id =
+            id;
+
+        Current =
+            NormalizeZero(
+                current);
+
+        Maximum =
+            NormalizeZero(
+                maximum);
+
+        Revision =
+            revision;
     }
 
     internal void ValidateCanSetValues(

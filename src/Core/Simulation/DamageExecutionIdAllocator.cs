@@ -46,4 +46,24 @@ internal sealed class DamageExecutionIdAllocator
 
         return allocated;
     }
+
+    private DamageExecutionIdAllocator(
+    DamageExecutionIdAllocatorSnapshot snapshot)
+    {
+        _nextValue =
+            snapshot.NextValue;
+    }
+
+    internal DamageExecutionIdAllocatorSnapshot CaptureSnapshot()
+    {
+        return new DamageExecutionIdAllocatorSnapshot(
+            _nextValue);
+    }
+
+    internal static DamageExecutionIdAllocator Restore(
+        DamageExecutionIdAllocatorSnapshot snapshot)
+    {
+        return new DamageExecutionIdAllocator(
+            snapshot);
+    }
 }

@@ -6,23 +6,20 @@ namespace Plaquewright.Core.Simulation;
 
 public sealed class SimulationRuntimeState
 {
-    private readonly EntityIdAllocator _entityIdAllocator =
-        new();
+    private readonly EntityIdAllocator
+    _entityIdAllocator;
 
-    private readonly ExecutionIdAllocator _executionIdAllocator =
-        new();
+    private readonly ExecutionIdAllocator
+        _executionIdAllocator;
 
     private readonly SimulationRuntimeIdentity
-_runtimeIdentity =
-    new();
+        _runtimeIdentity;
 
     private readonly HitExecutionIdAllocator
-        _hitExecutionIdAllocator =
-            new();
+        _hitExecutionIdAllocator;
 
     private readonly DamageExecutionIdAllocator
-        _damageExecutionIdAllocator =
-            new();
+        _damageExecutionIdAllocator;
 
     internal HitExecutionId AllocateHitExecutionId()
     {
@@ -235,18 +232,176 @@ _runtimeIdentity =
     public EntityRuntimeStateSet Entities { get; }
 
     public SimulationRuntimeState(
-        SimulationSeed rootSeed,
-        CompiledResourceRegistry resourceRegistry)
+    SimulationSeed rootSeed,
+    CompiledResourceRegistry resourceRegistry)
+    : this(
+        rootSeed,
+        resourceRegistry,
+        new EntityRuntimeStateSet(
+            resourceRegistry),
+        new EntityIdAllocator(),
+        new ExecutionIdAllocator(),
+        new HitExecutionIdAllocator(),
+        new DamageExecutionIdAllocator(),
+        new SimulationRuntimeIdentity())
+    {
+    }
+    private SimulationRuntimeState(
+    SimulationSeed rootSeed,
+    CompiledResourceRegistry resourceRegistry,
+    EntityRuntimeStateSet entities,
+    EntityIdAllocator entityIdAllocator,
+    ExecutionIdAllocator executionIdAllocator,
+    HitExecutionIdAllocator hitExecutionIdAllocator,
+    DamageExecutionIdAllocator damageExecutionIdAllocator,
+    SimulationRuntimeIdentity runtimeIdentity)
     {
         ArgumentNullException.ThrowIfNull(
             resourceRegistry);
 
-        RootSeed = rootSeed;
-        ResourceRegistry = resourceRegistry;
+        ArgumentNullException.ThrowIfNull(
+            entities);
+
+        ArgumentNullException.ThrowIfNull(
+            entityIdAllocator);
+
+        ArgumentNullException.ThrowIfNull(
+            executionIdAllocator);
+
+        ArgumentNullException.ThrowIfNull(
+            hitExecutionIdAllocator);
+
+        ArgumentNullException.ThrowIfNull(
+            damageExecutionIdAllocator);
+
+        ArgumentNullException.ThrowIfNull(
+            runtimeIdentity);
+
+        if (!ReferenceEquals(
+                entities.ResourceRegistry,
+                resourceRegistry))
+        {
+            throw new ArgumentException(
+                "Entity runtime state belongs to a different resource registry.",
+                nameof(entities));
+        }
+
+        RootSeed =
+            rootSeed;
+
+        ResourceRegistry =
+            resourceRegistry;
 
         Entities =
-            new EntityRuntimeStateSet(
+            entities;
+
+        _entityIdAllocator =
+            entityIdAllocator;
+
+        _executionIdAllocator =
+            executionIdAllocator;
+
+        _hitExecutionIdAllocator =
+            hitExecutionIdAllocator;
+
+        _damageExecutionIdAllocator =
+            damageExecutionIdAllocator;
+
+        _runtimeIdentity =
+            runtimeIdentity;
+    }
+    internal SimulationRuntimeStateSnapshot CaptureSnapshot()
+    {
+        return new SimulationRuntimeStateSnapshot(
+            RootSeed,
+            EntityRuntimeStateSetSnapshot.Capture(
+                Entities),
+            _entityIdAllocator.CaptureSnapshot(),
+            _executionIdAllocator.CaptureSnapshot(),
+            _hitExecutionIdAllocator.CaptureSnapshot(),
+            _damageExecutionIdAllocator.CaptureSnapshot());
+    }
+
+    internal static SimulationRuntimeState Restore(
+        SimulationRuntimeStateSnapshot snapshot,
+        CompiledResourceRegistry resourceRegistry)
+    {
+        ArgumentNullException.ThrowIfNull(
+            snapshot);
+
+        ArgumentNullException.ThrowIfNull(
+            resourceRegistry);
+
+        var entities =
+            snapshot.Entities.Restore(
                 resourceRegistry);
+
+        return new SimulationRuntimeState(
+            snapshot.RootSeed,
+            resourceRegistry,
+            entities,
+            EntityIdAllocator.Restore(
+                snapshot.EntityIds),
+            ExecutionIdAllocator.Restore(
+                snapshot.ExecutionIds),
+            HitExecutionIdAllocator.Restore(
+                snapshot.HitExecutionIds),
+            DamageExecutionIdAllocator.Restore(
+                snapshot.DamageExecutionIds),
+
+            //
+            // Runtime ownership is intentionally rebound.
+            // A restored runtime is a new runtime instance.
+            //
+            new SimulationRuntimeIdentity());
+    }
+
+    internal DamageResolutionContext
+    RestoreDamageResolutionContext(
+        DamageExecutionId damageExecutionId,
+        ExecutionId gameplayExecutionId,
+        EntityId sourceEntityId,
+        EntityId targetEntityId,
+        HitExecutionId? relatedHitExecutionId,
+        SimulationTime startedAt,
+        DamageResolutionQuantities quantities)
+    {
+        ArgumentNullException.ThrowIfNull(
+            quantities);
+
+        //
+        // A restored resolution may only refer to entities
+        // that actually exist in this runtime.
+        //
+        Entities.Get(
+            sourceEntityId);
+
+        Entities.Get(
+            targetEntityId);
+
+        //
+        // IDs already existed before the snapshot.
+        // Rebinding must therefore NOT allocate new IDs.
+        //
+        var damageExecution =
+            new DamageExecutionContext(
+                damageExecutionId,
+                gameplayExecutionId,
+                sourceEntityId,
+                startedAt,
+                _runtimeIdentity);
+
+        var damageTarget =
+            new DamageTargetContext(
+                damageExecutionId,
+                targetEntityId,
+                relatedHitExecutionId,
+                _runtimeIdentity);
+
+        return new DamageResolutionContext(
+            damageExecution,
+            damageTarget,
+            quantities);
     }
 
     public EntityRuntimeState CreateEntity(

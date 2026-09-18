@@ -28,6 +28,94 @@ public sealed class ResourceStateTests
             100d,
             state.Maximum);
     }
+    [Fact]
+    public void SnapshotRestore_PreservesStateAndRevision()
+    {
+        var original =
+            new ResourceState(
+                new ResourceId(1),
+                current: 100d,
+                maximum: 100d);
+
+        original.SetValues(
+            current: 75d,
+            maximum: 100d);
+
+        original.SetValues(
+            current: 50d,
+            maximum: 80d);
+
+        Assert.Equal(
+            2UL,
+            original.Revision);
+
+        var snapshot =
+            ResourceStateSnapshot.Capture(
+                original);
+
+        var restored =
+            snapshot.Restore();
+
+        Assert.Equal(
+            original.Id,
+            restored.Id);
+
+        Assert.Equal(
+            50d,
+            restored.Current);
+
+        Assert.Equal(
+            80d,
+            restored.Maximum);
+
+        Assert.Equal(
+            2UL,
+            restored.Revision);
+
+        Assert.NotSame(
+            original,
+            restored);
+    }
+
+    [Fact]
+    public void SnapshotRestore_ContinuesRevisionFromCapturedValue()
+    {
+        var original =
+            new ResourceState(
+                new ResourceId(1),
+                current: 100d,
+                maximum: 100d);
+
+        original.SetValues(
+            current: 75d,
+            maximum: 100d);
+
+        var restored =
+            ResourceStateSnapshot
+                .Capture(
+                    original)
+                .Restore();
+
+        restored.SetValues(
+            current: 50d,
+            maximum: 100d);
+
+        Assert.Equal(
+            2UL,
+            restored.Revision);
+
+        Assert.Equal(
+            1UL,
+            original.Revision);
+
+        Assert.Equal(
+            75d,
+            original.Current);
+
+        Assert.Equal(
+            50d,
+            restored.Current);
+    }
 
     [Fact]
     public void ZeroCurrentAndMaximum_AreValid()

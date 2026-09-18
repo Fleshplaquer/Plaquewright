@@ -48,4 +48,28 @@ public sealed class ExecutionIdAllocator
 
         return id;
     }
+
+    private ExecutionIdAllocator(
+    ExecutionIdAllocatorSnapshot snapshot)
+    {
+        _nextValue =
+            snapshot.NextValue;
+
+        _isExhausted =
+            snapshot.IsExhausted;
+    }
+
+    internal ExecutionIdAllocatorSnapshot CaptureSnapshot()
+    {
+        return new ExecutionIdAllocatorSnapshot(
+            _nextValue,
+            _isExhausted);
+    }
+
+    internal static ExecutionIdAllocator Restore(
+        ExecutionIdAllocatorSnapshot snapshot)
+    {
+        return new ExecutionIdAllocator(
+            snapshot);
+    }
 }

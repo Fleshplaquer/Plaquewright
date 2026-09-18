@@ -49,6 +49,165 @@ public sealed class ResourceStateSetTests
     }
 
     [Fact]
+    public void SnapshotRestore_PreservesValuesRevisionsAndIndependence()
+    {
+        var registry =
+            CreateRegistry();
+
+        var lifeId =
+            registry.GetId(
+                ResourceKey.Parse(
+                    "resource.life"));
+
+        var manaId =
+            registry.GetId(
+                ResourceKey.Parse(
+                    "resource.mana"));
+
+        var original =
+            new ResourceStateSet(
+                registry,
+                [
+                    new ResourceState(
+                    manaId,
+                    current: 50d,
+                    maximum: 50d),
+
+                new ResourceState(
+                    lifeId,
+                    current: 100d,
+                    maximum: 100d)
+                ]);
+
+        var originalLife =
+            original.Get(
+                lifeId);
+
+        var originalMana =
+            original.Get(
+                manaId);
+
+        originalLife.SetValues(
+            current: 75d,
+            maximum: 100d);
+
+        originalMana.SetValues(
+            current: 30d,
+            maximum: 50d);
+
+        originalMana.SetValues(
+            current: 20d,
+            maximum: 50d);
+
+        Assert.Equal(
+            1UL,
+            originalLife.Revision);
+
+        Assert.Equal(
+            2UL,
+            originalMana.Revision);
+
+        var snapshot =
+            ResourceStateSetSnapshot.Capture(
+                original);
+
+        //
+        // Mutating the live state after capture must not
+        // change the captured representation.
+        //
+        originalLife.SetValues(
+            current: 50d,
+            maximum: 100d);
+
+        var restored =
+            snapshot.Restore(
+                registry);
+
+        var restoredLife =
+            restored.Get(
+                lifeId);
+
+        var restoredMana =
+            restored.Get(
+                manaId);
+
+        Assert.Equal(
+            75d,
+            restoredLife.Current);
+
+        Assert.Equal(
+            100d,
+            restoredLife.Maximum);
+
+        Assert.Equal(
+            1UL,
+            restoredLife.Revision);
+
+        Assert.Equal(
+            20d,
+            restoredMana.Current);
+
+        Assert.Equal(
+            50d,
+            restoredMana.Maximum);
+
+        Assert.Equal(
+            2UL,
+            restoredMana.Revision);
+
+        Assert.NotSame(
+            originalLife,
+            restoredLife);
+
+        Assert.NotSame(
+            originalMana,
+            restoredMana);
+
+        var restoredIds =
+            restored.States
+                .Select(
+                    state => state.Id)
+                .ToArray();
+
+        var expectedIds =
+            new[]
+            {
+            lifeId,
+            manaId
+            }
+            .OrderBy(
+                id => id)
+            .ToArray();
+
+        Assert.Equal(
+            expectedIds,
+            restoredIds);
+
+        //
+        // Restore is a new independent continuation.
+        //
+        restoredLife.SetValues(
+            current: 60d,
+            maximum: 100d);
+
+        Assert.Equal(
+            2UL,
+            restoredLife.Revision);
+
+        Assert.Equal(
+            2UL,
+            originalLife.Revision);
+
+        Assert.Equal(
+            60d,
+            restoredLife.Current);
+
+        Assert.Equal(
+            50d,
+            originalLife.Current);
+    }
+
+    [Fact]
     public void Constructor_AllowsSubsetOfRegistry()
     {
         var registry =
