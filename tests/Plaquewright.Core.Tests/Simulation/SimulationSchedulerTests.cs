@@ -13,6 +13,47 @@ public sealed class SimulationSchedulerTests
         Assert.True(scheduler.IsEmpty);
         Assert.Equal(0, scheduler.Count);
     }
+
+    [Fact]
+    public void QuiescentCapacityRelease_TrimsOnlyLargeHighWaterAndResetsObservation()
+    {
+        var smallScheduler =
+            new SimulationScheduler<string>(
+                new SimulationSchedulerLimits(
+                    maxQueueSize: 2_000,
+                    maxSameTimestampWave: 0));
+
+        PopulateAndDrain(
+            smallScheduler,
+            1_024);
+
+        Assert.False(
+            smallScheduler.ReleaseUnusedCapacityAtQuiescence());
+
+        var largeScheduler =
+            new SimulationScheduler<string>(
+                new SimulationSchedulerLimits(
+                    maxQueueSize: 2_000,
+                    maxSameTimestampWave: 0));
+
+        PopulateAndDrain(
+            largeScheduler,
+            1_025);
+
+        Assert.True(
+            largeScheduler.ReleaseUnusedCapacityAtQuiescence());
+
+        //
+        // A previous large high-water must not cause every
+        // later small cycle to be trimmed.
+        //
+        PopulateAndDrain(
+            largeScheduler,
+            1);
+
+        Assert.False(
+            largeScheduler.ReleaseUnusedCapacityAtQuiescence());
+    }
     [Fact]
     public void Schedule_WithUnknownPhase_DoesNotConsumeSequence()
     {
@@ -391,5 +432,32 @@ public sealed class SimulationSchedulerTests
         Assert.True(success);
 
         return scheduledEvent;
+    }
+
+    private static void PopulateAndDrain(
+    SimulationScheduler<string> scheduler,
+    int eventCount)
+    {
+        for (var index = 0;
+             index < eventCount;
+             index++)
+        {
+            scheduler.Schedule(
+                new SimulationTime(100L),
+                SchedulerPhase.Execution,
+                index.ToString());
+        }
+
+        for (var index = 0;
+             index < eventCount;
+             index++)
+        {
+            Assert.True(
+                scheduler.TryDequeue(
+                    out _));
+        }
+
+        Assert.True(
+            scheduler.IsEmpty);
     }
 }

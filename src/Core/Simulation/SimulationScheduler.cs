@@ -12,6 +12,10 @@ public sealed class SimulationScheduler<TPayload>
     private int _reservedQueueSlots;
 
     private ScheduledEventKey? _activeEventKey;
+    private const int QuiescentQueueRetentionEventLimit =
+    1_024;
+
+    private int _peakQueueCountSinceQuiescence;
 
     internal SimulationScheduler()
         : this(
@@ -235,6 +239,8 @@ public sealed class SimulationScheduler<TPayload>
                 scheduledEvent,
                 pending.Key);
         }
+        scheduler._peakQueueCountSinceQuiescence =
+    scheduler._queue.Count;
 
         return scheduler;
     }
@@ -280,7 +286,7 @@ public sealed class SimulationScheduler<TPayload>
         _queue.Enqueue(
             scheduledEvent,
             key);
-
+        RecordQueueHighWater();
         _reservedQueueSlots--;
 
         return key;
@@ -331,27 +337,52 @@ public sealed class SimulationScheduler<TPayload>
         return false;
     }
 
-    internal void ReleaseUnusedCapacityAtQuiescence()
+    internal bool ReleaseUnusedCapacityAtQuiescence()
     {
         EnsureOutsideEventExecution();
 
-        //
-        // Queue storage is non-authoritative.
-        //
-        // Only release it at a real quiescent boundary:
-        // no pending event and no prepared follow-up slot.
-        //
-        // Do not trim merely because TryDequeue temporarily
-        // made the queue empty while an event is still able
-        // to schedule follow-up work.
-        //
         if (_queue.Count != 0 ||
             _reservedQueueSlots != 0)
         {
-            return;
+            return false;
+        }
+
+        //
+        // Small recurring queues are deliberately retained.
+        //
+        // PW-S07 measurements showed that trimming a roughly
+        // 1k-event queue on every completion caused measurable
+        // reallocation and GC pressure, while its retained
+        // footprint is small.
+        //
+        // Larger high-water storage is released at the stable
+        // quiescent boundary.
+        //
+        var shouldRelease =
+            _peakQueueCountSinceQuiescence >
+            QuiescentQueueRetentionEventLimit;
+
+        _peakQueueCountSinceQuiescence =
+            0;
+
+        if (!shouldRelease)
+        {
+            return false;
         }
 
         _queue.TrimExcess();
+
+        return true;
+    }
+
+    private void RecordQueueHighWater()
+    {
+        if (_queue.Count >
+            _peakQueueCountSinceQuiescence)
+        {
+            _peakQueueCountSinceQuiescence =
+                _queue.Count;
+        }
     }
 
     internal void BeginEventExecution(
@@ -448,6 +479,7 @@ public sealed class SimulationScheduler<TPayload>
         _queue.Enqueue(
             scheduledEvent,
             key);
+        RecordQueueHighWater();
 
         return key;
     }
