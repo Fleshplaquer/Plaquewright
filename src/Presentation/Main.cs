@@ -8,7 +8,7 @@ namespace Plaquewright;
 
 public partial class Main : Node
 {
-    private SimulationSession<HostWorkItem>? _session;
+    private SimulationSession<HostWorkItem> _session;
 
     private bool _hostInputHandled;
 
