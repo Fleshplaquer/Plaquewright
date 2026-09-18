@@ -15,6 +15,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Plaquewright.Core", "src\Co
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Plaquewright.Core.ExternalTests", "tests\Plaquewright.Core.ExternalTests\Plaquewright.Core.ExternalTests.csproj", "{75D1A899-86DE-4F40-B360-447294E273E5}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "benchmarks", "benchmarks", "{66320409-64EC-F7C5-3DEF-65E7510DAAD1}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Plaquewright.Benchmarks", "benchmarks\Plaquewright.Benchmarks\Plaquewright.Benchmarks.csproj", "{F60F14EE-DEEE-44C1-8CF5-3BC8C5452DD6}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -127,6 +131,30 @@ Global
 		{75D1A899-86DE-4F40-B360-447294E273E5}.Release|x64.Build.0 = Release|Any CPU
 		{75D1A899-86DE-4F40-B360-447294E273E5}.Release|x86.ActiveCfg = Release|Any CPU
 		{75D1A899-86DE-4F40-B360-447294E273E5}.Release|x86.Build.0 = Release|Any CPU
+		{F60F14EE-DEEE-44C1-8CF5-3BC8C5452DD6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F60F14EE-DEEE-44C1-8CF5-3BC8C5452DD6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F60F14EE-DEEE-44C1-8CF5-3BC8C5452DD6}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{F60F14EE-DEEE-44C1-8CF5-3BC8C5452DD6}.Debug|x64.Build.0 = Debug|Any CPU
+		{F60F14EE-DEEE-44C1-8CF5-3BC8C5452DD6}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{F60F14EE-DEEE-44C1-8CF5-3BC8C5452DD6}.Debug|x86.Build.0 = Debug|Any CPU
+		{F60F14EE-DEEE-44C1-8CF5-3BC8C5452DD6}.ExportDebug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F60F14EE-DEEE-44C1-8CF5-3BC8C5452DD6}.ExportDebug|Any CPU.Build.0 = Debug|Any CPU
+		{F60F14EE-DEEE-44C1-8CF5-3BC8C5452DD6}.ExportDebug|x64.ActiveCfg = Debug|Any CPU
+		{F60F14EE-DEEE-44C1-8CF5-3BC8C5452DD6}.ExportDebug|x64.Build.0 = Debug|Any CPU
+		{F60F14EE-DEEE-44C1-8CF5-3BC8C5452DD6}.ExportDebug|x86.ActiveCfg = Debug|Any CPU
+		{F60F14EE-DEEE-44C1-8CF5-3BC8C5452DD6}.ExportDebug|x86.Build.0 = Debug|Any CPU
+		{F60F14EE-DEEE-44C1-8CF5-3BC8C5452DD6}.ExportRelease|Any CPU.ActiveCfg = Debug|Any CPU
+		{F60F14EE-DEEE-44C1-8CF5-3BC8C5452DD6}.ExportRelease|Any CPU.Build.0 = Debug|Any CPU
+		{F60F14EE-DEEE-44C1-8CF5-3BC8C5452DD6}.ExportRelease|x64.ActiveCfg = Debug|Any CPU
+		{F60F14EE-DEEE-44C1-8CF5-3BC8C5452DD6}.ExportRelease|x64.Build.0 = Debug|Any CPU
+		{F60F14EE-DEEE-44C1-8CF5-3BC8C5452DD6}.ExportRelease|x86.ActiveCfg = Debug|Any CPU
+		{F60F14EE-DEEE-44C1-8CF5-3BC8C5452DD6}.ExportRelease|x86.Build.0 = Debug|Any CPU
+		{F60F14EE-DEEE-44C1-8CF5-3BC8C5452DD6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F60F14EE-DEEE-44C1-8CF5-3BC8C5452DD6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F60F14EE-DEEE-44C1-8CF5-3BC8C5452DD6}.Release|x64.ActiveCfg = Release|Any CPU
+		{F60F14EE-DEEE-44C1-8CF5-3BC8C5452DD6}.Release|x64.Build.0 = Release|Any CPU
+		{F60F14EE-DEEE-44C1-8CF5-3BC8C5452DD6}.Release|x86.ActiveCfg = Release|Any CPU
+		{F60F14EE-DEEE-44C1-8CF5-3BC8C5452DD6}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -136,5 +164,6 @@ Global
 		{4C2B5D76-D58F-4C25-A353-428B7BA7256E} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{0D168EC6-8212-4896-BE39-820A33BDD846} = {8D626EA8-CB54-BC41-363A-217881BEBA6E}
 		{75D1A899-86DE-4F40-B360-447294E273E5} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{F60F14EE-DEEE-44C1-8CF5-3BC8C5452DD6} = {66320409-64EC-F7C5-3DEF-65E7510DAAD1}
 	EndGlobalSection
 EndGlobal

@@ -10,6 +10,7 @@
   <ItemGroup>
     <Compile Remove="src/Core/**/*.cs" />
     <Compile Remove="tests/**/*.cs" />
+    <Compile Remove="benchmarks/**/*.cs" />
   </ItemGroup>
 
   <ItemGroup>
