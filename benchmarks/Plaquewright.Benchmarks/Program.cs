@@ -166,9 +166,30 @@ internal static class Program
                 ]);
         }
 
+        if (args.Count == 1 &&
+    string.Equals(
+        args[0],
+        "--scheduler-cycles",
+        StringComparison.Ordinal))
+        {
+            return new BenchmarkSuite(
+                Key:
+                    "scheduler-cycles",
+                DisplayName:
+                    "scheduler completion cycles",
+                FileToken:
+                    "SchedulerCycles",
+                Profiles:
+                [
+                    new SchedulerBurstProfile(
+                100_000),
+            new SchedulerBurstCyclesProfile()
+                ]);
+        }
+
         throw new ArgumentException(
-            "Supported benchmark modes are: no argument, or --retention-scaling.",
-            nameof(args));
+    "Supported benchmark modes are: no argument, --retention-scaling, or --scheduler-cycles.",
+    nameof(args));
     }
 
     private static void WarmUp(
@@ -599,6 +620,8 @@ internal static class SessionRunProbe
             {
                 return result;
             }
+
+
 
             if (result.Status ==
                 SimulationRunStatus.BudgetExceeded)
