@@ -3,6 +3,7 @@ using Plaquewright.Core.Composition;
 using Plaquewright.Core.Entities;
 using Plaquewright.Core.Resources;
 using Plaquewright.Core.Simulation;
+using Plaquewright.Core.Hosting;
 
 namespace Plaquewright.Core.Tests.Combat;
 
@@ -192,6 +193,419 @@ public sealed class CombatWorkItemSnapshotCodecTests
     }
 
     [Fact]
+    public void RuntimeSessionSnapshot_ReplayedOrderedInputsProduceSameAuthoritativeContinuation()
+    {
+        var (runtime, sourceId, targetId, lifeId) =
+            CreateRuntime();
+
+        var originalLedger =
+            new ResourceOperationLedger();
+
+        var originalTrace =
+            new List<(ScheduledEventKey Key, string Kind)>();
+
+        var originalObservations =
+            new List<EventObservation>();
+
+        var originalSession =
+            new SimulationSession<ISimulationWorkItem>(
+                CreateComposition(
+                    runtime,
+                    lifeId,
+                    originalLedger,
+                    originalTrace,
+                    originalObservations),
+                new SimulationSchedulerLimits(
+                    maxQueueSize: 20,
+                    maxSameTimestampWave: 10),
+                new SimulationRunnerLimits(
+                    maxProcessedEvents: 20UL));
+
+        //
+        // Work already known before the snapshot.
+        //
+        var firstDamage =
+            CreateDamage(
+                runtime,
+                sourceId,
+                targetId,
+                amount: 10d,
+                new SimulationTime(100L),
+                hitBased: true);
+
+        var alreadyPendingDamage =
+            CreateDamage(
+                runtime,
+                sourceId,
+                targetId,
+                amount: 20d,
+                new SimulationTime(200L),
+                hitBased: false);
+
+        _ = originalSession.ScheduleExternalInput(
+            new SimulationTime(100L),
+            firstDamage);
+
+        var alreadyPendingKey =
+            originalSession.ScheduleExternalInput(
+                new SimulationTime(200L),
+                alreadyPendingDamage);
+
+        //
+        // First damage commits.
+        // Its DamageCommittedEvent is still pending.
+        //
+        var paused =
+            originalSession.RunNext();
+
+        Assert.Equal(
+            SimulationRunStatus.InProgress,
+            paused.Status);
+
+        var originalLife =
+            runtime.Entities.Get(targetId)
+                .Resources.Get(lifeId);
+
+        Assert.Equal(
+            90d,
+            originalLife.Current);
+
+        Assert.Equal(
+            1UL,
+            originalLife.Revision);
+
+        Assert.Equal(
+            1,
+            originalLedger.Count);
+
+        Assert.Empty(
+            originalObservations);
+
+        //
+        // Snapshot contains both kinds of pending Combat work:
+        // committed fact + unresolved execution work.
+        //
+        var snapshot =
+            SimulationRuntimeSessionSnapshot<
+                CombatWorkItemSnapshot>.Capture<
+                    ISimulationWorkItem>(
+                        runtime,
+                        originalSession,
+                        CombatWorkItemSnapshotCodec.Capture);
+
+        Assert.Equal(
+            2,
+            snapshot.Runner.Scheduler.PendingEvents.Count);
+
+        Assert.IsType<
+            CombatWorkItemSnapshot.CommittedDamage>(
+                snapshot.Runner.Scheduler
+                    .PendingEvents[0].Payload);
+
+        Assert.IsType<
+            CombatWorkItemSnapshot.ResolvedDamage>(
+                snapshot.Runner.Scheduler
+                    .PendingEvents[1].Payload);
+
+        Assert.Equal(
+            alreadyPendingKey,
+            snapshot.Runner.Scheduler
+                .PendingEvents[1].Key);
+
+        var restoredRuntime =
+            SimulationRuntimeState.Restore(
+                snapshot.Runtime,
+                runtime.ResourceRegistry);
+
+        var restoredLedger =
+            new ResourceOperationLedger();
+
+        var restoredTrace =
+            new List<(ScheduledEventKey Key, string Kind)>();
+
+        var restoredObservations =
+            new List<EventObservation>();
+
+        var restoredSession =
+            SimulationSession<ISimulationWorkItem>
+                .Restore<CombatWorkItemSnapshot>(
+                    CreateComposition(
+                        restoredRuntime,
+                        lifeId,
+                        restoredLedger,
+                        restoredTrace,
+                        restoredObservations),
+                    snapshot.Runner,
+                    workItemSnapshot =>
+                        CombatWorkItemSnapshotCodec.Restore(
+                            workItemSnapshot,
+                            restoredRuntime));
+
+        //
+        // History before the snapshot is already represented
+        // by restored authoritative state. This profile does not
+        // claim that the old ledger itself is persisted.
+        //
+        var originalLedgerPrefixCount =
+            originalLedger.Count;
+
+        originalTrace.Clear();
+        originalObservations.Clear();
+
+        //
+        // These are ordered inputs arriving AFTER the snapshot.
+        // They contain only replayable input facts; runtime-bound
+        // Damage contexts are created by each branch while executing.
+        //
+        var original150Key =
+            originalSession.ScheduleExternalInput(
+                new SimulationTime(150L),
+                new ReplayDamageInput(
+                    sourceId,
+                    targetId,
+                    Amount: 15d,
+                    HitBased: true));
+
+        var restored150Key =
+            restoredSession.ScheduleExternalInput(
+                new SimulationTime(150L),
+                new ReplayDamageInput(
+                    sourceId,
+                    targetId,
+                    Amount: 15d,
+                    HitBased: true));
+
+        Assert.Equal(
+            original150Key,
+            restored150Key);
+
+        var original250Key =
+            originalSession.ScheduleExternalInput(
+                new SimulationTime(250L),
+                new ReplayDamageInput(
+                    sourceId,
+                    targetId,
+                    Amount: 5d,
+                    HitBased: false));
+
+        var restored250Key =
+            restoredSession.ScheduleExternalInput(
+                new SimulationTime(250L),
+                new ReplayDamageInput(
+                    sourceId,
+                    targetId,
+                    Amount: 5d,
+                    HitBased: false));
+
+        Assert.Equal(
+            original250Key,
+            restored250Key);
+
+        //
+        // Finish A before B. Any accidental closure/reference
+        // back into Runtime A becomes visible here.
+        //
+        var originalResult =
+            originalSession.RunToCompletion();
+
+        var restoredLife =
+            restoredRuntime.Entities.Get(targetId)
+                .Resources.Get(lifeId);
+
+        Assert.Equal(
+            50d,
+            originalLife.Current);
+
+        Assert.Equal(
+            90d,
+            restoredLife.Current);
+
+        var restoredResult =
+            restoredSession.RunToCompletion();
+
+        Assert.Equal(
+            originalResult,
+            restoredResult);
+
+        Assert.Equal(
+            SimulationRunStatus.Completed,
+            restoredResult.Status);
+
+        Assert.Equal(
+            new SimulationTime(250L),
+            restoredResult.CurrentTime);
+
+        Assert.Equal(
+            10UL,
+            restoredResult.ProcessedEvents);
+
+        Assert.Equal(
+            0,
+            restoredResult.PendingEvents);
+
+        //
+        // Complete continuation ordering, including the event
+        // that was already pending at the snapshot boundary.
+        //
+        Assert.Equal(
+            new[]
+            {
+            nameof(DamageCommittedEvent),
+            nameof(ReplayDamageInput),
+            nameof(ApplyResolvedDamageAction),
+            nameof(DamageCommittedEvent),
+            nameof(ApplyResolvedDamageAction),
+            nameof(DamageCommittedEvent),
+            nameof(ReplayDamageInput),
+            nameof(ApplyResolvedDamageAction),
+            nameof(DamageCommittedEvent)
+            },
+            originalTrace
+                .Select(entry => entry.Kind)
+                .ToArray());
+
+        Assert.Equal(
+            snapshot.Runner.Scheduler
+                .PendingEvents[0].Key,
+            originalTrace[0].Key);
+
+        Assert.Equal(
+            original150Key,
+            originalTrace[1].Key);
+
+        Assert.Equal(
+            alreadyPendingKey,
+            originalTrace[4].Key);
+
+        Assert.Equal(
+            original250Key,
+            originalTrace[6].Key);
+
+        Assert.Equal(
+            originalTrace,
+            restoredTrace);
+
+        //
+        // Event facts include generated gameplay/damage/hit IDs,
+        // commit outcome and the state observed after each commit.
+        //
+        Assert.Equal(
+            originalObservations,
+            restoredObservations);
+
+        Assert.Equal(
+            new[]
+            {
+            90d,
+            75d,
+            55d,
+            50d
+            },
+            originalObservations
+                .Select(observation =>
+                    observation.CurrentLife)
+                .ToArray());
+
+        Assert.Equal(
+            new ulong[]
+            {
+            1UL,
+            2UL,
+            3UL,
+            4UL
+            },
+            originalObservations
+                .Select(observation =>
+                    observation.LifeRevision)
+                .ToArray());
+
+        Assert.True(
+            originalObservations[0]
+                .RelatedHitExecutionId.HasValue);
+
+        Assert.True(
+            originalObservations[1]
+                .RelatedHitExecutionId.HasValue);
+
+        Assert.Null(
+            originalObservations[2]
+                .RelatedHitExecutionId);
+
+        Assert.Null(
+            originalObservations[3]
+                .RelatedHitExecutionId);
+
+        //
+        // Authoritative state converges independently.
+        //
+        Assert.Equal(
+            50d,
+            originalLife.Current);
+
+        Assert.Equal(
+            originalLife.Current,
+            restoredLife.Current);
+
+        Assert.Equal(
+            4UL,
+            originalLife.Revision);
+
+        Assert.Equal(
+            originalLife.Revision,
+            restoredLife.Revision);
+
+        Assert.NotSame(
+            originalLife,
+            restoredLife);
+
+        //
+        // The first ledger entry predates the snapshot.
+        // Compare the complete continuation history only.
+        //
+        Assert.Equal(
+            originalLedgerPrefixCount + 3,
+            originalLedger.Count);
+
+        Assert.Equal(
+            3,
+            restoredLedger.Count);
+
+        var expectedLosses =
+            new[]
+            {
+            15d,
+            20d,
+            5d
+            };
+
+        for (var index = 0;
+             index < expectedLosses.Length;
+             index++)
+        {
+            var originalLoss =
+                Assert.IsType<ResourceLossLedgerEntry>(
+                    originalLedger.Entries[
+                        originalLedgerPrefixCount + index]);
+
+            var restoredLoss =
+                Assert.IsType<ResourceLossLedgerEntry>(
+                    restoredLedger.Entries[index]);
+
+            Assert.Equal(
+                expectedLosses[index],
+                originalLoss.Result.ActualLoss);
+
+            Assert.Equal(
+                originalLoss.Result.ActualLoss,
+                restoredLoss.Result.ActualLoss);
+
+            Assert.Equal(
+                originalLoss.Provenance,
+                restoredLoss.Provenance);
+        }
+    }
+
+    [Fact]
     public void UnknownWorkItem_RejectsCaptureWithoutChangingQueueOrSequence()
     {
         var (runtime, sourceId, targetId, lifeId) = CreateRuntime();
@@ -343,6 +757,33 @@ public sealed class CombatWorkItemSnapshotCodecTests
         var builder = new SimulationCompositionBuilder<ISimulationWorkItem>();
         builder.AddModule("CombatSnapshotProfile", module =>
         {
+            module.Handle<ReplayDamageInput>(
+    (input, context) =>
+    {
+        trace.Add(
+            (
+                context.Key,
+                nameof(ReplayDamageInput)
+            ));
+
+        //
+        // Same replay input + same restored allocator state
+        // must produce the same runtime-bound contexts/IDs.
+        //
+        var action =
+            CreateDamage(
+                runtime,
+                input.SourceEntityId,
+                input.TargetEntityId,
+                input.Amount,
+                context.CurrentTime,
+                input.HitBased);
+
+        context.Schedule(
+            context.CurrentTime,
+            SchedulerPhase.FollowUp,
+            action);
+    });
             module.Handle<ApplyResolvedDamageAction>((action, context) =>
             {
                 trace.Add((context.Key, nameof(ApplyResolvedDamageAction)));
@@ -386,4 +827,11 @@ public sealed class CombatWorkItemSnapshotCodecTests
     private sealed class UnsupportedWorkItem : ISimulationWorkItem
     {
     }
+
+    private sealed record ReplayDamageInput(
+    EntityId SourceEntityId,
+    EntityId TargetEntityId,
+    double Amount,
+    bool HitBased)
+    : ISimulationWorkItem;
 }
