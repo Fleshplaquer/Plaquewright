@@ -27,6 +27,44 @@ public sealed class ModifierAccumulator
 
     public int LessCount => _less.Count;
 
+    internal void Add(
+        ModifierKind kind,
+        double value)
+    {
+        switch (kind)
+        {
+            case ModifierKind.Flat:
+                AddFlat(
+                    value);
+                break;
+
+            case ModifierKind.Increased:
+                AddIncreased(
+                    value);
+                break;
+
+            case ModifierKind.Reduced:
+                AddReduced(
+                    value);
+                break;
+
+            case ModifierKind.More:
+                AddMore(
+                    value);
+                break;
+
+            case ModifierKind.Less:
+                AddLess(
+                    value);
+                break;
+
+            default:
+                throw new ArgumentOutOfRangeException(
+                    nameof(kind),
+                    kind,
+                    "Unknown modifier kind.");
+        }
+    }
     public void AddFlat(double value)
     {
         ValidateFinite(
