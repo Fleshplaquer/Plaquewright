@@ -470,6 +470,382 @@ Assert.Single(
             ledger.Count);
     }
     [Fact]
+    public void PaidAttack_CommitsCostBeforeResolvedDamageAndKeepsOperationsDistinct()
+    {
+        var setup =
+            CreatePaidAttackSetup();
+
+        var ledger =
+            new ResourceOperationLedger();
+
+        var trace =
+            new List<string>();
+
+        var waves =
+            new List<uint>();
+
+        var costExecutionId =
+            new ExecutionId(
+                40UL);
+
+        var damageExecutionId =
+            new DamageExecutionId(
+                41UL);
+
+        var damageGameplayExecutionId =
+            new ExecutionId(
+                41UL);
+
+        var payMana =
+            new ResourceCostTransactionParticipant(
+                setup.ManaTarget,
+                new ResourceCostRequest(
+                    setup.ManaId,
+                    amount: 30d,
+                    new ResourceOperationProvenance(
+                        ResourceOperationCause.Direct,
+                        costExecutionId)),
+                ledger);
+
+        var costReaction =
+            new DomainReactionDispatcher<
+                AttackCostCommittedEvent,
+                ISimulationWorkItem>(
+                new ResolvePaidAttackDamageReaction());
+
+        var damageReaction =
+            new DomainReactionDispatcher<
+                DamageCommittedEvent,
+                ISimulationWorkItem>(
+                new ObserveCommittedDamageReaction());
+
+        var builder =
+            new SimulationCompositionBuilder<
+                ISimulationWorkItem>();
+
+        builder.AddModule(
+            "PaidCombatReference",
+            module =>
+            {
+                module.Handle<PayAttackCostAction>(
+                    (_, context) =>
+                    {
+                        trace.Add(
+                            nameof(PayAttackCostAction));
+
+                        waves.Add(
+                            context.Key.Wave.Value);
+
+                        var committed =
+                            DomainEventTransactionCoordinator
+                                .TryCommitAndPublish<
+                                    ISimulationWorkItem,
+                                    AttackCostCommittedEvent>(
+                                    context,
+                                    new AttackCostCommittedEvent(),
+                                    payMana);
+
+                        Assert.True(
+                            committed);
+
+                        //
+                        // Cost is authoritative before the
+                        // follow-up event can execute.
+                        //
+                        Assert.Equal(
+                            70d,
+                            setup.ManaTarget.State.Current);
+
+                        Assert.Equal(
+                            1UL,
+                            setup.ManaTarget.State.Revision);
+
+                        Assert.Equal(
+                            100d,
+                            setup.LifeTarget.State.Current);
+
+                        Assert.Equal(
+                            0UL,
+                            setup.LifeTarget.State.Revision);
+
+                        Assert.Equal(
+                            1,
+                            ledger.Count);
+                    });
+
+                module.Handle<AttackCostCommittedEvent>(
+                    (domainEvent, context) =>
+                    {
+                        trace.Add(
+                            nameof(AttackCostCommittedEvent));
+
+                        waves.Add(
+                            context.Key.Wave.Value);
+
+                        Assert.Equal(
+                            70d,
+                            setup.ManaTarget.State.Current);
+
+                        Assert.Equal(
+                            100d,
+                            setup.LifeTarget.State.Current);
+
+                        var costEntry =
+                            Assert.IsType<ResourceCostLedgerEntry>(
+                                ledger.Entries[0]);
+
+                        Assert.Equal(
+                            30d,
+                            costEntry.Result.ActualCost);
+
+                        costReaction.Dispatch(
+                            domainEvent,
+                            new DomainReactionContext<
+                                ISimulationWorkItem>(
+                                context));
+                    });
+
+                module.Handle<ResolvePaidAttackDamageAction>(
+                    (_, context) =>
+                    {
+                        trace.Add(
+                            nameof(
+                                ResolvePaidAttackDamageAction));
+
+                        waves.Add(
+                            context.Key.Wave.Value);
+
+                        //
+                        // Damage is resolved only after the
+                        // cost has already committed.
+                        //
+                        Assert.Equal(
+                            70d,
+                            setup.ManaTarget.State.Current);
+
+                        var resolution =
+                            CreateDamageResolution(
+                                setup.Target.Id,
+                                damageTakenAmount: 40d,
+                                context.CurrentTime,
+                                damageExecutionId,
+                                damageGameplayExecutionId);
+
+                        context.Schedule(
+                            context.CurrentTime,
+                            SchedulerPhase.FollowUp,
+                            new ApplyResolvedDamageAction(
+                                resolution));
+                    });
+
+                module.Handle<ApplyResolvedDamageAction>(
+                    (action, context) =>
+                    {
+                        trace.Add(
+                            nameof(
+                                ApplyResolvedDamageAction));
+
+                        waves.Add(
+                            context.Key.Wave.Value);
+
+                        var resolution =
+                            action.Resolution;
+
+                        var damageTarget =
+                            new DamageResourceTargetContext(
+                                resolution,
+                                setup.LifeTarget);
+
+                        var lossPlan =
+                            new DamageResourceLossPlan(
+                                damageTarget,
+                                requestedResourceLoss: 40d);
+
+                        //
+                        // Publication capacity is guaranteed
+                        // before Combat makes state visible.
+                        //
+                        using var preparedEvent =
+                            context.PrepareFollowUp();
+
+                        var applicationResult =
+                            ResolvedDamageApplicationExecutor.Apply(
+                                resolution,
+                                [
+                                    lossPlan
+                                ],
+                                [
+                                    new DamageApplicationOwnerPlan(
+                                    setup.Target,
+                                    DefeatRelevantResourcePolicy
+                                        .AnyDepleted)
+                                ],
+                                ledger);
+
+                        var commitResult =
+                            applicationResult.TargetCommitResult;
+
+                        Assert.Equal(
+                            DefeatAwareResourceTransactionCommitOutcome
+                                .NoDefeatTransition,
+                            commitResult.Outcome);
+
+                        Assert.Equal(
+                            70d,
+                            setup.ManaTarget.State.Current);
+
+                        Assert.Equal(
+                            60d,
+                            setup.LifeTarget.State.Current);
+
+                        Assert.Equal(
+                            2,
+                            ledger.Count);
+
+                        preparedEvent.Publish(
+                            new DamageCommittedEvent(
+                                resolution,
+                                commitResult));
+                    });
+
+                module.Handle<DamageCommittedEvent>(
+                    (domainEvent, context) =>
+                    {
+                        trace.Add(
+                            nameof(DamageCommittedEvent));
+
+                        waves.Add(
+                            context.Key.Wave.Value);
+
+                        //
+                        // Cost and damage remain distinct
+                        // authoritative resource operations.
+                        //
+                        Assert.Equal(
+                            70d,
+                            setup.ManaTarget.State.Current);
+
+                        Assert.Equal(
+                            60d,
+                            setup.LifeTarget.State.Current);
+
+                        Assert.Equal(
+                            1UL,
+                            setup.ManaTarget.State.Revision);
+
+                        Assert.Equal(
+                            1UL,
+                            setup.LifeTarget.State.Revision);
+
+                        Assert.Equal(
+                            2,
+                            ledger.Count);
+
+                        var costEntry =
+                            Assert.IsType<ResourceCostLedgerEntry>(
+                                ledger.Entries[0]);
+
+                        Assert.Equal(
+                            30d,
+                            costEntry.Result.ActualCost);
+
+                        var lossEntry =
+                            Assert.IsType<ResourceLossLedgerEntry>(
+                                ledger.Entries[1]);
+
+                        Assert.Equal(
+                            40d,
+                            lossEntry.Result.ActualLoss);
+
+                        Assert.Equal(
+                            DefeatAwareResourceTransactionCommitOutcome
+                                .NoDefeatTransition,
+                            domainEvent.Outcome);
+
+                        damageReaction.Dispatch(
+                            domainEvent,
+                            new DomainReactionContext<
+                                ISimulationWorkItem>(
+                                context));
+                    });
+
+                module.Handle<ObserveCommittedDamageAction>(
+                    (_, context) =>
+                    {
+                        trace.Add(
+                            nameof(
+                                ObserveCommittedDamageAction));
+
+                        waves.Add(
+                            context.Key.Wave.Value);
+
+                        Assert.Equal(
+                            70d,
+                            setup.ManaTarget.State.Current);
+
+                        Assert.Equal(
+                            60d,
+                            setup.LifeTarget.State.Current);
+                    });
+            });
+
+        var session =
+            new SimulationSession<ISimulationWorkItem>(
+                builder.Build(),
+                new SimulationSchedulerLimits(
+                    maxQueueSize: 100,
+                    maxSameTimestampWave: 10),
+                new SimulationRunnerLimits(
+                    maxProcessedEvents: 20UL));
+
+        session.ScheduleExternalInput(
+            new SimulationTime(200L),
+            new PayAttackCostAction());
+
+        var result =
+            session.RunToCompletion();
+
+        Assert.Equal(
+            SimulationRunStatus.Completed,
+            result.Status);
+
+        Assert.Equal(
+            6UL,
+            session.ProcessedEvents);
+
+        Assert.Equal(
+            new[]
+            {
+            nameof(PayAttackCostAction),
+            nameof(AttackCostCommittedEvent),
+            nameof(ResolvePaidAttackDamageAction),
+            nameof(ApplyResolvedDamageAction),
+            nameof(DamageCommittedEvent),
+            nameof(ObserveCommittedDamageAction)
+            },
+            trace);
+
+        Assert.Equal(
+            new uint[]
+            {
+            0u,
+            1u,
+            2u,
+            3u,
+            4u,
+            5u
+            },
+            waves);
+
+        Assert.Equal(
+            70d,
+            setup.ManaTarget.State.Current);
+
+        Assert.Equal(
+            60d,
+            setup.LifeTarget.State.Current);
+    }
+    [Fact]
     public void DamageCommittedEvent_WhenResolutionAndCommitTargetDiffer_IsRejected()
     {
         var setup =
@@ -647,6 +1023,111 @@ Assert.Single(
         : ISimulationWorkItem
     {
     }
+
+    private sealed class PayAttackCostAction
+    : ISimulationWorkItem
+    {
+    }
+
+    private sealed class AttackCostCommittedEvent
+        : IDomainEvent
+    {
+    }
+
+    private sealed class ResolvePaidAttackDamageAction
+        : ISimulationWorkItem
+    {
+    }
+    private sealed class ResolvePaidAttackDamageReaction
+    : IDomainReaction<
+        AttackCostCommittedEvent,
+        ISimulationWorkItem>
+    {
+        public void React(
+            AttackCostCommittedEvent domainEvent,
+            DomainReactionContext<ISimulationWorkItem> context)
+        {
+            ArgumentNullException.ThrowIfNull(
+                domainEvent);
+
+            ArgumentNullException.ThrowIfNull(
+                context);
+
+            context.ScheduleFollowUp(
+                new ResolvePaidAttackDamageAction());
+        }
+    }
+    private static PaidAttackSetup
+    CreatePaidAttackSetup()
+    {
+        var registry =
+            ResourceRegistryCompiler.Compile(
+            [
+                new ResourceDefinition(
+                ResourceKey.Parse(
+                    "resource.mana"),
+                ResourceRole.CostSource),
+
+            new ResourceDefinition(
+                ResourceKey.Parse(
+                    "resource.life"),
+                ResourceRole.DamageTarget |
+                ResourceRole.DefeatRelevant)
+            ]);
+
+        var manaId =
+            registry.GetId(
+                ResourceKey.Parse(
+                    "resource.mana"));
+
+        var lifeId =
+            registry.GetId(
+                ResourceKey.Parse(
+                    "resource.life"));
+
+        var attacker =
+            new EntityRuntimeState(
+                new EntityId(1UL),
+                registry,
+                [
+                    new ResourceState(
+                    manaId,
+                    current: 100d,
+                    maximum: 100d)
+                ]);
+
+        var target =
+            new EntityRuntimeState(
+                new EntityId(2UL),
+                registry,
+                [
+                    new ResourceState(
+                    lifeId,
+                    current: 100d,
+                    maximum: 100d)
+                ]);
+
+        return new PaidAttackSetup(
+            registry,
+            manaId,
+            lifeId,
+            attacker,
+            target,
+            new ResourceStateTarget(
+                attacker,
+                manaId),
+            new ResourceStateTarget(
+                target,
+                lifeId));
+    }
+    private sealed record PaidAttackSetup(
+    CompiledResourceRegistry Registry,
+    ResourceId ManaId,
+    ResourceId LifeId,
+    EntityRuntimeState Attacker,
+    EntityRuntimeState Target,
+    ResourceStateTarget ManaTarget,
+    ResourceStateTarget LifeTarget);
 
 
     private sealed class ObserveCommittedDamageReaction
