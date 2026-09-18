@@ -1,6 +1,6 @@
 # Plaquewright – Architecture Glossary 2.0
 
-**Datum:** 18. September 2026 · **Status:** Lebendes Architekturglossar 2.0  
+**Datum:** 18. September 2026 · **Status:** Lebendes Architekturglossar 2.0
 Die alte gleichnamige Glossardatei ist in der Übergabe erwähnt, nicht als vollständiger Inhalt verfügbar. Diese Fassung definiert die Begriffe für den neuen Entwurf; sie ist kein Katalog bereits existierender C#-Typen.
 
 | Begriff | Bedeutung im Framework | Wichtige Abgrenzung |
@@ -33,10 +33,10 @@ Die alte gleichnamige Glossardatei ist in der Übergabe erwähnt, nicht als voll
 | Domain Event | Beschreibender Fakt nach erfolgreichem Commit | Nicht „bitte führe dies aus“ |
 | Reaction | Regel als Antwort auf ein committed Ereignis | Erzeugt neue Arbeit; schreibt Vergangenheit nicht um |
 | Reaction Dispatcher | Explizit komponierte, beim Aufbau eingefrorene Reihenfolge von Reactions für einen Eventtyp | Kein globaler Reflection-EventBus und keine dynamische Priority-Registry |
-| Prepared Follow-up | Intern reservierte Scheduler-Kapazität samt geordnetem Schlüssel vor der späteren Publikation | Noch nicht ausführbare Arbeit; wird publiziert oder verworfen |
+| Prepared Follow-up | Intern reservierte Scheduler-Kapazität samt geordnetem Schlüssel vor der späteren Publikation | Reserviert noch keinen fertigen Domain-Event-Payload; dieser kann nach dem Commit aus dem echten Ergebnis erzeugt und dann publiziert werden |
 | External Input Closure | Grenze, ab der für einen begonnenen Timestamp keine neuen externen Inputs mehr zugelassen werden | Bereits vorher zugelassene Inputs und kausale Follow-ups bleiben gültig |
 | Pre-Commit-Regel | Beeinflusst die noch unveröffentlichte Resolution oder Vorbereitung | Nicht mit einer späteren Event-Reaction verwechseln |
-| Work Item | Geordnete ausführbare Simulationseinheit | Persistierbare Arbeit benötigt beschreibbaren Zustand statt beliebiger Closure |
+| Work Item | Geordnete ausführbare Simulationseinheit | Produktive autoritative Work Items können `ISimulationWorkItem` markieren; die niedrige generische Scheduler-Infrastruktur bleibt davon unabhängig. Persistierbare Arbeit benötigt beschreibbaren Zustand statt beliebiger Closure |
 | Scheduler | Ordnet und begrenzt Work nach dem gewählten Ausführungsprofil | Bestimmt nicht eigenmächtig sämtliche Genre-Regeln |
 | Wave | Vorhandenes Hilfsmittel zur Ordnung gleicher Timestamps und kausaler Generationen | Kein Ersatz für einen vollständigen Input-/Event-Vertrag |
 | ExecutionId | Vorhandene Identität eines Gameplay-Ausführungskontexts | Noch kein vollständiger Causality-Graph oder automatisch globale ID |
@@ -61,5 +61,7 @@ Die alte gleichnamige Glossardatei ist in der Übergabe erwähnt, nicht als voll
 | gcc | Nutzerkürzel: grün, committed, clean | Aussage über gemeldeten Arbeitsstand, nicht automatisch neue Testanzahl |
 
 Begriffe werden nur gemeinsam mit ihren Verträgen geändert. Der Name eines Types oder Tests ist kein eigenständiger Nachweis seiner Semantik.
+
+PW-S04 konkretisiert insbesondere `Work Item`, `Prepared Follow-up`, `Pre-Commit-Regel`, `Domain Event` und `Reaction`: `ApplyResolvedDamageAction` ist ein produktives Work Item; PreDefeat verändert nur den Draft; `DamageCommittedEvent` entsteht aus dem tatsächlichen Commit-Ergebnis; die anschließende Reaction erzeugt neue Arbeit. [E9]
 
 **Grundlage:** [Manifest](Plaquewright_Manifest_v2_0.md) und [Quellenregister](SOURCE_EVIDENCE_v2_0.md).

@@ -1,6 +1,6 @@
 # Plaquewright – Architecture Map 2.0
 
-**Stand:** 18. September 2026 · **Status:** Architektur 2.0 freigegeben; PW-S02 und PW-S03 abgenommen · **Historische Audit-Baseline:** `d39cb54` · **PW-S02:** `b04fcbe` · **PW-S03:** `f90517a`  
+**Stand:** 18. September 2026 · **Status:** Architektur 2.0 freigegeben; PW-S02, PW-S03 und PW-S04 abgenommen · **Historische Audit-Baseline:** `d39cb54` · **PW-S02:** `b04fcbe` · **PW-S03:** `f90517a` · **PW-S04:** `8bd4dd0`
 Die frühere `ARCHITECTURE_MAP.md` wird in der Architekturübergabe genannt, liegt im bereitgestellten Archiv aber nicht vor. Diese Fassung ist eine neue Rekonstruktion, kein behaupteter zeilenweiser Abgleich. [E1, E3]
 
 ## 1. Zielbild
@@ -72,13 +72,46 @@ Scheitert die Öffnung beim Prepare, gibt es weder Zahlung noch `DoorOpened` noc
 
 Ein Profileffekt, der gemeinsam mit der Türöffnung zwingend atomar sein muss, wäre hingegen Teilnehmer der ersten Transaction, nicht eine spätere Reaction. Diese Unterscheidung entscheidet das Gameplay-Regelpaket.
 
-## 4. Referenzszenario: zeitlich getrennter Angriff
+## 4. Referenzszenario: Combat über dieselbe Runtime
 
-Ein Skill-Modul kann künftig bei Cast-Start Kosten und seinen eigenen Ausführungszustand committen. Ein späterer Treffer liest die vom Regelprofil festgelegten Werte, löst Damage auf und lässt Resources die konkrete Zustandsänderung veröffentlichen. Eine On-Hit-Heilung ist neue Folgearbeit, sofern das Profil sie nicht ausdrücklich der direkten Resolution zuordnet.
+PW-S04 führt Combat als zweites fachliches Referenzszenario über dieselbe Session-/Composition-/Scheduler-/Transaction-/Event-Grenze wie den Door-Fall. Der Kernel erhält dadurch keine Health-, Damage-, Mana- oder Armor-Fachbegriffe. [E9]
 
-Eine Schadensverhinderung, die den Treffer ändern soll, gehört vor dessen Commit. Ein Event-Handler nach `DamageApplied` darf diesen Commit nicht umschreiben.
+**Lethal Damage mit PreDefeat:**
 
-Die Actor-/Projectile-Darstellung kann in Godot laufen. Autoritative Target-/Kontaktinformation benötigt trotzdem eine explizite Host-/Spatial-Grenze. Das Diagramm setzt keine bereits fertige Spatial-Simulation voraus.
+```text
+DamageResolutionContext
+  -> ApplyResolvedDamageAction
+  -> DamageResourceLossPlan(s)
+  -> ResolvedDamageApplicationExecutor
+       -> ResourceTransactionDraft
+       -> optional PreDefeat pro Owner
+       -> DefeatAwareResourceTransactionCommitter
+  -> DamageCommittedEvent
+  -> Reaction
+  -> neue Work Item
+```
+
+Die PreDefeat-Regel darf den noch unveröffentlichten Draft verändern. Erst der Resource-Commit macht State, Revisionen und Ledger autoritativ sichtbar. `DamageCommittedEvent` wird danach aus dem tatsächlichen Commit-Ergebnis erzeugt; seine Reactions können nur neue Arbeit anfordern und schreiben den Commit nicht rückwirkend um.
+
+**Bezahlter Angriff:**
+
+```text
+PayAttackCostAction
+  -> Cost Transaction
+  -> AttackCostCommittedEvent
+  -> Reaction
+  -> Damage Resolution
+  -> ApplyResolvedDamageAction
+  -> Damage Commit
+  -> DamageCommittedEvent
+  -> Reaction
+```
+
+Damit bleiben fachliche Operationen getrennt: Die Zahlung ist Cost, der Treffer ist Resource Loss/Damage. Beide nutzen gemeinsame generische Runtime-Primitiven, ohne dass Resources Combat kennen muss.
+
+Resource-Routing bleibt bewusst Ruleset-/Kompositionswissen. `ApplyResolvedDamageAction` trägt eine bereits aufgelöste Damage-Resolution, aber keine fest verdrahtete „Health“-Resource. Der interne Damage-Application-Executor kann mehrere Loss-Pläne und Owner koordinieren; ein fehlender betroffener Owner oder ein Plan aus einer fremden Damage-Resolution wird vor autoritativer Mutation abgewiesen.
+
+Die Actor-/Projectile-Darstellung kann weiterhin in Godot laufen. Autoritative Target-/Kontaktinformation benötigt eine explizite Host-/Spatial-Grenze; PW-S04 führt keine Physics-Autorität in Combat oder Kernel ein.
 
 ## 5. Abhängigkeitsregeln
 
@@ -101,11 +134,11 @@ Die aktuelle `SimulationRuntimeState` ist eine vorhandene Gameplay-Komposition. 
 
 ## 7. Nächster Abgleich
 
-PW-S03 ist abgeschlossen. Headless und Godot benutzen die gemeinsame `SimulationSession`-/Core-Autorität; Door/Alarm sowie Resources/Door/Alarm wurden headless ohne Combat-Pflichtzustand belegt, und der reale Godot-Host hat einen externen Input erfolgreich über dieselbe Runtime ausgeführt. [E8]
+PW-S04 ist abgeschlossen. Der finale Nachweisstand `8bd4dd0` wurde nach 1215/1215 bestandenen Tests mit `gcc` bestätigt. Damit tragen Door/Alarm, Resources/Door/Alarm und Combat dieselbe generische Runtime, während Combat-Fachbegriffe außerhalb des Kernels bleiben. [E9]
 
-Der nächste Abgleich gehört zu **PW-S04**: Ein kleiner bestehender Combat-Ablauf wird als zweites fachliches Referenzszenario auf die gemeinsame Transaction→Event→Reaction- und Composition-Grenze geführt. Dabei werden Combat-spezifische Typen nicht vorsorglich in den Kernel verschoben.
+Der nächste Abgleich gehört zu **PW-S05**: Snapshot/Restore und deterministischer Replay-Beweis an einer quiescent boundary. Vor einer Implementierung wird konkret bestimmt, welche Domainzustände, ausstehenden Scheduler-/Reaction-Work-Items, RNG-/ID-Zustände, Regelversionen und autoritativen Inputs beziehungsweise Host Facts für den gewählten kleinen Referenzfall benötigt werden.
 
-Ein globaler Registry-, Serialization-, Plugin-Discovery- oder Editor-Unterbau ist dafür weiterhin nicht vorab erforderlich.
+Ein globaler Serialization-, EventStore-, Registry-, Plugin-Discovery- oder Editor-Unterbau ist dafür weiterhin nicht vorab erforderlich.
 
-**Quellen:** [E1–E4, E7–E8 und W1](SOURCE_EVIDENCE_v2_0.md).  
+**Quellen:** [E1–E4, E7–E9 und W1](SOURCE_EVIDENCE_v2_0.md).
 **Verbindlichkeit:** [PW-00 und PW-20](Plaquewright_Manifest_v2_0.md).

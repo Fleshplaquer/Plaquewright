@@ -1,8 +1,8 @@
 # Plaquewright – Implementierungsfolge 2.0
 
-**Version:** 2.0 · **Datum:** 18. September 2026  
-**Ausgangspunkt:** Nutzerbestätigte Audit-Baseline `d39cb54`, nicht der alte Idler-P00-Start  
-**Status:** Freigegebene Architektur-Baufolge; PW-S02 abgenommen auf `b04fcbe`, PW-S03 abgenommen auf `f90517a`, weitere Schritte werden separat durchgeführt und abgenommen
+**Version:** 2.0 · **Datum:** 18. September 2026
+**Ausgangspunkt:** Nutzerbestätigte Audit-Baseline `d39cb54`, nicht der alte Idler-P00-Start
+**Status:** Freigegebene Architektur-Baufolge; PW-S02 abgenommen auf `b04fcbe`, PW-S03 auf `f90517a`, PW-S04 auf `8bd4dd0`; weitere Schritte werden separat durchgeführt und abgenommen
 
 ## 1. Ziel der Reihenfolge
 
@@ -20,7 +20,7 @@ Die neue Reihenfolge verwendet `PW-Sxx`, um weder alte P-Meilensteine noch abges
 | PW-S01 | Transaction-Komposition hat einen eindeutigen Konflikt-/Lebensdauervertrag | Ereignispublikation darf keine unklare Mutation verdecken |
 | PW-S02 | Commit-Ergebnis → Event → deterministische Reaction **– abgenommen** | Schließt die zentrale modulübergreifende Ausführungskette |
 | PW-S03 | Kleine explizite Modulkomposition und Headless-/Godot-Referenz **– abgenommen** | Beweist Benutzbarkeit außerhalb interner Tests |
-| PW-S04 | Zweites fachliches Referenzszenario mit vorhandenen Combat-Bausteinen | Prüft, ob die Grenze mehr als den Door-Fall trägt |
+| PW-S04 | Zweites fachliches Referenzszenario mit vorhandenen Combat-Bausteinen **– abgenommen** | Belegt, dass dieselbe Runtime auch result-backed Combat, PreDefeat und bezahlte Damage-Folgearbeit trägt |
 | PW-S05 | Snapshot/Restore und deterministischer Replay-Beweis | Prüft State-Ownership und ausstehende Arbeit früh |
 | PW-S06 | Zeitabhängige Domain und abgeleitete Queries | Erweitert Status/Production und Cache-Invalidierung an realem Bedarf |
 | PW-S07 | Definierte Lastprofile, Retention und gemessene Optimierung | Performance wird geprüft statt aus Architektur abgeleitet |
@@ -115,15 +115,57 @@ PW-S03 führt die in PW-S02 bewiesenen Primitiven in eine kleine host-neutrale R
 
 ## 7. PW-S04 – Zweites Referenzszenario: vorhandenes Combat nutzen
 
-Nach dem fachfremden Türbeispiel prüfen wir die Grenze an dem Bereich, in den bereits die meiste Arbeit geflossen ist.
+**Status:** Abgenommen am 18. September 2026. Technischer Endstand: `8bd4dd0`.
 
-**Kleiner Ablauf:** Eine Action mit Kosten erzeugt später eine Damage-Auflösung gegen ein explizites Ziel. Resources committed den tatsächlichen Verlust. Ein gewähltes Ergebnis löst eine separate Folgeaktion aus. Bestehende Execution-/Hit-/Damage-Identitäten, Protection, Pre-Defeat und Provenienz werden soweit benötigt benutzt.
+PW-S04 führt vorhandene Combat-Bausteine über die in PW-S02/PW-S03 etablierte Work-/Transaction-/Event-/Reaction-Grenze, ohne Combat-Fachbegriffe in den Kernel zu verschieben.
 
-Die erste Action kann noch ohne vollständiges `SkillDefinition`-/Channel-/Cooldown-System implementiert sein. Ein Skill-Modul folgt dann, wenn es echte wiederkehrende Lifecycle-Anforderungen trägt, nicht weil „alles ein Skill sein muss“.
+**Umgesetzte beziehungsweise bestätigte Bausteine:**
 
-**Abnahme:** Der Kernel bleibt fachlich unverändert. Eine Regel vor Commit kann den geplanten Schaden beeinflussen; eine Reaction nach Commit nur neue Arbeit erzeugen. Kosten bleiben Kosten, Damage bleibt Damage. Dieselbe Architektur trägt den Door- und den Combat-Fall.
+1. `ISimulationWorkItem` markiert produktive autoritative Work Items. `IDomainEvent` ist ein solches Work Item. Die niedrigeren generischen Scheduler-/Runner-/Composition-Typen bleiben bewusst ohne `ISimulationWorkItem`-Generic-Constraint, damit ihre Infrastruktur generisch und separat testbar bleibt.
+2. Die interne Prepared-Follow-up-Grenze reserviert vor dem Commit nur Scheduler-Kapazität, Schlüssel und Reihenfolge. Der tatsächliche Payload kann nach dem Commit aus dem echten Ergebnis erzeugt und anschließend in die Reservation publiziert werden.
+3. `DamageCommittedEvent` ist ein produktiver Combat-Fakt nach erfolgreichem Resource-Commit. Er trägt stabile Damage-/Gameplay-Execution-, Source-/Target-, Hit- und Zeitinformation sowie das tatsächliche Defeat-aware Commit-Outcome, aber keine beliebige Resource- oder PreDefeat-Implementierungsstruktur.
+4. `ApplyResolvedDamageAction` bildet die produktive Grenze „Damage ist fachlich resolved und soll nun autoritativ angewendet werden“. Resource-Routing bleibt Regel-/Kompositionswissen.
+5. `ResolvedDamageApplicationExecutor` orchestriert vorhandene `DamageResourceLossPlan`-Bausteine, optionale PreDefeat-Interventionen pro Owner und den bestehenden Defeat-aware Resource-Commit. Er unterstützt mehrere Loss-Pläne und Owner, statt Combat auf genau einen Health-Pool zu reduzieren.
+6. `DamageApplicationOwnerPlan` und `ResolvedDamageApplicationResult` bleiben Combat-interne Orchestrierungsverträge; daraus wurde kein allgemeiner Kernel-Service oder globaler Combat-Service gebaut.
 
-**D-02 ist beschlossen:** Das bestehende Combat bleibt ein benanntes Referenz-Regelpaket. Dieser Schritt soll zeigen, welche Verträge tatsächlich zwischen Combat und Framework geteilt werden; Combat-spezifische Typen werden nicht vorsorglich generalisiert.
+**Vertikaler Nachweis A – lethal Damage mit PreDefeat:**
+
+```text
+DamageResolution
+  -> ApplyResolvedDamageAction
+  -> Resource-Loss-Projektion
+  -> PreDefeatRecovery verändert nur den Draft
+  -> Defeat-aware Commit
+  -> DamageCommittedEvent aus dem tatsächlichen Commit-Ergebnis
+  -> Reaction
+  -> ObserveCommittedDamageAction
+```
+
+Der Test belegt unter anderem: autoritativer Life-State bleibt während der Projection unverändert; PreDefeat kann den noch uncommitteten Draft von lethal auf überlebt verändern; der Event wird erst nach sichtbar gewordenem Commit verarbeitet; Damage- und Recovery-Ledger-Einträge behalten getrennte Gameplay-Provenienz. Ein `DamageCommittedEvent` kann nicht aus einer Resolution und einem Commit-Ergebnis verschiedener Target-Entities gebildet werden.
+
+**Negative Executor-Grenzen:** Ein Resource-Loss-Plan aus einer anderen Damage-Resolution wird vor Mutation abgewiesen. Fehlt der Owner der tatsächlich betroffenen Target-Entity, verhindert die bestehende Defeat-aware Ownership-Prüfung den Commit; State, Revision und Ledger bleiben unverändert.
+
+**Vertikaler Nachweis B – bezahlter Angriff:**
+
+```text
+PayAttackCostAction
+  -> Cost Transaction
+  -> AttackCostCommittedEvent
+  -> Reaction
+  -> ResolvePaidAttackDamageAction
+  -> ApplyResolvedDamageAction
+  -> Damage Resource Commit
+  -> DamageCommittedEvent
+  -> Reaction
+```
+
+Der Test belegt ausdrücklich, dass die Kosten vor der Damage-Auflösung committed sind und fachlich getrennt bleiben: Cost erzeugt einen `ResourceCostLedgerEntry`, Damage einen `ResourceLossLedgerEntry`. Die kausale Folgearbeit läuft bei gleichem Timestamp über fortschreitende Waves.
+
+**Abgenommen:** PW-QA-15, PW-QA-16 und PW-QA-22 für den beschriebenen S04-Referenzumfang. Der Kernel bleibt fachneutral; Pre-Commit und Post-Commit sind getrennt; Cost und Damage bleiben verschiedene Operationen; dieselbe Architektur trägt Door und Combat.
+
+**Ausführungsnachweis:** Nach den inkrementellen S04-Schritten bestätigte der Nutzer jeweils grüne Test-/Build-Läufe. Der finale Stand `8bd4dd0` wurde nach **1215/1215** bestandenen Tests mit `gcc` bestätigt.
+
+**Bewusst nicht eingeführt:** globaler `CombatService`, universelles Intervention-Interface, automatische Resource-Routing-Regel, vollständiges Skill-/Cooldown-/Channel-System, Combat-Abhängigkeit im Kernel oder eine neue allgemeine EventBus-Schicht.
 
 ## 8. PW-S05 – Früher Snapshot-/Replay-Beweis
 
@@ -175,6 +217,6 @@ Bei Codeänderungen bleiben `dotnet test`, `dotnet build`, Diff-Prüfung und ein
 
 Die Arbeit endet an einem nutzbaren Zwischenstand. Ein offen gebliebenes Folgefeature wird weder versteckt noch durch eine neue Generalschicht ersetzt.
 
-**Quellen:** [E1–E5](SOURCE_EVIDENCE_v2_0.md).  
-**Detailverträge:** [Manifest](Plaquewright_Manifest_v2_0.md).  
+**Quellen:** [E1–E5, E7–E9](SOURCE_EVIDENCE_v2_0.md).
+**Detailverträge:** [Manifest](Plaquewright_Manifest_v2_0.md).
 **Test-IDs:** [Abnahmekatalog](Plaquewright_Freigabe_und_Testnachweise_v2_0.md).

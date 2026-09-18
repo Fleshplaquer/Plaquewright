@@ -1,10 +1,11 @@
 # Plaquewright – Freigabe, Baseline und Testnachweise 2.0
 
-**Version:** 2.0 · **Datum:** 18. September 2026  
-**Dokumentstatus:** Architektur 2.0 angenommen; neue Funktions-/Release-Freigaben bleiben an konkrete Code- und Testnachweise gebunden  
-**Historische Audit-Baseline:** `d39cb54`, vom Nutzer als grün, committed und clean bestätigt  
-**PW-S02-Nachweisstand:** `b04fcbe`, vom Nutzer als grün, committed und clean bestätigt  
+**Version:** 2.0 · **Datum:** 18. September 2026
+**Dokumentstatus:** Architektur 2.0 angenommen; neue Funktions-/Release-Freigaben bleiben an konkrete Code- und Testnachweise gebunden
+**Historische Audit-Baseline:** `d39cb54`, vom Nutzer als grün, committed und clean bestätigt
+**PW-S02-Nachweisstand:** `b04fcbe`, vom Nutzer als grün, committed und clean bestätigt
 **PW-S03-Nachweisstand:** `f90517a`, vom Nutzer als grün, committed und clean bestätigt
+**PW-S04-Nachweisstand:** `8bd4dd0`, vom Nutzer nach 1215/1215 Tests als grün, committed und clean bestätigt
 
 ## 1. Was tatsächlich bestätigt ist
 
@@ -28,20 +29,23 @@ Dazu: Branch `main`, mit `origin/main` synchron, Working Tree clean; `gcc` wurde
 | B10 | Prepared publication rights / API boundary abgeschlossen | Keine Sandbox- oder universelle Rollback-Garantie |
 | PW-S02 | Abgenommen | Commit → Domain Event → deterministische Reaction einschließlich Queue-Reservation, Input-Grenze, Reaction-Ordering, Fail-stop und RunNext/RunToCompletion-Äquivalenz |
 | PW-S03 | Abgenommen | Expliziter Execution Plan, Required/Provided-Modulkomposition, host-neutrale `SimulationSession`, zwei Headless-Konfigurationen und echter Godot-Smoke-Run über dieselbe Core-Autorität |
-| Build / Tests | Laut finaler Nutzerbestätigung grün | In diesem Dokumentationsdurchgang nicht neu ausgeführt |
+| PW-S04 | Abgenommen | Result-backed Combat-Pipeline mit produktiver Damage-Action, PreDefeat vor Commit, `DamageCommittedEvent` nach Commit, Executor-Negativgrenzen sowie bezahltem Cost→Damage-Referenzablauf |
+| Build / Tests | Finaler S04-Lauf laut Nutzerbestätigung 1215/1215 grün | In diesem Dokumentationsdurchgang nicht neu ausgeführt |
 | Repository | Laut gezeigtem Git-Status clean und synchron | Kein eigener Live-Abruf des Remotes für diese Dokumentation |
 
 Eine vollständig gezeigte frühere Testausgabe enthält **1176 bestandene Tests** nach dem Pre-Defeat-Teil. Im PW-S02-Durchgang wurde zwischenzeitlich eine vollständige Summary mit 1196 Tests gezeigt, davon zunächst ein erwartungsbedingt fehlschlagender neuer Reservation-Test; nach Korrektur der Runner-Erwartung sowie den weiteren Ordering-/Fault-/Äquivalenztests bestätigte der Nutzer die jeweiligen vollständigen Läufe mit `g` und den abschließenden Repository-Stand mit `gcc`.
 
 Für PW-S03 wurde anschließend eine vollständige Summary mit **1210 bestandenen Tests, 0 fehlgeschlagenen Tests** gezeigt. Nach Einbau des Godot-Adapters bestätigte der Nutzer den erneuten Test-/Build-Durchgang als grün und führte zusätzlich den Godot-Host aus. Dessen Output bestätigte `SimulationTime=0us` und `ProcessedEvents=1`. Der abschließende Stand `f90517a` wurde mit `gcc` bestätigt. Da nach der gezeigten 1210-Summary keine weiteren Testdateien hinzukamen, wird 1210 als bestätigter S03-Testumfang geführt; dies ist keine Performance-, Replay- oder Cross-Platform-Freigabe.
 
+Für PW-S04 wurden anschließend mehrere inkrementelle grüne Läufe bestätigt. Der finale Referenzumfang enthält **1215/1215 bestandene Tests**. Belegt sind insbesondere der lethal-Damage-/PreDefeat-Pfad, result-backed `DamageCommittedEvent`, die neue `ApplyResolvedDamageAction`-/`ResolvedDamageApplicationExecutor`-Grenze, Ablehnung fremder Damage-Resolutionen beziehungsweise fehlender Target-Owner sowie ein bezahlter Cost→Event→Reaction→Damage→Commit→Event→Reaction-Ablauf. Der Nutzer nannte danach `8bd4dd0` als aktuellen HEAD und bestätigte `gcc`. [E9]
+
 Die Architekturübergabe mit 1023 Tests beschreibt einen älteren technischen Stand. Sie ist die aktuelle Quelle der Produktvision, nicht der jüngere technische Nachweis. [E1, E2]
 
 ## 2. Was diese Dokumentation selbst ausgeführt hat
 
-Der ursprüngliche v2-Dokumentationsdurchgang las die bereitgestellten Quellen und erzeugte die Architekturdateien ohne Produktionsänderung. **Seitdem** wurden PW-S02 und PW-S03 im Nutzerrepository implementiert und getestet. Der Nutzer bestätigte die S02-Codeänderungen einschließlich PW-QA-12 auf `b04fcbe` sowie den abgeschlossenen S03-Stand `f90517a` mit `gcc`.
+Der ursprüngliche v2-Dokumentationsdurchgang las die bereitgestellten Quellen und erzeugte die Architekturdateien ohne Produktionsänderung. **Seitdem** wurden PW-S02, PW-S03 und PW-S04 im Nutzerrepository implementiert und getestet. Der Nutzer bestätigte die S02-Codeänderungen einschließlich PW-QA-12 auf `b04fcbe`, den abgeschlossenen S03-Stand `f90517a` und den abgeschlossenen S04-Stand `8bd4dd0` jeweils mit `gcc`.
 
-Diese aktuelle Dokumentaktualisierung führt selbst **keinen neuen .NET-Testlauf, Godot-Start oder Benchmark** aus und verändert das Nutzerrepository nicht. Sie übernimmt die im Projektgespräch gezeigten/bestätigten S03-Nachweise, während `d39cb54` die historische A/B-Audit-Baseline und `b04fcbe` der S02-Zwischenstand bleiben. Einzelheiten stehen im [Quellenregister](SOURCE_EVIDENCE_v2_0.md).
+Diese aktuelle Dokumentaktualisierung führt selbst **keinen neuen .NET-Testlauf, Godot-Start, Replay-Test oder Benchmark** aus und verändert das Nutzerrepository nicht. Sie übernimmt die im Projektgespräch gezeigten/bestätigten S03- und S04-Nachweise, während `d39cb54` die historische A/B-Audit-Baseline, `b04fcbe` der S02-Zwischenstand und `f90517a` der S03-Endstand bleiben. Einzelheiten stehen im [Quellenregister](SOURCE_EVIDENCE_v2_0.md).
 
 ## 3. Statussprache für künftige Nachweise
 
@@ -125,6 +129,20 @@ Zusätzlich belegen die S03-Tests, dass doppelte Handler, fehlende Required-Cont
 
 PW-S02 bleibt auf `b04fcbe` als eigener Zwischenstand dokumentiert. Für PW-S03 liegt dagegen eine explizit gezeigte Testsummary mit 1210/1210 sowie die nachfolgende grüne Godot-Adapter-/Build-Bestätigung vor; beide Nachweisstufen werden nicht miteinander vermischt.
 
+### 4.3 Abgenommene PW-S04-Nachweise
+
+Für PW-S04 sind auf dem bestätigten Endstand `8bd4dd0` folgende Abnahmen erfüllt:
+
+| ID | Status | Wesentliche Test-/Laufquelle |
+|---|---|---|
+| PW-QA-15 | Abgenommen | `LethalDamage_WithPreDefeatRecovery_CommitsBeforePostCommitReaction` belegt, dass PreDefeat den noch uncommitteten Draft verändern kann, während die Post-Commit-Reaction erst den committed State sieht und nur neue Arbeit erzeugt |
+| PW-QA-16 | Abgenommen für den S04-Referenzumfang | Door/Alarm und Combat laufen über dieselben generischen Session-/Composition-/Scheduler-/Event-Primitiven, ohne Combat-Fachbegriffe in den Kernel zu verschieben |
+| PW-QA-22 | Abgenommen für den S04-Referenzumfang | Der lethal-Damage-Test prüft getrennte Damage- und Recovery-Provenienz mit unterschiedlichen `ExecutionId`s; der Paid-Attack-Test hält Cost und Damage als verschiedene Ledger-Operationen getrennt |
+
+Zusätzliche S04-Negativtests weisen nach, dass ein Resource-Loss-Plan aus einer fremden Damage-Resolution vor autoritativer Mutation abgewiesen wird und dass ein Draft ohne passenden Target-Owner nicht committed. Die Event-Invariante verbietet außerdem die Konstruktion eines `DamageCommittedEvent` aus Resolution und Commit-Ergebnis verschiedener Target-Entities.
+
+Der zweite vertikale Referenztest führt eine bezahlte Action über `Cost Commit -> Event -> Reaction -> Damage -> Commit -> Event -> Reaction`. Der finale bestätigte Testumfang beträgt **1215/1215**. Dies ist weiterhin keine Snapshot-/Replay-, Cross-Platform-, Physics-Paritäts- oder Performance-Freigabe.
+
 ## 5. Mindestinhalt eines Test-/Release-Belegs
 
 Ein Beleg nennt Commit, betroffene Module und Regelversionen, Buildkonfiguration, Runtime und Plattform, tatsächlich ausgeführte Befehle, Ergebnis sowie bewusst nicht geprüfte Aspekte.
@@ -135,17 +153,19 @@ Authoring-/Replay-Versionen und Migrationsverhalten werden erst als unterstützt
 
 ## 6. Freigabe der Dokumentversion
 
-D-01 und D-02 wurden am 17. September 2026 ausdrücklich angenommen. D-04 und D-05 wurden anschließend im PW-S02-Durchgang entschieden und nachgewiesen. PW-S03 belegt Headless und Godot als Referenz-Betriebsarten über dieselbe Core-Autorität; D-07 bleibt dennoch offen, weil Paket-/Distributionsumfang, unterstützte Host-Versionen und spätere Adapter noch nicht als Releasevertrag entschieden sind. D-03, D-06 und D-07 bleiben offene technische Detailgates.
+D-01 und D-02 wurden am 17. September 2026 ausdrücklich angenommen. D-04 und D-05 wurden anschließend im PW-S02-Durchgang entschieden und nachgewiesen. PW-S03 belegt Headless und Godot als Referenz-Betriebsarten über dieselbe Core-Autorität. PW-S04 belegt Combat als zweites fachliches Referenzszenario auf derselben Runtime-Grenze. D-07 bleibt dennoch offen, weil Paket-/Distributionsumfang, unterstützte Host-Versionen und spätere Adapter noch nicht als Releasevertrag entschieden sind. D-03, D-06 und D-07 bleiben offene technische Detailgates.
 
-**Architekturfreigabe 2.0:** erteilt am 17. September 2026.  
-**D-01 Determinismus/Replay:** beschlossen.  
-**D-02 Combat-Referenzpaket:** beschlossen.  
-**D-04 Same-Timestamp-Input-Grenze:** beschlossen und in PW-S02 nachgewiesen.  
-**D-05 Event-Publikation und Reaction-Fault-Politik:** beschlossen und in PW-S02 nachgewiesen.  
-**PW-S02:** abgenommen auf `b04fcbe`.  
-**PW-S03:** abgenommen auf `f90517a`; Headless-Komposition und echter Godot-Smoke-Run bestätigt.  
-**Bestätigter S03-Testumfang:** 1210/1210; danach Godot-Adapter-Test/Build erneut grün bestätigt.  
-**Offene Detailgates:** D-03, D-06 und D-07.  
+**Architekturfreigabe 2.0:** erteilt am 17. September 2026.
+**D-01 Determinismus/Replay:** beschlossen.
+**D-02 Combat-Referenzpaket:** beschlossen.
+**D-04 Same-Timestamp-Input-Grenze:** beschlossen und in PW-S02 nachgewiesen.
+**D-05 Event-Publikation und Reaction-Fault-Politik:** beschlossen und in PW-S02 nachgewiesen.
+**PW-S02:** abgenommen auf `b04fcbe`.
+**PW-S03:** abgenommen auf `f90517a`; Headless-Komposition und echter Godot-Smoke-Run bestätigt.
+**PW-S04:** abgenommen auf `8bd4dd0`; result-backed Combat, PreDefeat/Reaction-Trennung und Cost→Damage-Referenzablauf bestätigt.
+**Bestätigter S03-Testumfang:** 1210/1210; danach Godot-Adapter-Test/Build erneut grün bestätigt.
+**Bestätigter S04-Testumfang:** 1215/1215; abschließend `gcc`.
+**Offene Detailgates:** D-03, D-06 und D-07.
 **Historischer A/B-Abschluss `d39cb54`:** bleibt unverändert dokumentiert.
 
-Eine Dokumentationsannahme ersetzt keinen Code-Nachweis; die hier genannten PW-S02-/PW-S03-Status beruhen auf den vom Nutzer bestätigten Code-, Test- und Host-Läufen. Snapshot/Replay, aufgezeichnete Host-Fact-Parität, Cross-Platform-/Physics-Äquivalenz und Performance bleiben eigene spätere Freigaben.
+Eine Dokumentationsannahme ersetzt keinen Code-Nachweis; die hier genannten PW-S02-/PW-S03-/PW-S04-Status beruhen auf den vom Nutzer bestätigten Code-, Test- und Host-Läufen. Snapshot/Replay, aufgezeichnete Host-Fact-Parität, Cross-Platform-/Physics-Äquivalenz und Performance bleiben eigene spätere Freigaben.

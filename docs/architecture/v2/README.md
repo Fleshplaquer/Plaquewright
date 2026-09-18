@@ -1,10 +1,11 @@
 # Plaquewright – Architektur 2.0
 
-**Stand:** 18. September 2026  
-**Historische Audit-Baseline:** `d39cb54`  
-**PW-S02-Nachweis:** `b04fcbe`, vom Nutzer als grün / committed / clean bestätigt  
-**Aktueller Funktionsnachweis:** PW-S03 auf `f90517a`, vom Nutzer als grün / committed / clean bestätigt  
-**Dokumentstatus:** Architektur 2.0 angenommen; D-01, D-02, D-04 und D-05 beschlossen; PW-S02 und PW-S03 abgenommen
+**Stand:** 18. September 2026
+**Historische Audit-Baseline:** `d39cb54`
+**PW-S02-Nachweis:** `b04fcbe`, vom Nutzer als grün / committed / clean bestätigt
+**PW-S03-Nachweis:** `f90517a`, vom Nutzer als grün / committed / clean bestätigt
+**Aktueller Funktionsnachweis:** PW-S04 auf `8bd4dd0`, vom Nutzer mit 1215/1215 Tests sowie `gcc` bestätigt
+**Dokumentstatus:** Architektur 2.0 angenommen; D-01, D-02, D-04 und D-05 beschlossen; PW-S02, PW-S03 und PW-S04 abgenommen
 
 ## Was diese Fassung festlegt
 
@@ -43,11 +44,23 @@ Zuerst Manifest PW-01 bis PW-10 und die Architecture Map. Danach die Baufolge PW
 
 ## Nächster Entwicklungsstrang
 
-PW-S03 ist abgeschlossen. Der nächste Schritt ist **PW-S04 – Combat als zweites fachliches Referenzszenario auf die gemeinsame Pipeline ziehen**.
+PW-S04 ist abgeschlossen. Der finale Abnahmestand `8bd4dd0` trägt Combat als zweites fachliches Referenzszenario über dieselbe gemeinsame Runtime. Der bestätigte Endlauf umfasst **1215/1215 bestandene Tests**; der Nutzer bestätigte anschließend `gcc`.
 
-Die neue Host-/Kompositionsgrenze ist bereits belegt: `SimulationExecutionPlan`, explizite `SimulationComposition` mit Required/Provided-Contracts und die host-neutrale `SimulationSession` tragen sowohl Headless-Ausführung als auch den minimalen Godot-Adapter. Door/Alarm sowie Resources/Door/Alarm laufen headless ohne Combat-Pflichtzustand; Godot referenziert `Plaquewright.Core` und führt dieselbe Session-Autorität aus.
+Der Combat-Nachweis trennt dabei bewusst die fachlichen Phasen:
 
-PW-S04 soll deshalb keine neue Kernel-Schicht erfinden. Stattdessen wird ein kleiner vorhandener Combat-Ablauf auf dieselben Transaction→Event→Reaction- und Composition-Primitiven geführt. Combat-spezifische Typen bleiben Combat-spezifisch, solange kein zweiter unabhängiger Bedarf ihre Generalisierung rechtfertigt.
+```text
+DamageResolutionContext
+  -> ApplyResolvedDamageAction
+  -> ResolvedDamageApplicationExecutor
+  -> Resource-Loss-Pläne und optionale PreDefeat-Interventionen
+  -> Defeat-aware Resource-Commit
+  -> DamageCommittedEvent
+  -> deterministische Reaction / neue Arbeit
+```
+
+Ein zweiter vertikaler Test führt eine bezahlte Action über `Cost Commit -> Event -> Reaction -> Damage -> Commit -> Event -> Reaction`. Kosten bleiben `ResourceCostLedgerEntry`, Damage bleibt `ResourceLossLedgerEntry`; PreDefeat verändert nur den noch nicht committed Draft, während Post-Commit-Reactions ausschließlich neue Arbeit erzeugen.
+
+Der nächste Schritt ist **PW-S05 – Snapshot/Restore und deterministischer Replay-Beweis**. Dabei werden zuerst die tatsächlich erforderlichen autoritativen Zustände, Pending-Work-, RNG-/ID- und Versionsgrenzen an einer quiescent boundary festgelegt. PW-S05 soll keine Serialization-Allzweckschicht vorwegnehmen.
 
 ## Ablage und Übernahme
 

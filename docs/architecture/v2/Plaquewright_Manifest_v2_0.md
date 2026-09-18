@@ -1,11 +1,12 @@
 # Plaquewright – Framework-Manifest 2.0
 
-**Dokumentversion:** 2.0  
-**Datum:** 18. September 2026  
-**Status:** Architekturfreigabe 2.0; D-01, D-02, D-04 und D-05 beschlossen am 17. September 2026  
-**Historische Audit-Baseline:** `d39cb54`  
-**PW-S02-Nachweis:** `b04fcbe`, vom Nutzer als grün / committed / clean bestätigt  
-**Aktueller PW-S03-Nachweis:** `f90517a`, vom Nutzer als grün / committed / clean bestätigt  
+**Dokumentversion:** 2.0
+**Datum:** 18. September 2026
+**Status:** Architekturfreigabe 2.0; D-01, D-02, D-04 und D-05 beschlossen; PW-S02, PW-S03 und PW-S04 abgenommen
+**Historische Audit-Baseline:** `d39cb54`
+**PW-S02-Nachweis:** `b04fcbe`, vom Nutzer als grün / committed / clean bestätigt
+**PW-S03-Nachweis:** `f90517a`, vom Nutzer als grün / committed / clean bestätigt
+**Aktueller PW-S04-Nachweis:** `8bd4dd0`, vom Nutzer nach 1215/1215 Tests als grün / committed / clean bestätigt
 **Gegenstand:** Engine-unabhängiges, deterministisches, modulares Gameplay-/Simulations-Framework für C#
 
 ## PW-00 – Geltung, Quellen und Änderungsstatus
@@ -18,8 +19,8 @@ Die Wörter „muss“, „darf nicht“ und „soll“ beschreiben den freigege
 
 Quellencode belegt den Iststand; Architekturentscheidungen definieren den Sollstand; Testausführungen belegen konkrete Szenarien auf konkreten Ständen. Keines ersetzt das andere. Der vom Nutzer bestätigte A/B-Auditabschluss bleibt auf `d39cb54` dokumentiert und wird nicht durch neue Dokumentnummern neu eröffnet. [E2–E5]
 
-**Quellen und Grenzen:** [Quellenregister](SOURCE_EVIDENCE_v2_0.md).  
-**Umsetzung:** [Implementierungsfolge](Plaquewright_Implementation_Sequence_v2_0.md).  
+**Quellen und Grenzen:** [Quellenregister](SOURCE_EVIDENCE_v2_0.md).
+**Umsetzung:** [Implementierungsfolge](Plaquewright_Implementation_Sequence_v2_0.md).
 **Abnahme:** [Freigabe und Testnachweise](Plaquewright_Freigabe_und_Testnachweise_v2_0.md).
 
 ## PW-01 – Produkt und Erfolgskriterium
@@ -129,11 +130,11 @@ Eine unerwartete Exception mitten in Apply ist ein Infrastruktur-/Vertragsfehler
 
 **PW-S02 ist umgesetzt und abgenommen.** Ein erfolgreich committed Sachverhalt kann als typisiertes `IDomainEvent` in deterministische Folgearbeit übergehen. Dafür existieren `IDomainReaction<TEvent, TWorkItem>`, `DomainReactionContext<TWorkItem>` und eine explizit komponierte `DomainReactionDispatcher<TEvent, TWorkItem>`.
 
-`DomainEventTransactionCoordinator.TryCommitAndPublish(...)` sichert die benötigte Follow-up-Kapazität vor dem Transaction-Commit. Kann die autoritative Event-Publikation nicht garantiert werden, beginnt der Commit nicht. Bei fachlicher Prepare-Ablehnung wird die Reservation verworfen. Nach erfolgreichem Commit wird das bereits vorbereitete Event publiziert.
+`DomainEventTransactionCoordinator.TryCommitAndPublish(...)` sichert die benötigte Follow-up-Kapazität vor dem Transaction-Commit. Kann die autoritative Event-Publikation nicht garantiert werden, beginnt der Commit nicht. Bei fachlicher Prepare-Ablehnung wird die Reservation verworfen. Für Fälle, in denen der Event-Payload erst aus dem tatsächlichen Commit-Ergebnis entstehen kann, reserviert die interne Prepared-Follow-up-Grenze vorab nur Kapazität, Scheduler-Key und Reihenfolge; nach erfolgreichem Commit wird der konkrete Event-Payload erzeugt und über die Reservation publiziert.
 
 Die Scheduler-Reservation bleibt intern. Fremde Module erhalten kein allgemeines Recht, Queue-Kapazität oder vorbereitete Scheduler-Einträge selbst zu publizieren.
 
-PW-S02 führt bewusst kein universelles `CommitResult`-Objekt ein. Der Coordinator liefert weiterhin den Commit-Erfolg; der konkrete typisierte Sachverhalt wird durch das jeweilige Domain Event beschrieben. Eine allgemeinere Ergebnisabstraktion entsteht erst, wenn ein zweiter unabhängiger Fall sie tatsächlich benötigt.
+PW-S02 führte bewusst kein universelles `CommitResult`-Objekt ein. PW-S04 bestätigt diese Entscheidung: Combat verwendet sein vorhandenes fachliches `DefeatAwareResourceTransactionCommitResult`, um danach ein typisiertes `DamageCommittedEvent` zu erzeugen. Daraus entsteht weiterhin kein Kernel-weites Commit-Result-Modell.
 
 Mehrere Reactions werden in expliziter, beim Aufbau eingefrorener Kompositionsreihenfolge ausgeführt. Daraus geplante gleichzeitige Follow-ups behalten über Scheduler-Wave und Sequence eine reproduzierbare Reihenfolge. Es gibt keine Reflection-Discovery, dynamische Prioritätsregistrierung oder Mutation der Reaction-Liste während des Runs.
 
@@ -150,6 +151,8 @@ Beispiel: Eine Regel „dieser Treffer darf den letzten Lebenspunkt nicht verbra
 Ebenso sind Damage, Cost, Recovery, Prevention und finale Ressourcenwerte nicht austauschbar. Welche speziellen Mechaniken ein Spiel daraus bildet, liegt im Domain-/Regelprofil, nicht im Kernel.
 
 Die im Code vorhandene Recovery-basierte MinimumCurrent-Intervention bleibt genau das. Ihre Tests werden nicht allein wegen der Framework-Neuausrichtung in Prevention umgedeutet. [E2, E3]
+
+PW-S04 belegt diese Grenze nun in einem vollständigen Combat-Pfad: Eine PreDefeat-Recovery verändert den noch nicht committed Resource-Draft und kann dadurch einen neuen Defeat-Übergang verhindern. Erst nach dem Defeat-aware Commit entsteht `DamageCommittedEvent`; seine Reaction beobachtet den committed State und plant neue Arbeit. Damit ist Pre-Commit versus Post-Commit nicht nur Zielvertrag, sondern für den S04-Referenzfall ausgeführt. [E9]
 
 ## PW-09 – Zeit, Scheduler und Eingabegrenze
 
@@ -212,6 +215,8 @@ Eine offene Fachklassifikation kann später registrierte Keys/IDs benötigen. Ei
 **Beschlossene Entscheidung D-02 – Combat-Referenzpaket:** Die bestehenden Combat-Regeln bleiben als erstklassiges, austauschbares Plaquewright-Referenz-Regelpaket erhalten. Sie dienen als reales Beispiel und Belastungstest für komplexe Framework-Komposition, sind aber keine Kernel-Abhängigkeit.
 
 Combat-spezifische Begriffe und Abstraktionen bleiben im Combat-Bereich. Eine Regel oder Abstraktion wird erst dann in allgemeinere Framework-Infrastruktur gehoben, wenn mindestens ein weiterer unabhängiger Anwendungsfall denselben Vertrag tatsächlich benötigt. Alternative Spiele dürfen andere Combat-Regelprofile oder gar kein Combat verwenden.
+
+PW-S04 folgt diesem Vertrag: `ApplyResolvedDamageAction`, `DamageCommittedEvent` und `ResolvedDamageApplicationExecutor` bleiben Combat-spezifisch. Allgemeinisiert wurden nur der kleine `ISimulationWorkItem`-Marker und die payload-späte interne Follow-up-Reservation, weil diese keine Combat-Fachsemantik tragen. [E9]
 
 Kernel-Verträge bleiben für alle Profile gültig. Fachregeln eines Combat-Profils gelten nur innerhalb dieses Profils. Beispielsweise ist eine definierte Schadensbilanz ein Domain-Vertrag; die konkrete Armor-Formel ist keine allgemeine Kernel-Invariante.
 
@@ -277,8 +282,8 @@ vorhandene Transaction-Grenze
   -> deterministische Reaction               [PW-S02 abgenommen]
   -> kleine explizite Modulkomposition       [PW-S03 abgenommen]
   -> Headless/Godot über SimulationSession   [PW-S03 abgenommen]
-  -> Combat als zweiter Referenzfall          [PW-S04 als Nächstes]
-  -> Snapshot-/Replay-Beweis                  [PW-S05]
+  -> Combat als zweiter Referenzfall         [PW-S04 abgenommen]
+  -> Snapshot-/Replay-Beweis                 [PW-S05 als Nächstes]
   -> weitere Domain-Regeln und Lastmessung
 ```
 
@@ -300,4 +305,4 @@ Testnamen sind ein Inhaltsverzeichnis, kein Nachweis der Assertion-Qualität. AP
 
 D-03, D-06 und D-07 bleiben technische Detailgates. D-04 und D-05 wurden im Rahmen von PW-S02 entschieden und durch die zugehörigen Tests konkretisiert. PW-S03 belegt inzwischen Headless und Godot als gemeinsame Referenz-Betriebsarten über `SimulationSession`; D-07 bleibt offen, bis Distributionsumfang, unterstützte Host-Versionen und weitere Adapter als Releasevertrag entschieden werden.
 
-**Annahmeprotokoll:** Architektur 2.0 am 17. September 2026 im Projektgespräch angenommen; D-01 und D-02 ausdrücklich bestätigt. D-04 und D-05 wurden anschließend im PW-S02-Durchgang beschlossen und auf `b04fcbe` als Teil des abgenommenen Referenzprofils dokumentiert. PW-S03 wurde am 18. September 2026 auf `f90517a` mit Headless-Nachweisen und echtem Godot-Smoke-Run abgenommen. Dies ist keine Replay-, Cross-Platform-, Physics-Paritäts- oder Performance-Freigabe.
+**Annahmeprotokoll:** Architektur 2.0 am 17. September 2026 im Projektgespräch angenommen; D-01 und D-02 ausdrücklich bestätigt. D-04 und D-05 wurden anschließend im PW-S02-Durchgang beschlossen und auf `b04fcbe` als Teil des abgenommenen Referenzprofils dokumentiert. PW-S03 wurde am 18. September 2026 auf `f90517a` mit Headless-Nachweisen und echtem Godot-Smoke-Run abgenommen. PW-S04 wurde am 18. September 2026 auf `8bd4dd0` nach 1215/1215 bestandenen Tests als Combat-Referenzszenario abgenommen. Dies ist keine Replay-, Cross-Platform-, Physics-Paritäts- oder Performance-Freigabe.

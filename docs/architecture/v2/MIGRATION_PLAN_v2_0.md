@@ -1,9 +1,10 @@
 # Plaquewright – Migrationsplan 2.0
 
-**Datum:** 18. September 2026 · **Status:** Angenommener Migrationsleitplan 2.0  
-**Historische Audit-Baseline:** `d39cb54`  
-**PW-S02-Nachweis:** `b04fcbe`  
-**Aktueller Funktionsnachweis:** PW-S03 auf `f90517a`  
+**Datum:** 18. September 2026 · **Status:** Angenommener Migrationsleitplan 2.0
+**Historische Audit-Baseline:** `d39cb54`
+**PW-S02-Nachweis:** `b04fcbe`
+**PW-S03-Nachweis:** `f90517a`
+**Aktueller Funktionsnachweis:** PW-S04 auf `8bd4dd0`
 **Prinzip:** Verhalten erhalten, Grenzen testen, dann den kleinsten notwendigen Eingriff vornehmen.
 
 Die frühere `MIGRATION_PLAN.md` wird in der Architekturübergabe genannt, ist im bereitgestellten Archiv aber nicht vorhanden. Dieses Dokument ersetzt deshalb keine ungelesene Detailentscheidung stillschweigend.
@@ -18,15 +19,15 @@ Alte Gameplay-Regeln werden nicht gelöscht. Gemäß D-02 bleiben die bestehende
 
 ## 2. Baseline nicht umdeuten
 
-`d39cb54` bleibt der historische A/B-Auditpunkt. `b04fcbe` belegt PW-S02; `f90517a` belegt den abgeschlossenen PW-S03-Stand. Diese Referenzen werden nicht miteinander vermischt. Dokumentationscommits erhalten wiederum eigene Hashes und ändern diese Nachweisrollen nicht.
+`d39cb54` bleibt der historische A/B-Auditpunkt. `b04fcbe` belegt PW-S02; `f90517a` belegt PW-S03; `8bd4dd0` belegt den abgeschlossenen PW-S04-Endstand. Diese Referenzen werden nicht miteinander vermischt. Dokumentationscommits erhalten wiederum eigene Hashes und ändern diese Nachweisrollen nicht.
 
 A/B-Findings werden nicht neu nummeriert, und fehlende ausführliche Finding-Texte werden nicht rekonstruiert, als wären sie vorhanden. Die ursprüngliche Framework-Übergabe mit 1023 Tests und „Transaction Boundary als nächster Schritt“ wird als älterer Technikstand gekennzeichnet.
 
-## 3. Nach PW-S03 weiterhin keine Komplettreorganisation
+## 3. Nach PW-S04 weiterhin keine Komplettreorganisation
 
-PW-S02 hat gezeigt, dass bestehender Transaction-Coordinator und Scheduler mit wenigen schmalen Verträgen die benötigte Commit→Event→Reaction-Semantik tragen. PW-S03 hat darauf einen eingefrorenen Execution Plan, explizite Required/Provided-Komposition und die host-neutrale `SimulationSession` gesetzt, ohne die komplette Runtime neu zu ordnen.
+PW-S02 hat gezeigt, dass bestehender Transaction-Coordinator und Scheduler mit wenigen schmalen Verträgen die benötigte Commit→Event→Reaction-Semantik tragen. PW-S03 hat darauf einen eingefrorenen Execution Plan, explizite Required/Provided-Komposition und die host-neutrale `SimulationSession` gesetzt. PW-S04 hat anschließend vorhandene Combat-Bausteine über dieselbe Runtime geführt, ohne einen globalen Combat-Service oder Kernel-Fachbegriffe einzuführen.
 
-Der nächste Codeblock ist PW-S04: ein kleiner vorhandener Combat-Ablauf als zweites fachliches Referenzszenario. Nur wenn dieser reale Fall eine konkrete Grenze blockiert, wird genau diese Grenze refaktoriert oder generalisiert.
+Die dabei notwendige Generalisierung blieb klein: produktive Work Items erhielten `ISimulationWorkItem`, die interne Follow-up-Reservation wurde payload-spät nutzbar, und Combat bekam einen result-backed Event sowie einen kleinen Application-Executor. Der nächste Codeblock ist PW-S05: Snapshot/Restore und Replay an einer quiescent boundary. Auch dort wird nur die tatsächlich benötigte Persistenz-/Restore-Grenze eingeführt.
 
 ## 4. Generische Runtime von Gameplay-Komposition trennen
 
@@ -46,7 +47,7 @@ Nachträgliche Events sind kein Ersatz für atomare State-Änderung. Alarm nach 
 
 ## 6. Regeln vom Kernel fernhalten, nicht alles abstrahieren
 
-Vorhandene Combat-Rechner bleiben zunächst konkrete Referenzimplementierungen. Eine zweite tatsächlich benötigte Variante bestimmt, wo ein austauschbarer Regelvertrag sinnvoll ist.
+Vorhandene Combat-Rechner bleiben konkrete Referenzimplementierungen. PW-S04 hat bestätigt, dass selbst der neue Damage-Application-Executor Combat-intern bleiben kann. Eine zweite tatsächlich unabhängige Variante bestimmt weiterhin, wo ein austauschbarer allgemeiner Regelvertrag sinnvoll ist.
 
 Nicht jeder private Rechenschritt wird zu einem öffentlichen Interface. Domain-spezifische Mengen wie `DamageTaken` bleiben nützlich, auch wenn der Kernel sie nicht kennt.
 
@@ -68,8 +69,8 @@ Bei API-Änderungen werden vorhandene Aufrufer migriert oder bewusst kompatible 
 
 ## 9. Nächster Repository-Schritt nach dieser Dokumentaktualisierung
 
-Diese Dokumentaktualisierung verändert selbst keinen Produktionscode und führt keinen zusätzlichen Testlauf aus. Sie synchronisiert den Architekturstand mit dem vom Nutzer bestätigten PW-S03-Endstand `f90517a` einschließlich Headless-Nachweisen und Godot-Smoke-Run.
+Diese Dokumentaktualisierung verändert selbst keinen Produktionscode und führt keinen zusätzlichen Testlauf aus. Sie synchronisiert den Architekturstand mit dem vom Nutzer bestätigten PW-S04-Endstand `8bd4dd0` und dem finalen Testumfang 1215/1215.
 
-Nach dem Dokumentationscommit folgt PW-S04 in einem getrennten, getesteten Codeblock. Keine Quellcodeverschiebung, Assembly-Neuordnung oder Generalisierung von Combat-Typen wird allein wegen der Dokumentpflege vorgezogen.
+Nach dem Dokumentationscommit folgt PW-S05 in einem getrennten, getesteten Codeblock. Zuerst werden Snapshot-Inhalt, quiescent boundary, Restore-Zielruntime sowie Pending Scheduler-/Reaction-, RNG-, ID- und Domainzustände konkret am aktuellen Codebestand geprüft. Keine allgemeine Serializer-, Savegame-, EventStore- oder Cross-Version-Schicht wird allein wegen der Dokumentpflege vorgezogen.
 
-**Quellen:** [E1–E5, E7–E8](SOURCE_EVIDENCE_v2_0.md).
+**Quellen:** [E1–E5, E7–E9](SOURCE_EVIDENCE_v2_0.md).

@@ -1,7 +1,7 @@
 # Plaquewright – Code Classification 2.0
 
-**Datum:** 18. September 2026 · **Status:** Freigegebene v2.0-Einordnung / statische Momentaufnahme  
-**Historische Audit-Baseline:** `d39cb54`; **PW-S02-Nachweis:** `b04fcbe`; **aktueller PW-S03-Nachweis:** `f90517a` laut Nutzer; **vollständig direkt untersuchte Source-Basis:** älterer Archiv-Snapshot `zip.7z` plus im S02/S03-Durchgang gezeigte oder gemeinsam erarbeitete betroffene Verträge, Tests und Host-Dateien
+**Datum:** 18. September 2026 · **Status:** Freigegebene v2.0-Einordnung / statische Momentaufnahme
+**Historische Audit-Baseline:** `d39cb54`; **PW-S02-Nachweis:** `b04fcbe`; **PW-S03-Nachweis:** `f90517a`; **aktueller PW-S04-Nachweis:** `8bd4dd0` laut Nutzer; **vollständig direkt untersuchte Source-Basis:** älterer Archiv-Snapshot `zip.7z` plus im S02/S03/S04-Durchgang gezeigte oder gemeinsam erarbeitete betroffene Verträge, Tests und Host-Dateien
 
 Die in der Architekturübergabe genannte alte `CODE_CLASSIFICATION.md` ist im bereitgestellten Archiv nicht enthalten. Diese neue Klassifikation verwendet tatsächliche Quellpfade, behauptet aber keinen vollständigen aktuellen Dependency-Audit.
 
@@ -18,9 +18,10 @@ Die in der Architekturübergabe genannte alte `CODE_CLASSIFICATION.md` ist im be
 | `HitExecutionIdAllocator`, `DamageExecutionIdAllocator` | Combat-spezifische Identitätsinfrastruktur | Nicht allein wegen `Simulation/` in den Kernel einordnen |
 | `SimulationRuntimeState` | Vorhandene Gameplay-Komposition aus Entities, Resources und Combat | Als konkrete Komposition erhalten; generische Module nicht davon abhängig machen |
 | `ITransactionParticipant`, `PreparedTransactionChange`, `TransactionCoordinator` | Generische Cross-Domain-Grenze | Weiterverwenden, neue gemeinsame Konflikte/Lebensdauern gezielt belegen |
-| `IDomainEvent`, `IDomainReaction<,>`, `DomainReactionContext<>`, `DomainReactionDispatcher<,>` | Kleine generische Post-Commit-Folgearbeitsgrenze | PW-S02 abgenommen; explizite Komposition statt globalem EventBus beibehalten |
+| `ISimulationWorkItem` | Kleiner Marker für produktive autoritative Work Items | `IDomainEvent` ist ein Work Item; niedrige Scheduler-/Runner-/Composition-Generics bleiben bewusst unbeschränkt |
+| `IDomainEvent`, `IDomainReaction<,>`, `DomainReactionContext<>`, `DomainReactionDispatcher<,>` | Kleine generische Post-Commit-Folgearbeitsgrenze | PW-S02 abgenommen; seit PW-S04 ist `IDomainEvent` zugleich `ISimulationWorkItem`; explizite Komposition statt globalem EventBus beibehalten |
 | `DomainEventTransactionCoordinator` | Komposition aus sicher reserviertem Follow-up und bestehendem Transaction-Commit | Für Commit→Event-Fälle nutzen; `TransactionCoordinator` selbst eventfrei halten |
-| `PreparedScheduledFollowUp<TPayload>` | Interne Scheduler-Publikationsreservation | Intern halten; keine allgemeine externe Queue-Reservation-API daraus machen |
+| `PreparedScheduledFollowUp<TPayload>` | Interne Scheduler-Publikationsreservation | Reserviert Kapazität/Key/Order vor Commit; der tatsächliche Payload kann erst nach dem Commit an `Publish(...)` übergeben werden; intern halten |
 | `SimulationExecutionPlanBuilder<TWorkItem>`, `SimulationExecutionPlan<TWorkItem>` | Generischer eingefrorener Work-Item-Dispatchplan | Exaktes Typ-Routing und Build-Time-Duplikatprüfung beibehalten; kein Reflection-Router daraus machen |
 | `ISimulationModuleContract`, `SimulationModuleBuilder<TWorkItem>`, `SimulationCompositionBuilder<TWorkItem>`, `SimulationComposition<TWorkItem>` | Explizite Startup-Komposition und Contract-Validierung | Required/Provided bleibt Verfügbarkeitsvertrag; keine automatische Dependency-Sortierung, kein Service Locator |
 | `SimulationSession<TWorkItem>` | Host-neutrale Fassade über Composition, Runner und Scheduler | Headless, Godot und spätere Hosts sollen dieselbe Autorität verwenden; keine rohe Queue-API exponieren |
@@ -28,6 +29,9 @@ Die in der Architekturübergabe genannte alte `CODE_CLASSIFICATION.md` ist im be
 | `Resources/*` | Domain und ihre eigenen Mutations-/Buchungsmechanismen | Draft und Commit-Interna nicht pauschal veröffentlichen |
 | `ResourceCostTransactionParticipant` | Öffentlicher Resources-Adapter zur generischen Transaction | Bestehende Cost-Grenze nutzen; nicht als universellen Resource-Participant ausgeben |
 | `Combat/*` | Gameplay-Domain mit konkreten fachlichen Regeln | Weiterverwenden; Kernel und künftig wählbare Regelprofile unterscheiden |
+| `DamageCommittedEvent` | Produktiver Combat-Domain-Fakt nach Resource-Commit | Trägt stabile Damage-/Execution-/Target-/Outcome-Fakten, nicht Resource-Routing- oder PreDefeat-Interna |
+| `ApplyResolvedDamageAction` | Produktive Combat-WorkItem-Grenze für bereits aufgelösten Damage | Bedeutet „resolved Damage autoritativ anwenden“; entscheidet nicht selbst, welche Resource getroffen wird |
+| `DamageApplicationOwnerPlan`, `ResolvedDamageApplicationExecutor`, `ResolvedDamageApplicationResult` | Combat-interne Orchestrierung von Loss-Plänen, PreDefeat pro Owner und Defeat-aware Commit | Mehrere Plans/Owner bleiben möglich; kein `CombatService` und keine Kernel-Abstraktion daraus machen |
 | `Stats/ModifierMath`, `ModifierAccumulator` | Rechenbausteine der Stats-/Modifier-Domain | Kein Beleg eines bereits vollständigen Stat-Graph-/Cache-Systems |
 | `Tags/*`, `Conditions/*` | Klassifikation und Auswertung, mit bestehender Kopplung | Nur bei einer benötigten Grenze trennen, nicht aus Ordnerästhetik |
 | `Numerics/NumericComparison` | Geteilte numerische Hilfsfunktion | Nicht mit einem universellen plattformübergreifenden Numerikvertrag verwechseln |
@@ -52,11 +56,15 @@ PW-S02 ergänzt auf dem vom Nutzer bestätigten Stand `b04fcbe` die typisierte D
 
 PW-S03 ergänzt auf `f90517a` den eingefrorenen Execution Plan, explizite Required/Provided-Modulkomposition und `SimulationSession<TWorkItem>` als gemeinsame Host-Grenze. ExternalTests belegen Door/Alarm und Resources/Door/Alarm headless ohne Combat-Pflichtzustand. Die Godot-Hauptassembly referenziert Core einseitig und `Main.cs` führt einen echten Host-Smoke-Input über dieselbe Session aus. [E8]
 
+PW-S04 ist auf `8bd4dd0` abgenommen. Der Schritt führt `ISimulationWorkItem` als kleinen produktiven Work-Marker ein, macht Domain Events zu solchen Work Items und generalisiert die interne Follow-up-Reservation so, dass das Event-Payload erst nach dem echten Commit-Ergebnis erzeugt werden kann. Combat liefert nun `DamageCommittedEvent`, `ApplyResolvedDamageAction` und einen kleinen `ResolvedDamageApplicationExecutor` mit Owner-Plänen. Der lethal-Damage-Fall belegt PreDefeat vor Commit und Reaction nach Commit; der Paid-Attack-Fall belegt Cost→Event→Reaction→Damage→Commit→Event→Reaction bei getrennter Cost-/Damage-Buchung. Der finale Nutzerlauf meldet 1215/1215 Tests und `gcc`. [E9]
+
 ## 4. Abgenommener kleiner Ausbau, weiterhin bewusst begrenzt
 
-PW-S02 belegt eine **kleine typisierte Domain-Event-/Reaction-Pipeline**, aber keinen universellen EventBus oder ein fertiges Modul-Lifecycle-System. Ebenso sind generische Snapshot-/Restore-Infrastruktur und Replay-Scrubber weiterhin nicht nachgewiesen.
+PW-S02 belegt eine **kleine typisierte Domain-Event-/Reaction-Pipeline**, aber keinen universellen EventBus oder ein fertiges Modul-Lifecycle-System. PW-S03 ergänzt explizite Startup-Komposition und die host-neutrale Session. PW-S04 belegt, dass diese Grenzen auch einen realen Combat-Ablauf mit result-backed Event, PreDefeat und mehreren möglichen Resource-/Owner-Plänen tragen.
 
-Aus S02/S03 folgt insbesondere weiterhin keine automatische Reaction- oder Module-Discovery, keine dynamische Prioritätsregistrierung, kein Hotloading, kein Service Locator, keine zweite generische Alarm-Transaction und keine Combat-Migration. PW-S04 prüft als nächstes, welche Verträge der vorhandene Combat-Bereich tatsächlich mit der neuen gemeinsamen Runtime teilt.
+Aus PW-S04 folgt ausdrücklich **nicht**, dass jeder Gameplay-Pfad `ApplyResolvedDamageAction` oder den Combat-Executor verwenden muss. Resource-Routing bleibt Ruleset-/Kompositionswissen, PreDefeat-Interventionen bleiben konkrete Combat-Regeln, und der interne Owner-Plan ist kein allgemeines Modul- oder Persistenzformat.
+
+Ebenso sind generische Snapshot-/Restore-Infrastruktur und Replay-Scrubber weiterhin nicht nachgewiesen. PW-S05 prüft als nächstes, welcher State aus Scheduler, IDs, RNG, Domains und Pending Work an einer quiescent boundary tatsächlich serialisierbar beziehungsweise wiederherstellbar sein muss.
 
 Vor neuen Typen wird weiterhin der konkrete aktuelle Stand geprüft.
 
@@ -66,5 +74,5 @@ Vor neuen Typen wird weiterhin der konkrete aktuelle Stand geprüft.
 
 Methodennamen wie `...Preserves...` oder `...IsRejected...` geben Hinweise, beweisen aber ohne Testkörper nicht, was genau unverändert bleibt. Neue Matrixeinträge nennen deshalb Setup, Assertion und nachgewiesene Grenze.
 
-**Quellen / Snapshotgrenzen:** [Quellenregister](SOURCE_EVIDENCE_v2_0.md).  
+**Quellen / Snapshotgrenzen:** [Quellenregister](SOURCE_EVIDENCE_v2_0.md).
 **Nächste Eingriffe:** [Migrationsplan](MIGRATION_PLAN_v2_0.md).

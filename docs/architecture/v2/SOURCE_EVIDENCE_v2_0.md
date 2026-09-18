@@ -1,13 +1,13 @@
 # Plaquewright – Source Evidence 2.0
 
-**Datum:** 18. September 2026 · **Status:** Quellen-/Evidenzregister zur freigegebenen Architektur 2.0  
+**Datum:** 18. September 2026 · **Status:** Quellen-/Evidenzregister zur freigegebenen Architektur 2.0
 **Zweck:** Vision, alten Source-Snapshot, neue Nutzerbestätigungen und vorgeschlagene Architektur nicht miteinander verwechseln.
 
 ## 1. Quellenhierarchie nach Aussageart
 
-Für das **Produktziel** gilt die neu eingebrachte Architekturübergabe E1: Framework statt einzelnes Idle-Spiel. Für die **historische A/B-Audit-Baseline** gilt E2 mit `d39cb54`; für den **PW-S02-Funktionsnachweis** gilt E7 mit `b04fcbe`; für den **aktuellen PW-S03-Funktionsnachweis** gilt E8 mit `f90517a`. Für den vollständig direkt gelesenen älteren Quellcode gilt der bereitgestellte Archiv-Snapshot E3. Eine ältere Zusammenfassung wird nicht allein durch ihren späteren Upload zum neuesten Code.
+Für das **Produktziel** gilt die neu eingebrachte Architekturübergabe E1: Framework statt einzelnes Idle-Spiel. Für die **historische A/B-Audit-Baseline** gilt E2 mit `d39cb54`; für den **PW-S02-Funktionsnachweis** gilt E7 mit `b04fcbe`; für den **PW-S03-Funktionsnachweis** gilt E8 mit `f90517a`; für den **aktuellen PW-S04-Funktionsnachweis** gilt E9 mit `8bd4dd0`. Für den vollständig direkt gelesenen älteren Quellcode gilt der bereitgestellte Archiv-Snapshot E3. Eine ältere Zusammenfassung wird nicht allein durch ihren späteren Upload zum neuesten Code.
 
-Technische Entscheidungen werden nur dort als beschlossen ausgegeben, wo sie aus E1 oder den bestätigten Projektständen E6–E8 hervorgehen. D-03, D-06 und D-07 bleiben offene Detailgates. D-04 und D-05 wurden im PW-S02-Durchgang beschlossen und technisch nachgewiesen. PW-S03 belegt Headless/Godot als gemeinsame Host-Autoritätsgrenze, schließt D-07 als Release-/Distributionsentscheidung aber noch nicht.
+Technische Entscheidungen werden nur dort als beschlossen ausgegeben, wo sie aus E1 oder den bestätigten Projektständen E6–E9 hervorgehen. D-03, D-06 und D-07 bleiben offene Detailgates. D-04 und D-05 wurden im PW-S02-Durchgang beschlossen und technisch nachgewiesen. PW-S03 belegt Headless/Godot als gemeinsame Host-Autoritätsgrenze, schließt D-07 als Release-/Distributionsentscheidung aber noch nicht. PW-S04 belegt Combat als zweites fachliches Referenzszenario auf derselben Runtime-Grenze; D-03, D-06 und D-07 bleiben dadurch unverändert offen.
 
 ## 2. Projektquellen
 
@@ -85,6 +85,22 @@ Für den Headless-Stand wurde eine vollständige Summary mit **1210/1210** besta
 
 E8 belegt PW-S03 innerhalb des aktuellen Referenzumfangs: gemeinsame Core-Autorität für Headless und Godot, nicht engineübergreifende Physics-/Render-Parität. Es belegt noch keine aufgezeichneten autoritativen Host Facts, kein Snapshot-/Replay, keine Combat-Migration und keine Release-/Binärkompatibilitätsmatrix.
 
+### E9 – PW-S04 Implementierung und Abnahme, 18. September 2026
+
+Quelle: Projektgespräch, im S04-Durchgang direkt gezeigte aktuelle Combat-/Resource-Quellen, gemeinsam erarbeitete Produktionsverträge und Tests sowie die Nutzerbestätigung des Repository-Endstands `8bd4dd0`.
+
+PW-S04 führte Combat als zweites fachliches Referenzszenario über die gemeinsame Runtime. `ISimulationWorkItem` markiert produktive autoritative Work Items; `IDomainEvent` ist ein solches Work Item, während die niedrigeren generischen Scheduler-/Runner-/Composition-Typen bewusst keinen entsprechenden Generic-Constraint erhielten. Die interne Prepared-Follow-up-Reservation wurde von einem vorab gebundenen Payload auf eine Reservation von Kapazität/Key/Order generalisiert, sodass der tatsächliche Event-Payload nach dem Commit aus dem echten Ergebnis erzeugt werden kann.
+
+Combat erhielt `DamageCommittedEvent`, `ApplyResolvedDamageAction`, `DamageApplicationOwnerPlan`, `ResolvedDamageApplicationResult` und `ResolvedDamageApplicationExecutor`. Der Executor orchestriert bestehende `DamageResourceLossPlan`-/Staging-, PreDefeat- und Defeat-aware Commit-Bausteine, ohne Resource-Routing als Kernel- oder Action-Wissen festzuschreiben und ohne die bestehende Multi-Owner-Fähigkeit des Committers auf einen einzigen Health-Pool zu reduzieren.
+
+Der lethal-Damage-Referenztest belegt: Projection und PreDefeat verändern vor dem Commit nur den Draft; der autoritative State wird erst im Commit sichtbar; `DamageCommittedEvent` wird aus dem tatsächlichen `DefeatAwareResourceTransactionCommitResult` erzeugt; die Reaction sieht committed State und erzeugt neue Arbeit. Separate Gameplay-Execution-IDs bleiben in Damage- und Recovery-Provenienz erhalten. Negative Tests weisen eine fremde Damage-Resolution, einen fehlenden Target-Owner sowie Resolution/CommitResult mit verschiedenen Target-Entities vor autoritativer Fehlpublikation ab.
+
+Ein zweiter vertikaler Test führt einen bezahlten Angriff über `Cost Commit -> Event -> Reaction -> Damage Resolution -> ApplyResolvedDamageAction -> Damage Commit -> DamageCommittedEvent -> Reaction`. Cost und Damage bleiben getrennte Ledger-Operationen. Der Nutzer bestätigte den finalen Testlauf mit **1215/1215** bestandenen Tests und danach `gcc`; anschließend nannte er `8bd4dd0` als aktuellen HEAD.
+
+E9 belegt PW-S04 innerhalb dieses Referenzumfangs. Es belegt noch keinen Snapshot-/Restore-Mechanismus, kein Replay, keine aufgezeichneten Physics-Host-Facts, keine Performance-/Retention-Freigabe und keine allgemeine Skill-/Combat-Service-Abstraktion.
+
+**Im S04-Durchgang direkt gelesene aktuelle Source-Bausteine:** `DamageResolutionContext.cs`, `DamageResourceTargetContext.cs`, `DefeatAwareResourceTransactionCommitter.cs`, `DamageResourceTransactionStager.cs`, `DefeatAwareResourceTransactionOwnerCommitRequest.cs`, `PreDefeatRecoveryIntervention.cs` und `PreDefeatMinimumCurrentIntervention.cs`. Die neuen S04-Produktionsdateien wurden im Gespräch schrittweise erstellt und durch die bestätigten Test-/Build-Läufe nachgewiesen; diese Dokumentpflege ersetzt keinen vollständigen neuen Repository-Snapshot.
+
 **W1 – Godot, Physics introduction.** Gelesen am 17. September 2026. Die offizielle Dokumentation warnt, dass Physics nicht deterministisch garantiert ist. Verwendet nur zur Abgrenzung von Engine-Unabhängigkeit und autoritativem räumlichem Replay.
 
 URL: `https://docs.godotengine.org/en/stable/tutorials/physics/physics_introduction.html`
@@ -143,8 +159,8 @@ E2 ist eine sichtbare Gesprächsangabe und wird nicht als künstliche herunterge
 
 ## 6. Grenzen dieser Bearbeitung
 
-Ausgeführt in der ursprünglichen Dokumenterstellung: Quelleninspektion, Entwurfsarbeit, Markdown-Dateierstellung und strukturelle Dokumentprüfung. Im anschließenden Projektverlauf wurde PW-S02 durch den Nutzer im Repository umgesetzt und getestet; E7 dokumentiert diese bestätigte Entwicklung.
+Ausgeführt in der ursprünglichen Dokumenterstellung: Quelleninspektion, Entwurfsarbeit, Markdown-Dateierstellung und strukturelle Dokumentprüfung. Im anschließenden Projektverlauf wurden PW-S02, PW-S03 und PW-S04 durch den Nutzer im Repository umgesetzt und getestet; E7, E8 und E9 dokumentieren diese bestätigte Entwicklung.
 
-Diese aktuelle Dokumentaktualisierung führt selbst keinen neuen .NET-Testlauf, Godot-Start, Replay-/Cross-Platform-Test, Benchmark oder vollständigen Dependency-Graph-Audit aus. Sie rekonstruiert auch keinen vollständigen Source-Snapshot von `f90517a`; Aussagen über PW-S02/PW-S03 beschränken sich auf die im Gespräch aufgebauten/benannten Verträge, gezeigten Test-/Build-Ausgaben, den gemeldeten Godot-Smoke-Run und die Nutzerbestätigungen.
+Diese aktuelle Dokumentaktualisierung führt selbst keinen neuen .NET-Testlauf, Godot-Start, Replay-/Cross-Platform-Test, Benchmark oder vollständigen Dependency-Graph-Audit aus. Sie rekonstruiert auch keinen vollständigen Source-Snapshot von `8bd4dd0`; Aussagen über PW-S02/PW-S03/PW-S04 beschränken sich auf die im Gespräch aufgebauten/benannten Verträge, direkt gezeigten relevanten Sources, gezeigten beziehungsweise bestätigten Test-/Build-Ausgaben, den gemeldeten Godot-Smoke-Run und die Nutzerbestätigungen.
 
-PW-S04 und spätere Fähigkeiten bleiben geplante Schritte. Snapshot/Replay, Host-Fact-Replay, Combat-Migration, Physics-Parität und Performance werden nicht durch die PW-S02/PW-S03-Nachweise vorweggenommen.
+PW-S04 ist damit als Referenzschritt abgeschlossen. PW-S05 und spätere Fähigkeiten bleiben geplant. Snapshot/Replay, Host-Fact-Replay, Physics-Parität und Performance werden durch die bisherigen Nachweise nicht vorweggenommen.
