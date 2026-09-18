@@ -47,6 +47,13 @@ public sealed class CombatReactionPipelineTests
         var interventionExecutionId =
             new ExecutionId(
                 2UL);
+        var resolution =
+CreateDamageResolution(
+setup.Entity.Id,
+damageTakenAmount: 100d,
+new SimulationTime(100L),
+damageExecutionId,
+damageGameplayExecutionId);
 
         var reactionDispatcher =
     new DomainReactionDispatcher<
@@ -62,161 +69,100 @@ public sealed class CombatReactionPipelineTests
             "CombatReference",
             module =>
             {
-                module.Handle<ResolveLethalDamageAction>(
-                    (_, context) =>
-                    {
-                        trace.Add(
-                            nameof(
-                                ResolveLethalDamageAction));
+                module.Handle<ApplyResolvedDamageAction>(
+    (action, context) =>
+    {
+        trace.Add(
+            nameof(
+                ApplyResolvedDamageAction));
 
-                        waves.Add(
-                            context.Key.Wave.Value);
+        waves.Add(
+            context.Key.Wave.Value);
 
-                        var resolution =
-                            CreateDamageResolution(
-                                setup.Entity.Id,
-                                damageTakenAmount: 100d,
-                                context.CurrentTime,
-                                damageExecutionId,
-                                damageGameplayExecutionId);
+        var appliedResolution =
+            action.Resolution;
 
-                        var damageTarget =
-                            new DamageResourceTargetContext(
-                                resolution,
-                                setup.LifeTarget);
+        var damageTarget =
+            new DamageResourceTargetContext(
+                appliedResolution,
+                setup.LifeTarget);
 
-                        var lossPlan =
-                            new DamageResourceLossPlan(
-                                damageTarget,
-                                requestedResourceLoss: 100d);
+        var lossPlan =
+            new DamageResourceLossPlan(
+                damageTarget,
+                requestedResourceLoss: 100d);
 
-                        var draft =
-                            new ResourceTransactionDraft(
-                                setup.Registry);
+        using var preparedEvent =
+    context.PrepareFollowUp();
+        var applicationResult =
+        ResolvedDamageApplicationExecutor.Apply(
+            appliedResolution,
+            [
+                lossPlan
+            ],
+            [
+                new DamageApplicationOwnerPlan(
+                setup.Entity,
+                DefeatRelevantResourcePolicy.AnyDepleted,
+                interventionExecutionId,
+                preDefeatContext =>
+                {
+                    var intervention =
+                        PreDefeatRecoveryIntervention.Apply(
+                            preDefeatContext,
+                            setup.LifeId,
+                            recoveryAmount: 25d);
 
-                        var preview =
-                            DamageResourceTransactionStager.Stage(
-                                draft,
-                                lossPlan);
+                    Assert.True(
+                        intervention.WasDefeatResolved);
+                })
+            ],
+            ledger);
+        var commitResult =
+applicationResult.TargetCommitResult;
 
-                        Assert.Equal(
-                            100d,
-                            preview.Result.ActualLoss);
+        commitOutcome =
+            commitResult.Outcome;
 
-                        //
-                        // Lethal projection exists,
-                        // but authoritative state is untouched.
-                        //
-                        Assert.Equal(
-                            0d,
-                            draft.GetProjectedValues(
-                                setup.LifeTarget)
-                            .Current);
 
-                        Assert.Equal(
-                            100d,
-                            setup.LifeTarget.State.Current);
 
-                        Assert.Equal(
-                            0UL,
-                            setup.LifeTarget.State.Revision);
+        commitOutcome =
+            commitResult.Outcome;
 
-                        var preDefeatContext =
-                            PreDefeatInterventionContextFactory
-                                .TryCreate(
-                                    draft,
-                                    setup.Entity,
-                                    DefeatRelevantResourcePolicy
-                                        .AnyDepleted,
-                                    interventionExecutionId);
+        Assert.Equal(
+            DefeatAwareResourceTransactionCommitOutcome
+                .DefeatPrevented,
+            commitResult.Outcome);
 
-                        Assert.NotNull(
-                            preDefeatContext);
+        Assert.Equal(
+            25d,
+            setup.LifeTarget.State.Current);
 
-                        var intervention =
-                            PreDefeatRecoveryIntervention.Apply(
-                                preDefeatContext,
-                                setup.LifeId,
-                                recoveryAmount: 25d);
+        Assert.Equal(
+            1UL,
+            setup.LifeTarget.State.Revision);
 
-                        Assert.True(
-                            intervention.WasDefeatResolved);
+        Assert.Equal(
+            2,
+            ledger.Count);
 
-                        //
-                        // PreDefeat changes the still-uncommitted
-                        // transaction result.
-                        //
-                        Assert.Equal(
-                            25d,
-                            draft.GetProjectedValues(
-                                setup.LifeTarget)
-                            .Current);
+        var preview =
+Assert.Single(
+    applicationResult.ResourceLossPreviews);
 
-                        Assert.Equal(
-                            100d,
-                            setup.LifeTarget.State.Current);
+        Assert.Equal(
+            100d,
+            preview.Result.ActualLoss);
 
-                        var phaseResult =
-                            PreDefeatInterventionPhaseFinalizer
-                                .Finalize(
-                                    preDefeatContext);
-
-                        Assert.Equal(
-                            PreDefeatInterventionPhaseOutcome
-                                .Resolved,
-                            phaseResult.Outcome);
-
-                        //
-                        // Reserve publication BEFORE authoritative
-                        // state becomes visible.
-                        //
-                        // The event contains only information already
-                        // known before commit. It becomes a true
-                        // "committed" event only when Publish() runs
-                        // after the successful commit.
-                        //
-                        using var preparedEvent =
-     context.PrepareFollowUp();
-
-                        var commitResult =
-                            DefeatAwareResourceTransactionCommitter
-                                .Commit(
-                                    draft,
-                                    ledger,
-                                    setup.Entity,
-                                    DefeatRelevantResourcePolicy
-                                        .AnyDepleted,
-                                    phaseResult);
-
-                        commitOutcome =
-                            commitResult.Outcome;
-
-                        Assert.Equal(
-                            DefeatAwareResourceTransactionCommitOutcome
-                                .DefeatPrevented,
-                            commitResult.Outcome);
-
-                        Assert.Equal(
-                            25d,
-                            setup.LifeTarget.State.Current);
-
-                        Assert.Equal(
-                            1UL,
-                            setup.LifeTarget.State.Revision);
-
-                        Assert.Equal(
-                            2,
-                            ledger.Count);
-
-                        //
-                        // The event is constructed from the actual
-                        // authoritative commit result.
-                        //
-                        preparedEvent.Publish(
-    new DamageCommittedEvent(
-        resolution,
-        commitResult));
-                    });
+        //
+        // The event is constructed from the actual
+        // authoritative commit result.
+        //
+        preparedEvent.Publish(
+            new DamageCommittedEvent(
+            appliedResolution,
+            commitResult));
+    });
 
                 module.Handle<DamageCommittedEvent>(
                     (domainEvent, context) =>
@@ -281,10 +227,6 @@ public sealed class CombatReactionPipelineTests
                         Assert.False(
                             domainEvent.DefeatWasAccepted);
 
-                        Assert.Equal(
-                            DefeatAwareResourceTransactionCommitOutcome
-                                .DefeatPrevented,
-                            domainEvent.Outcome);
 
                         reactionDispatcher.Dispatch(
                             domainEvent,
@@ -321,8 +263,9 @@ public sealed class CombatReactionPipelineTests
                     maxProcessedEvents: 10UL));
 
         session.ScheduleExternalInput(
-            new SimulationTime(100L),
-            new ResolveLethalDamageAction());
+    new SimulationTime(100L),
+    new ApplyResolvedDamageAction(
+        resolution));
 
         var result =
             session.RunToCompletion();
@@ -336,13 +279,13 @@ public sealed class CombatReactionPipelineTests
             session.ProcessedEvents);
 
         Assert.Equal(
-            new[]
-            {
-                nameof(ResolveLethalDamageAction),
-                nameof(DamageCommittedEvent),
-                nameof(ObserveCommittedDamageAction)
-            },
-            trace);
+    new[]
+    {
+        nameof(ApplyResolvedDamageAction),
+        nameof(DamageCommittedEvent),
+        nameof(ObserveCommittedDamageAction)
+    },
+    trace);
 
         Assert.Equal(
             new uint[]
@@ -389,6 +332,142 @@ public sealed class CombatReactionPipelineTests
                 ResourceOperationCause.Recovery,
                 interventionExecutionId),
             recoveryEntry.Provenance);
+    }
+
+    [Fact]
+    public void ResolvedDamageApplication_WhenLossPlanBelongsToDifferentResolution_IsRejected()
+    {
+        var setup =
+            CreateSetup();
+
+        var ledger =
+            new ResourceOperationLedger();
+
+        var expectedResolution =
+            CreateDamageResolution(
+                setup.Entity.Id,
+                damageTakenAmount: 100d,
+                SimulationTime.Zero,
+                new DamageExecutionId(20UL),
+                new ExecutionId(20UL));
+
+        var foreignResolution =
+            CreateDamageResolution(
+                setup.Entity.Id,
+                damageTakenAmount: 100d,
+                SimulationTime.Zero,
+                new DamageExecutionId(21UL),
+                new ExecutionId(21UL));
+
+        var foreignTarget =
+            new DamageResourceTargetContext(
+                foreignResolution,
+                setup.LifeTarget);
+
+        var foreignPlan =
+            new DamageResourceLossPlan(
+                foreignTarget,
+                requestedResourceLoss: 100d);
+
+        Assert.Throws<InvalidOperationException>(
+            () =>
+                ResolvedDamageApplicationExecutor.Apply(
+                    expectedResolution,
+                    [
+                        foreignPlan
+                    ],
+                    [
+                        new DamageApplicationOwnerPlan(
+                        setup.Entity,
+                        DefeatRelevantResourcePolicy.AnyDepleted)
+                    ],
+                    ledger));
+
+        //
+        // Rejection happens before authoritative mutation.
+        //
+        Assert.Equal(
+            100d,
+            setup.LifeTarget.State.Current);
+
+        Assert.Equal(
+            0UL,
+            setup.LifeTarget.State.Revision);
+
+        Assert.Equal(
+            0,
+            ledger.Count);
+    }
+
+    [Fact]
+    public void ResolvedDamageApplication_WhenTargetOwnerIsMissing_IsRejectedBeforeCommit()
+    {
+        var setup =
+            CreateSetup();
+
+        var ledger =
+            new ResourceOperationLedger();
+
+        var resolution =
+            CreateDamageResolution(
+                setup.Entity.Id,
+                damageTakenAmount: 100d,
+                SimulationTime.Zero,
+                new DamageExecutionId(30UL),
+                new ExecutionId(30UL));
+
+        var damageTarget =
+            new DamageResourceTargetContext(
+                resolution,
+                setup.LifeTarget);
+
+        var lossPlan =
+            new DamageResourceLossPlan(
+                damageTarget,
+                requestedResourceLoss: 100d);
+
+        //
+        // Same registry, but deliberately the wrong entity owner.
+        //
+        var unrelatedEntity =
+            new EntityRuntimeState(
+                new EntityId(999UL),
+                setup.Registry,
+                [
+                    new ResourceState(
+                    setup.LifeId,
+                    current: 100d,
+                    maximum: 100d)
+                ]);
+
+        Assert.Throws<InvalidOperationException>(
+            () =>
+                ResolvedDamageApplicationExecutor.Apply(
+                    resolution,
+                    [
+                        lossPlan
+                    ],
+                    [
+                        new DamageApplicationOwnerPlan(
+                        unrelatedEntity,
+                        DefeatRelevantResourcePolicy.AnyDepleted)
+                    ],
+                    ledger));
+
+        //
+        // Draft ownership rejection occurs before commit.
+        //
+        Assert.Equal(
+            100d,
+            setup.LifeTarget.State.Current);
+
+        Assert.Equal(
+            0UL,
+            setup.LifeTarget.State.Revision);
+
+        Assert.Equal(
+            0,
+            ledger.Count);
     }
     [Fact]
     public void DamageCommittedEvent_WhenResolutionAndCommitTargetDiffer_IsRejected()
@@ -563,11 +642,6 @@ public sealed class CombatReactionPipelineTests
         ResourceId LifeId,
         EntityRuntimeState Entity,
         ResourceStateTarget LifeTarget);
-
-    private sealed class ResolveLethalDamageAction
-        : ISimulationWorkItem
-    {
-    }
 
     private sealed class ObserveCommittedDamageAction
         : ISimulationWorkItem
